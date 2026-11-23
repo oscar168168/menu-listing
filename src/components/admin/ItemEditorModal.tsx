@@ -5,6 +5,7 @@ import { ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { NativeSwitch } from "@/components/ui/NativeSwitch";
 import { NativeSelect } from "@/components/ui/NativeSelect";
+import { compressImageForUpload } from "@/lib/image-resize";
 import {
   PRESET_SEAFOOD_TAGS,
   SEAFOOD_TAG_DICTIONARY,
@@ -180,8 +181,9 @@ function ItemEditorForm({
     setUploading(true);
     setError(null);
     try {
+      const optimized = await compressImageForUpload(file, 1200);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", optimized);
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
@@ -828,6 +830,24 @@ function ItemEditorForm({
                 </button>
               </div>
             ))}
+          </div>
+          {/* Optional External Image URL */}
+          <div className="border-t border-zinc-100 pt-3">
+            <label
+              htmlFor="dish-image-url-opt"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              Image URL (optional)
+            </label>
+            <input
+              id="dish-image-url-opt"
+              type="text"
+              maxLength={500}
+              value={imageUrl ?? ""}
+              onChange={(e) => setImageUrl(e.target.value || null)}
+              placeholder="https://... or /images/..."
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12.5px] text-zinc-950 placeholder:text-zinc-400 focus:border-brand focus:outline-none"
+            />
           </div>
         </div>
       </details>

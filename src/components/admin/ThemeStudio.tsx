@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { NativeSwitch } from "@/components/ui/NativeSwitch";
 import { NativeSelect } from "@/components/ui/NativeSelect";
+import { compressImageForUpload } from "@/lib/image-resize";
 import {
   computeThemeContrast,
   CURATED_THEME_PRESETS,
@@ -101,8 +102,12 @@ export function ThemeStudio({
   const handleImageUpload = async (field: "logo" | "cover", file: File) => {
     setUploadingField(field);
     try {
+      const optimized = await compressImageForUpload(
+        file,
+        field === "logo" ? 600 : 1200
+      );
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", optimized);
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,

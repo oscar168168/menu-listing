@@ -104,6 +104,14 @@ export interface FirestoreScanEventDoc {
   scannedAt: Timestamp | Date;
 }
 
+export interface FirestoreMediaDoc {
+  tenantId: string;
+  mimeType: string;
+  size: number;
+  data: Buffer | Uint8Array;
+  createdAt: Timestamp | Date;
+}
+
 const globalForFirestore = globalThis as unknown as {
   firebaseAdminApp?: App;
   firestoreClient?: Firestore;
@@ -260,6 +268,14 @@ export function scanEventsCol(
   return tenantDoc(tenantId).collection(
     "scanEvents"
   ) as CollectionReference<FirestoreScanEventDoc>;
+}
+
+export function mediaCol(
+  tenantId: string
+): CollectionReference<FirestoreMediaDoc> {
+  return tenantDoc(tenantId).collection(
+    "media"
+  ) as CollectionReference<FirestoreMediaDoc>;
 }
 
 export async function findTenantBySlug(slug: string): Promise<{

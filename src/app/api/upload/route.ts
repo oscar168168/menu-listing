@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import path from "path";
-import { mkdir, writeFile } from "fs/promises";
 import { resolveAdminContext } from "@/lib/auth";
+import { mediaCol } from "@/lib/firestore";
 
 const ALLOWED_MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -11,7 +10,8 @@ const ALLOWED_MIME_TO_EXT: Record<string, string> = {
   "image/svg+xml": "svg",
 };
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_CLOUDINARY_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_FIRESTORE_MEDIA_BYTES = 900 * 1024; // Fits safely inside Firestore's 1 MiB document limit
 
 interface CloudinaryConfig {
   cloudName: string;
@@ -24,7 +24,12 @@ function parseCloudinaryConfig(): CloudinaryConfig | null {
   if (rawUrl) {
     try {
       const parsed = new URL(rawUrl);
-      if (parsed.protocol === "cloudinary:" && parsed.username && parsed.password && parsed.hostname) {
+      if (
+        parsed.protocol === "cloudinary:" &&
+        parsed.username &&
+        parsed.password &&
+        parsed.hostname
+      ) {
         return {
           cloudName: parsed.hostname,
           apiKey: decodeURIComponent(parsed.username),
@@ -107,7 +112,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
+    if (file.size > MAX_CLOUDINARY_BYTES) {
       return NextResponse.json(
         { error: "File exceeds 5MB limit." },
         { status: 400 }
@@ -117,7 +122,7 @@ export async function POST(request: NextRequest) {
     const safeTenantSegment = ctx.tenantId.replace(/[^a-zA-Z0-9_-]/g, "");
     const bytes = Buffer.from(await file.arrayBuffer());
 
-    // Optional free-tier cloud image hosting via Cloudinary
+    // Optional external cloud image hosting via Cloudinary
     const cloudinary = parseCloudinaryConfig();
     if (cloudinary) {
       const publicUrl = await uploadToCloudinary(
@@ -129,30 +134,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ url: publicUrl });
     }
 
-    // Serverless environments (e.g., Vercel Hobby) have a read-only filesystem
-    if (process.env.VERCEL === "1") {
+    // Default free storage: persist optimized images directly in Cloud Firestore
+    if (bytes.byteLength > MAX_FIRESTORE_MEDIA_BYTES) {
       return NextResponse.json(
         {
           error:
-            "Set CLOUDINARY_URL in Vercel Environment Variables for file uploads, or paste an image URL.",
+            "Image exceeds 900KB built-in limit after compression. Try a smaller image or paste an image URL.",
         },
-        { status: 501 }
+        { status: 400 }
       );
     }
 
-    // Local development fallback (filesystem)
-    const filename = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
-    const uploadDir = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      safeTenantSegment
-    );
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), bytes);
+    const mediaRef = mediaCol(safeTenantSegment).doc();
+    await mediaRef.set({
+      tenantId: safeTenantSegment,
+      mimeType: file.type,
+      size: bytes.byteLength,
+      data: bytes,
+      createdAt: new Date(),
+    });
 
     return NextResponse.json({
-      url: `/uploads/${safeTenantSegment}/${filename}`,
+      url: `/api/media/${safeTenantSegment}/${mediaRef.id}`,
     });
   } catch (error) {
     console.error("Upload error:", error);

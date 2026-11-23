@@ -1,9 +1,9 @@
 # Deploying MenuOS (100% Free Plan: Firebase Spark + Vercel Hobby)
 
 This setup uses **no paid plans** and **no credit card**:
-- **Database:** Firebase **Spark (free)** Cloud Firestore
+- **Database & Built-in Image Storage:** Firebase **Spark (free)** Cloud Firestore
 - **Next.js SSR & API Hosting:** **Vercel Hobby (free)** (since Firebase App Hosting requires the Blaze plan)
-- **Image Uploads (optional):** **Cloudinary Free Tier** (25 GB free, no card required)
+- **External Image CDN (optional):** **Cloudinary Free Tier** (only needed if you want external CDN hosting; built-in Firestore media storage works automatically with zero setup)
 
 ---
 
@@ -34,7 +34,7 @@ GOOGLE_APPLICATION_CREDENTIALS="/path/to/menu-listing-firebase-adminsdk.json" np
      ```
    - `AUTH_SECRET` = output of `openssl rand -hex 32`
    - `NEXT_PUBLIC_APP_URL` = your Vercel deployment URL (e.g. `https://menu-listing.vercel.app`)
-   - *(Optional, for dish/logo uploads)* `CLOUDINARY_URL` = `cloudinary://API_KEY:API_SECRET@CLOUD_NAME`
+   - *(Optional)* `CLOUDINARY_URL` = `cloudinary://API_KEY:API_SECRET@CLOUD_NAME`
 4. Click **Deploy**.
 
 ---

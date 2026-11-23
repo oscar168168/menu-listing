@@ -240,6 +240,37 @@ async function run() {
   assert.equal(pngBytes[0], 0x89);
   assert.equal(pngBytes[1], 0x50);
 
+  // Built-in Firestore Image Upload + Serving
+  const tinyPng = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "base64"
+  );
+  const uploadForm = new FormData();
+  uploadForm.append(
+    "file",
+    new File([tinyPng], "tiny-dish.png", { type: "image/png" })
+  );
+  const uploadRes = await req("/api/upload", {
+    method: "POST",
+    jar: soraJar,
+    body: uploadForm,
+  });
+  assert.equal(uploadRes.status, 200);
+  const uploadJson = (await uploadRes.json()) as { url: string };
+  assert.ok(
+    uploadJson.url.startsWith(`/api/media/${soraFound.id}/`),
+    "Upload must return built-in Firestore media URL"
+  );
+  const mediaRes = await req(uploadJson.url);
+  assert.equal(mediaRes.status, 200);
+  assert.equal(mediaRes.headers.get("content-type"), "image/png");
+  const servedBytes = new Uint8Array(await mediaRes.arrayBuffer());
+  assert.equal(servedBytes[0], 0x89);
+  assert.equal(servedBytes[1], 0x50);
+  // Clean up test media document
+  const uploadedMediaId = uploadJson.url.split("/").pop()!;
+  await getDb().doc(`tenants/${soraFound.id}/media/${uploadedMediaId}`).delete();
+
   // Clean up temp category (cascade deletes tempItem too)
   await req(`/api/admin/categories/${tempCat.id}`, {
     method: "DELETE",
