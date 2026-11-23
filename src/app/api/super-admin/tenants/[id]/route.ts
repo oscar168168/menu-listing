@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { tenantDoc } from "@/lib/firestore";
 import { requireSuperAdmin } from "@/lib/auth";
 import { updateTenantStatusSchema } from "@/lib/validation";
 import { revalidatePublicMenu } from "@/lib/menu-data";
@@ -24,28 +24,30 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const existing = await prisma.tenant.findUnique({
-    where: { id },
-    select: { id: true, slug: true },
-  });
-  if (!existing) {
+  const ref = tenantDoc(id);
+  const snap = await ref.get();
+  const existing = snap.data();
+  if (!snap.exists || !existing) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
-  const updated = await prisma.tenant.update({
-    where: { id: existing.id },
-    data: {
-      ...(parsed.data.status !== undefined
-        ? { status: parsed.data.status }
-        : {}),
-      ...(parsed.data.vendorMode !== undefined
-        ? { vendorMode: parsed.data.vendorMode }
-        : {}),
-    },
-    select: { id: true, slug: true, status: true, vendorMode: true },
+  const nextStatus = parsed.data.status ?? existing.status;
+  const nextVendorMode = parsed.data.vendorMode ?? existing.vendorMode;
+
+  await ref.update({
+    status: nextStatus,
+    vendorMode: nextVendorMode,
+    updatedAt: new Date(),
   });
 
-  revalidatePublicMenu(updated.slug);
+  revalidatePublicMenu(existing.slug);
 
-  return NextResponse.json({ tenant: updated });
+  return NextResponse.json({
+    tenant: {
+      id: snap.id,
+      slug: existing.slug,
+      status: nextStatus,
+      vendorMode: nextVendorMode,
+    },
+  });
 }

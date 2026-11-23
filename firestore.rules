@@ -1,0 +1,99 @@
+rules_version = '2';
+
+// =============================================================================
+// MenuOS Cloud Firestore Security Rules (FIRESTORE_NATIVE / Standard Edition)
+// =============================================================================
+//
+// Architecture & Access Model:
+// - All database reads and writes are executed strictly on the Next.js server
+//   (Firebase App Hosting / Node.js) via the Firebase Admin SDK
+//   (`firebase-admin/firestore`), which authenticates using IAM service-account
+//   credentials and bypasses Firestore Security Rules by design.
+// - Browser clients NEVER connect to or query Firestore directly; all client
+//   interactions are mediated exclusively through Next.js SSR pages and
+//   `/api/**` route handlers.
+// - Consequently, ALL direct client SDK reads and writes are unconditionally
+//   denied (`allow read, write: if false;`).
+//
+// =============================================================================
+// Assumed Data Model (Server-Side Managed via firebase-admin)
+// =============================================================================
+//
+// Collection: users
+// Document ID: {userId}
+// Fields:
+//   - email: string (required, PII)
+//   - name: string (required)
+//   - passwordHash: string (required, sensitive credential hash)
+//   - role: string (required, 'SUPER_ADMIN' | 'MENU_ADMIN')
+//   - tenantId: string | null (optional, scoped tenant ID)
+//   - createdAt: timestamp (required, immutable)
+//   - updatedAt: timestamp (required)
+//
+// Collection: tenants
+// Document ID: {tenantId}
+// Fields:
+//   - name, nameKm, nameEn, slug, status, vendorMode, logoUrl, coverUrl,
+//     currency, showDualCurrency, exchangeRate, khrRounding, primaryColor,
+//     metaJson, createdAt, updatedAt
+//
+// Subcollection: tenants/{tenantId}/categories/{categoryId}
+// Fields:
+//   - tenantId, name, nameKm, nameEn, sortOrder, isVisible, createdAt, updatedAt
+//
+// Subcollection: tenants/{tenantId}/menuItems/{itemId}
+// Fields:
+//   - tenantId, categoryId, name, nameKm, nameEn, description, descriptionKm,
+//     descriptionEn, pricingType, weightUnit, priceDecimal, marketPriceMin,
+//     marketPriceMax, variantsJson, cookingStylesJson, imageUrl, tags,
+//     isAvailable, sortOrder, createdAt, updatedAt
+//
+// Subcollection: tenants/{tenantId}/cookingStyles/{styleId}
+// Fields:
+//   - tenantId, nameKm, nameEn, defaultSurcharge, sortOrder, createdAt, updatedAt
+//
+// Subcollection: tenants/{tenantId}/scanEvents/{scanId}
+// Fields:
+//   - tenantId, tableCode, userAgent, scannedAt
+//
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection contains PII (`email`) and credential hashes (`passwordHash`).
+    // All authentication and user management is handled server-side via `firebase-admin`.
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+
+    // Tenant restaurant metadata and nested domain subcollections.
+    // Public menu views, QR scan logging, and admin mutations are served exclusively
+    // by Next.js SSR pages and `/api/**` routes using `firebase-admin`.
+    match /tenants/{tenantId} {
+      allow read, write: if false;
+
+      match /categories/{categoryId} {
+        allow read, write: if false;
+      }
+
+      match /menuItems/{itemId} {
+        allow read, write: if false;
+      }
+
+      match /cookingStyles/{styleId} {
+        allow read, write: if false;
+      }
+
+      match /scanEvents/{scanId} {
+        allow read, write: if false;
+      }
+    }
+
+    // Default-deny catch-all for any other collections, subcollections, or documents.
+    // No open wildcards or fallback allowances exist.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

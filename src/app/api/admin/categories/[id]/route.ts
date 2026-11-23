@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import {
+  categoriesCol,
+  commitBatchedWrites,
+  menuItemsCol,
+  tenantDoc,
+} from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
 import { updateCategorySchema } from "@/lib/validation";
 import { revalidatePublicMenu } from "@/lib/menu-data";
@@ -24,11 +29,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const existing = await prisma.category.findFirst({
-    where: { id, tenantId: ctx.tenantId },
-    include: { tenant: { select: { slug: true } } },
-  });
-  if (!existing) {
+  const catRef = categoriesCol(ctx.tenantId).doc(id);
+  const [catSnap, tenantSnap] = await Promise.all([
+    catRef.get(),
+    tenantDoc(ctx.tenantId).get(),
+  ]);
+
+  const existing = catSnap.data();
+  const tenant = tenantSnap.data();
+  if (!catSnap.exists || !existing || existing.tenantId !== ctx.tenantId || !tenant) {
     return NextResponse.json({ error: "Category not found" }, { status: 404 });
   }
 
@@ -44,26 +53,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       : existing.nameKm ?? "";
   const canonicalName = nextNameEn || nextNameKm || existing.name;
 
-  const updated = await prisma.category.update({
-    where: { id: existing.id },
-    data: {
-      name: canonicalName,
-      nameEn: nextNameEn || null,
-      nameKm: nextNameKm || null,
-      ...(parsed.data.isVisible !== undefined
-        ? { isVisible: parsed.data.isVisible }
-        : {}),
-      ...(parsed.data.sortOrder !== undefined
-        ? { sortOrder: parsed.data.sortOrder }
-        : {}),
-    },
-  });
+  const updateData = {
+    name: canonicalName,
+    nameEn: nextNameEn || null,
+    nameKm: nextNameKm || null,
+    ...(parsed.data.isVisible !== undefined
+      ? { isVisible: parsed.data.isVisible }
+      : {}),
+    ...(parsed.data.sortOrder !== undefined
+      ? { sortOrder: parsed.data.sortOrder }
+      : {}),
+    updatedAt: new Date(),
+  };
 
-  revalidatePublicMenu(existing.tenant.slug);
+  await catRef.update(updateData);
+  const updated = { ...existing, ...updateData };
+
+  revalidatePublicMenu(tenant.slug);
 
   return NextResponse.json({
     category: {
-      id: updated.id,
+      id: catRef.id,
       tenantId: updated.tenantId,
       name: updated.name,
       nameKm: updated.nameKm ?? "",
@@ -81,16 +91,30 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   }
 
   const { id } = await params;
-  const existing = await prisma.category.findFirst({
-    where: { id, tenantId: ctx.tenantId },
-    include: { tenant: { select: { slug: true } } },
-  });
-  if (!existing) {
+  const catRef = categoriesCol(ctx.tenantId).doc(id);
+  const [catSnap, tenantSnap] = await Promise.all([
+    catRef.get(),
+    tenantDoc(ctx.tenantId).get(),
+  ]);
+
+  const existing = catSnap.data();
+  const tenant = tenantSnap.data();
+  if (!catSnap.exists || !existing || existing.tenantId !== ctx.tenantId || !tenant) {
     return NextResponse.json({ error: "Category not found" }, { status: 404 });
   }
 
-  await prisma.category.delete({ where: { id: existing.id } });
-  revalidatePublicMenu(existing.tenant.slug);
+  // Cascade delete items belonging to this category
+  const itemsSnap = await menuItemsCol(ctx.tenantId)
+    .where("categoryId", "==", id)
+    .get();
+
+  const ops: Array<(batch: FirebaseFirestore.WriteBatch) => void> = itemsSnap.docs.map(
+    (doc) => (batch) => batch.delete(doc.ref)
+  );
+  ops.push((batch) => batch.delete(catRef));
+
+  await commitBatchedWrites(ops);
+  revalidatePublicMenu(tenant.slug);
 
   return NextResponse.json({ ok: true });
 }

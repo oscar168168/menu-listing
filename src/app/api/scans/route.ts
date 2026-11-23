@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { findTenantBySlug, scanEventsCol } from "@/lib/firestore";
 import { scanEventSchema } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
@@ -10,23 +10,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid scan payload" }, { status: 400 });
     }
 
-    const tenant = await prisma.tenant.findUnique({
-      where: { slug: parsed.data.slug.toLowerCase() },
-      select: { id: true, status: true },
-    });
-
-    if (!tenant || tenant.status !== "ACTIVE") {
+    const tenant = await findTenantBySlug(parsed.data.slug);
+    if (!tenant || tenant.data.status !== "ACTIVE") {
       return NextResponse.json({ recorded: false }, { status: 200 });
     }
 
     const userAgent = request.headers.get("user-agent")?.slice(0, 240) ?? null;
 
-    await prisma.scanEvent.create({
-      data: {
-        tenantId: tenant.id,
-        tableCode: parsed.data.tableCode || null,
-        userAgent,
-      },
+    await scanEventsCol(tenant.id).add({
+      tenantId: tenant.id,
+      tableCode: parsed.data.tableCode || null,
+      userAgent,
+      scannedAt: new Date(),
     });
 
     return NextResponse.json({ recorded: true }, { status: 201 });

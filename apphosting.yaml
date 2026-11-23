@@ -9,16 +9,15 @@ runConfig:
   concurrency: 80
 
 env:
-  # Cloud PostgreSQL connection string stored in Cloud Secret Manager:
-  #   npx -y firebase-tools@latest apphosting:secrets:set DATABASE_URL
-  - variable: DATABASE_URL
-    secret: DATABASE_URL
+  # Firebase project ID for Cloud Firestore (uses Application Default Credentials automatically on Cloud Run)
+  - variable: FIREBASE_PROJECT_ID
+    value: menu-listing
     availability:
       - BUILD
       - RUNTIME
 
   # Random 64-char HMAC secret for signed session cookies:
-  #   npx -y firebase-tools@latest apphosting:secrets:set AUTH_SECRET
+  #   npx -y firebase-tools@latest apphosting:secrets:set AUTH_SECRET --project menu-listing
   - variable: AUTH_SECRET
     secret: AUTH_SECRET
     availability:
@@ -31,9 +30,9 @@ env:
       - BUILD
       - RUNTIME
 
-  # Optional: Firebase Storage bucket name (e.g. your-project.firebasestorage.app)
+  # Optional: Firebase Storage bucket name (e.g. menu-listing.firebasestorage.app)
   # When set, /api/upload persists dish photos & logos in Firebase Storage instead of local disk.
   # - variable: FIREBASE_STORAGE_BUCKET
-  #   value: your-project.firebasestorage.app
+  #   value: menu-listing.firebasestorage.app
   #   availability:
   #     - RUNTIME

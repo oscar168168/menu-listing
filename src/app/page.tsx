@@ -7,22 +7,69 @@ import {
   Shield,
   Smartphone,
 } from "lucide-react";
-import { prisma } from "@/lib/prisma";
+import {
+  categoriesCol,
+  menuItemsCol,
+  tenantsCol,
+  toDate,
+} from "@/lib/firestore";
 import { computeThemeContrast, parseTenantMeta } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const activeTenants = await prisma.tenant.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { createdAt: "asc" },
-    take: 6,
-    include: {
-      _count: {
-        select: { menuItems: true, categories: true },
-      },
-    },
-  });
+  let activeTenants: Array<{
+    id: string;
+    name: string;
+    nameEn: string | null;
+    nameKm: string | null;
+    slug: string;
+    currency: string;
+    showDualCurrency: boolean;
+    exchangeRate: number;
+    vendorMode: "CART" | "LISTING_ONLY";
+    primaryColor: string;
+    metaJson: unknown;
+    categoryCount: number;
+    itemCount: number;
+  }> = [];
+
+  try {
+    const snap = await tenantsCol().where("status", "==", "ACTIVE").get();
+    const sorted = snap.docs
+      .map((doc) => ({ id: doc.id, data: doc.data() }))
+      .sort(
+        (a, b) =>
+          toDate(a.data.createdAt).getTime() - toDate(b.data.createdAt).getTime()
+      )
+      .slice(0, 6);
+
+    activeTenants = await Promise.all(
+      sorted.map(async ({ id, data }) => {
+        const [catCount, itemCount] = await Promise.all([
+          categoriesCol(id).count().get(),
+          menuItemsCol(id).count().get(),
+        ]);
+        return {
+          id,
+          name: data.name,
+          nameEn: data.nameEn,
+          nameKm: data.nameKm,
+          slug: data.slug,
+          currency: data.currency,
+          showDualCurrency: data.showDualCurrency ?? true,
+          exchangeRate: data.exchangeRate ?? 4100,
+          vendorMode: data.vendorMode ?? "CART",
+          primaryColor: data.primaryColor,
+          metaJson: data.metaJson,
+          categoryCount: catCount.data().count,
+          itemCount: itemCount.data().count,
+        };
+      })
+    );
+  } catch (err) {
+    console.warn("HomePage Firestore load warning:", err);
+  }
 
   const primaryDemoSlug = activeTenants[0]?.slug ?? "sora-seafood-grill";
 
@@ -167,9 +214,8 @@ export default async function HomePage() {
 
                   <div className="mt-5 flex items-center justify-between border-t border-zinc-100 pt-3 text-[12px] text-zinc-500">
                     <span className="tabular-nums">
-                      {tenant._count.categories} categories ·{" "}
-                      {tenant._count.menuItems} dishes · 1 USD ={" "}
-                      {tenant.exchangeRate.toLocaleString()} ៛
+                      {tenant.categoryCount} categories · {tenant.itemCount}{" "}
+                      dishes · 1 USD = {tenant.exchangeRate.toLocaleString()} ៛
                     </span>
                     <span className="inline-flex items-center gap-1 font-medium text-zinc-900 group-hover:underline">
                       /m/{tenant.slug}
@@ -221,7 +267,7 @@ export default async function HomePage() {
         <div className="mt-12 flex items-center justify-between border-t border-zinc-200 pt-5 text-[12px] text-zinc-400">
           <span className="inline-flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Next.js App Router · Prisma · PostgreSQL · Kantumruy Pro &amp; Inter
+            Next.js App Router · Cloud Firestore · Kantumruy Pro &amp; Inter
           </span>
           <span>80% Grayscale / 20% Dynamic Brand</span>
         </div>

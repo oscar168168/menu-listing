@@ -6,24 +6,17 @@
     "node": ">=20"
   },
   "scripts": {
-    "postinstall": "prisma generate",
     "dev": "next dev --port 3000",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start --port 3000",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset --force"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.16.0",
-    "@prisma/client": "6.19.3",
+    "firebase-admin": "^13.4.0",
     "lucide-react": "^0.511.0",
     "next": "^16.4.6",
     "qrcode": "^1.5.4",
@@ -39,7 +32,6 @@
     "@types/react-dom": "^19.1.0",
     "eslint": "^9.26.0",
     "eslint-config-next": "^16.4.6",
-    "prisma": "6.19.3",
     "tailwindcss": "^4.3.5",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"

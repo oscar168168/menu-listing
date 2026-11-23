@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { tenantDoc } from "@/lib/firestore";
 import { IMPERSONATE_COOKIE_NAME, requireSuperAdmin } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -14,13 +14,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
   }
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: body.tenantId },
-    select: { id: true, slug: true, name: true },
-  });
-  if (!tenant) {
+  const snap = await tenantDoc(body.tenantId).get();
+  const data = snap.data();
+  if (!snap.exists || !data) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
+
+  const tenant = { id: snap.id, slug: data.slug, name: data.name };
 
   const cookieStore = await cookies();
   cookieStore.set(IMPERSONATE_COOKIE_NAME, tenant.id, {

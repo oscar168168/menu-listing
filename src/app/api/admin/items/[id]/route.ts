@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { categoriesCol, menuItemsCol, tenantDoc } from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
 import { updateMenuItemSchema } from "@/lib/validation";
 import { revalidatePublicMenu, serializeMenuItem } from "@/lib/menu-data";
@@ -25,11 +24,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const existing = await prisma.menuItem.findFirst({
-    where: { id, tenantId: ctx.tenantId },
-    include: { tenant: { select: { slug: true } } },
-  });
-  if (!existing) {
+  const itemRef = menuItemsCol(ctx.tenantId).doc(id);
+  const [itemSnap, tenantSnap] = await Promise.all([
+    itemRef.get(),
+    tenantDoc(ctx.tenantId).get(),
+  ]);
+  const existing = itemSnap.data();
+  const tenant = tenantSnap.data();
+
+  if (!itemSnap.exists || !existing || existing.tenantId !== ctx.tenantId || !tenant) {
     return NextResponse.json({ error: "Menu item not found" }, { status: 404 });
   }
 
@@ -37,11 +40,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     parsed.data.categoryId !== undefined &&
     parsed.data.categoryId !== existing.categoryId
   ) {
-    const targetCategory = await prisma.category.findFirst({
-      where: { id: parsed.data.categoryId, tenantId: ctx.tenantId },
-      select: { id: true },
-    });
-    if (!targetCategory) {
+    const targetSnap = await categoriesCol(ctx.tenantId)
+      .doc(parsed.data.categoryId)
+      .get();
+    if (!targetSnap.exists || targetSnap.data()?.tenantId !== ctx.tenantId) {
       return NextResponse.json(
         { error: "Target category does not belong to your venue" },
         { status: 403 }
@@ -72,65 +74,64 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       ? parsed.data.descriptionKm
       : existing.descriptionKm ?? "";
 
-  const updated = await prisma.menuItem.update({
-    where: { id: existing.id },
-    data: {
-      ...(parsed.data.categoryId !== undefined
-        ? { categoryId: parsed.data.categoryId }
-        : {}),
-      name: canonicalName,
-      nameEn: nextNameEn || null,
-      nameKm: nextNameKm || null,
-      description: nextDescEn || nextDescKm,
-      descriptionEn: nextDescEn || null,
-      descriptionKm: nextDescKm || null,
-      ...(parsed.data.pricingType !== undefined
-        ? { pricingType: parsed.data.pricingType }
-        : {}),
-      ...(parsed.data.weightUnit !== undefined
-        ? { weightUnit: parsed.data.weightUnit }
-        : {}),
-      ...(parsed.data.price !== undefined
-        ? { priceDecimal: parsed.data.price }
-        : {}),
-      ...(parsed.data.marketPriceMin !== undefined
-        ? { marketPriceMin: parsed.data.marketPriceMin }
-        : {}),
-      ...(parsed.data.marketPriceMax !== undefined
-        ? { marketPriceMax: parsed.data.marketPriceMax }
-        : {}),
-      ...(parsed.data.variants !== undefined
-        ? {
-            variantsJson:
-              parsed.data.variants.length > 0
-                ? (parsed.data.variants as unknown as Prisma.InputJsonValue)
-                : Prisma.JsonNull,
-          }
-        : {}),
-      ...(parsed.data.cookingStyles !== undefined
-        ? {
-            cookingStylesJson:
-              parsed.data.cookingStyles.length > 0
-                ? (parsed.data.cookingStyles as unknown as Prisma.InputJsonValue)
-                : Prisma.JsonNull,
-          }
-        : {}),
-      ...(parsed.data.imageUrl !== undefined
-        ? { imageUrl: parsed.data.imageUrl }
-        : {}),
-      ...(parsed.data.tags !== undefined ? { tags: parsed.data.tags } : {}),
-      ...(parsed.data.isAvailable !== undefined
-        ? { isAvailable: parsed.data.isAvailable }
-        : {}),
-      ...(parsed.data.sortOrder !== undefined
-        ? { sortOrder: parsed.data.sortOrder }
-        : {}),
-    },
-  });
+  const updateData = {
+    ...(parsed.data.categoryId !== undefined
+      ? { categoryId: parsed.data.categoryId }
+      : {}),
+    name: canonicalName,
+    nameEn: nextNameEn || null,
+    nameKm: nextNameKm || null,
+    description: nextDescEn || nextDescKm,
+    descriptionEn: nextDescEn || null,
+    descriptionKm: nextDescKm || null,
+    ...(parsed.data.pricingType !== undefined
+      ? { pricingType: parsed.data.pricingType }
+      : {}),
+    ...(parsed.data.weightUnit !== undefined
+      ? { weightUnit: parsed.data.weightUnit }
+      : {}),
+    ...(parsed.data.price !== undefined
+      ? { priceDecimal: parsed.data.price }
+      : {}),
+    ...(parsed.data.marketPriceMin !== undefined
+      ? { marketPriceMin: parsed.data.marketPriceMin }
+      : {}),
+    ...(parsed.data.marketPriceMax !== undefined
+      ? { marketPriceMax: parsed.data.marketPriceMax }
+      : {}),
+    ...(parsed.data.variants !== undefined
+      ? {
+          variantsJson:
+            parsed.data.variants.length > 0 ? parsed.data.variants : null,
+        }
+      : {}),
+    ...(parsed.data.cookingStyles !== undefined
+      ? {
+          cookingStylesJson:
+            parsed.data.cookingStyles.length > 0
+              ? parsed.data.cookingStyles
+              : null,
+        }
+      : {}),
+    ...(parsed.data.imageUrl !== undefined
+      ? { imageUrl: parsed.data.imageUrl }
+      : {}),
+    ...(parsed.data.tags !== undefined ? { tags: parsed.data.tags } : {}),
+    ...(parsed.data.isAvailable !== undefined
+      ? { isAvailable: parsed.data.isAvailable }
+      : {}),
+    ...(parsed.data.sortOrder !== undefined
+      ? { sortOrder: parsed.data.sortOrder }
+      : {}),
+    updatedAt: new Date(),
+  };
 
-  revalidatePublicMenu(existing.tenant.slug);
+  await itemRef.update(updateData);
+  const updated = { ...existing, ...updateData };
 
-  return NextResponse.json({ item: serializeMenuItem(updated) });
+  revalidatePublicMenu(tenant.slug);
+
+  return NextResponse.json({ item: serializeMenuItem(itemRef.id, updated) });
 }
 
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
@@ -140,16 +141,20 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   }
 
   const { id } = await params;
-  const existing = await prisma.menuItem.findFirst({
-    where: { id, tenantId: ctx.tenantId },
-    include: { tenant: { select: { slug: true } } },
-  });
-  if (!existing) {
+  const itemRef = menuItemsCol(ctx.tenantId).doc(id);
+  const [itemSnap, tenantSnap] = await Promise.all([
+    itemRef.get(),
+    tenantDoc(ctx.tenantId).get(),
+  ]);
+  const existing = itemSnap.data();
+  const tenant = tenantSnap.data();
+
+  if (!itemSnap.exists || !existing || existing.tenantId !== ctx.tenantId || !tenant) {
     return NextResponse.json({ error: "Menu item not found" }, { status: 404 });
   }
 
-  await prisma.menuItem.delete({ where: { id: existing.id } });
-  revalidatePublicMenu(existing.tenant.slug);
+  await itemRef.delete();
+  revalidatePublicMenu(tenant.slug);
 
   return NextResponse.json({ ok: true });
 }

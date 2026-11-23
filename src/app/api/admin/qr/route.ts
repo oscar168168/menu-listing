@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { tenantDoc } from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
 import { parseTenantMeta } from "@/lib/theme";
 import {
@@ -15,10 +15,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: ctx.tenantId },
-  });
-  if (!tenant) {
+  const tenantSnap = await tenantDoc(ctx.tenantId).get();
+  const tenant = tenantSnap.data();
+  if (!tenantSnap.exists || !tenant) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 

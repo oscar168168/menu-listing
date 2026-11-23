@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { tenantDoc, tenantsCol, usersCol } from "@/lib/firestore";
 import type { SessionUser, UserRole } from "@/types/menu";
 
 export const SESSION_COOKIE_NAME = "menuos_session";
@@ -123,25 +123,17 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const payload = verifySessionToken(raw);
   if (!payload) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: payload.sub },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      tenantId: true,
-    },
-  });
-
+  const userSnap = await usersCol().doc(payload.sub).get();
+  if (!userSnap.exists) return null;
+  const user = userSnap.data();
   if (!user) return null;
 
   return {
-    id: user.id,
+    id: userSnap.id,
     email: user.email,
     name: user.name,
     role: user.role,
-    tenantId: user.tenantId,
+    tenantId: user.tenantId ?? null,
   };
 }
 
@@ -174,24 +166,22 @@ export async function resolveAdminContext(): Promise<AdminContext | null> {
   const impersonatedId = cookieStore.get(IMPERSONATE_COOKIE_NAME)?.value;
 
   if (impersonatedId) {
-    const exists = await prisma.tenant.findUnique({
-      where: { id: impersonatedId },
-      select: { id: true },
-    });
-    if (exists) {
+    const snap = await tenantDoc(impersonatedId).get();
+    if (snap.exists) {
       return {
         user,
-        tenantId: exists.id,
+        tenantId: snap.id,
         isImpersonating: true,
       };
     }
   }
 
   // Fallback for SUPER_ADMIN visiting /admin directly: pick first venue
-  const firstTenant = await prisma.tenant.findFirst({
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  });
+  const firstSnap = await tenantsCol()
+    .orderBy("createdAt", "asc")
+    .limit(1)
+    .get();
+  const firstTenant = firstSnap.docs[0];
   if (!firstTenant) return null;
 
   return {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { categoriesCol, tenantDoc } from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
 import { createCategorySchema } from "@/lib/validation";
 import { revalidatePublicMenu } from "@/lib/menu-data";
@@ -19,46 +19,51 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: ctx.tenantId },
-    select: { id: true, slug: true },
-  });
-  if (!tenant) {
+  const tenantSnap = await tenantDoc(ctx.tenantId).get();
+  const tenant = tenantSnap.data();
+  if (!tenantSnap.exists || !tenant) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
-  const maxSort = await prisma.category.aggregate({
-    where: { tenantId: ctx.tenantId },
-    _max: { sortOrder: true },
-  });
+  const existingCats = await categoriesCol(ctx.tenantId)
+    .select("sortOrder")
+    .get();
+  const maxSortOrder = existingCats.docs.reduce((max, doc) => {
+    const val = doc.data().sortOrder;
+    return typeof val === "number" && val > max ? val : max;
+  }, -1);
 
   const nameEn = parsed.data.nameEn || parsed.data.name || parsed.data.nameKm;
   const nameKm = parsed.data.nameKm || "";
   const canonicalName = nameEn || nameKm;
+  const now = new Date();
+  const sortOrder = maxSortOrder + 1;
 
-  const created = await prisma.category.create({
-    data: {
-      tenantId: ctx.tenantId,
-      name: canonicalName,
-      nameEn: nameEn || null,
-      nameKm: nameKm || null,
-      isVisible: parsed.data.isVisible,
-      sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
-    },
-  });
+  const docRef = categoriesCol(ctx.tenantId).doc();
+  const docData = {
+    tenantId: ctx.tenantId,
+    name: canonicalName,
+    nameEn: nameEn || null,
+    nameKm: nameKm || null,
+    isVisible: parsed.data.isVisible,
+    sortOrder,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await docRef.set(docData);
 
   revalidatePublicMenu(tenant.slug);
 
   return NextResponse.json(
     {
       category: {
-        id: created.id,
-        tenantId: created.tenantId,
-        name: created.name,
-        nameKm: created.nameKm ?? "",
-        nameEn: created.nameEn ?? created.name,
-        sortOrder: created.sortOrder,
-        isVisible: created.isVisible,
+        id: docRef.id,
+        tenantId: docData.tenantId,
+        name: docData.name,
+        nameKm: docData.nameKm ?? "",
+        nameEn: docData.nameEn ?? docData.name,
+        sortOrder: docData.sortOrder,
+        isVisible: docData.isVisible,
         items: [],
       },
     },

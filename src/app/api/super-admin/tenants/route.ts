@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Role, TenantStatus } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import {
+  categoriesCol,
+  cookingStylesCol,
+  findTenantBySlug,
+  findUserByEmail,
+  getDb,
+  tenantsCol,
+  usersCol,
+} from "@/lib/firestore";
 import { hashPassword, requireSuperAdmin } from "@/lib/auth";
 import { provisionTenantSchema } from "@/lib/validation";
 import { getSuperAdminDashboardData } from "@/lib/menu-data";
@@ -32,14 +39,8 @@ export async function POST(request: NextRequest) {
   }
 
   const [existingSlug, existingEmail] = await Promise.all([
-    prisma.tenant.findUnique({
-      where: { slug: parsed.data.slug },
-      select: { id: true },
-    }),
-    prisma.user.findUnique({
-      where: { email: parsed.data.ownerEmail },
-      select: { id: true },
-    }),
+    findTenantBySlug(parsed.data.slug),
+    findUserByEmail(parsed.data.ownerEmail),
   ]);
 
   if (existingSlug) {
@@ -56,69 +57,79 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const created = await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenant.create({
-      data: {
-        name: parsed.data.name,
-        nameEn: parsed.data.name,
-        nameKm: parsed.data.nameKm || null,
-        slug: parsed.data.slug,
-        status: TenantStatus.ACTIVE,
-        vendorMode: parsed.data.vendorMode,
-        currency: parsed.data.currency,
-        showDualCurrency: parsed.data.showDualCurrency,
-        exchangeRate: parsed.data.exchangeRate,
-        khrRounding: 100,
-        primaryColor: parsed.data.primaryColor,
-        metaJson: parsed.data.tagline
-          ? { tagline: parsed.data.tagline, taglineEn: parsed.data.tagline }
-          : {},
-      },
-    });
+  const db = getDb();
+  const batch = db.batch();
+  const now = new Date();
 
-    const owner = await tx.user.create({
-      data: {
-        name: parsed.data.ownerName,
-        email: parsed.data.ownerEmail,
-        passwordHash: hashPassword(parsed.data.ownerPassword),
-        role: Role.MENU_ADMIN,
-        tenantId: tenant.id,
-      },
-    });
-
-    await tx.category.create({
-      data: {
-        tenantId: tenant.id,
-        name: "Fresh Seafood",
-        nameEn: "Fresh Seafood",
-        nameKm: "គ្រឿងសមុទ្រស្រស់",
-        sortOrder: 0,
-        isVisible: true,
-      },
-    });
-
-    await tx.cookingStyle.createMany({
-      data: DEFAULT_COOKING_STYLE_PRESETS.map((preset, idx) => ({
-        tenantId: tenant.id,
-        nameKm: preset.nameKm,
-        nameEn: preset.nameEn,
-        defaultSurcharge:
-          parsed.data.currency === "KHR"
-            ? preset.defaultSurcharge * 4000
-            : preset.defaultSurcharge,
-        sortOrder: idx,
-      })),
-    });
-
-    return { tenant, owner };
+  const newTenantRef = tenantsCol().doc();
+  batch.set(newTenantRef, {
+    name: parsed.data.name,
+    nameEn: parsed.data.name,
+    nameKm: parsed.data.nameKm || null,
+    slug: parsed.data.slug,
+    status: "ACTIVE",
+    vendorMode: parsed.data.vendorMode,
+    logoUrl: null,
+    coverUrl: null,
+    currency: parsed.data.currency,
+    showDualCurrency: parsed.data.showDualCurrency,
+    exchangeRate: parsed.data.exchangeRate,
+    khrRounding: 100,
+    primaryColor: parsed.data.primaryColor,
+    metaJson: parsed.data.tagline
+      ? { tagline: parsed.data.tagline, taglineEn: parsed.data.tagline }
+      : {},
+    createdAt: now,
+    updatedAt: now,
   });
+
+  const newOwnerRef = usersCol().doc();
+  batch.set(newOwnerRef, {
+    name: parsed.data.ownerName,
+    email: parsed.data.ownerEmail,
+    passwordHash: hashPassword(parsed.data.ownerPassword),
+    role: "MENU_ADMIN",
+    tenantId: newTenantRef.id,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const defaultCatRef = categoriesCol(newTenantRef.id).doc();
+  batch.set(defaultCatRef, {
+    tenantId: newTenantRef.id,
+    name: "Fresh Seafood",
+    nameEn: "Fresh Seafood",
+    nameKm: "គ្រឿងសមុទ្រស្រស់",
+    sortOrder: 0,
+    isVisible: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  DEFAULT_COOKING_STYLE_PRESETS.forEach((preset, idx) => {
+    const styleRef = cookingStylesCol(newTenantRef.id).doc();
+    batch.set(styleRef, {
+      tenantId: newTenantRef.id,
+      nameKm: preset.nameKm,
+      nameEn: preset.nameEn,
+      defaultSurcharge:
+        parsed.data.currency === "KHR"
+          ? preset.defaultSurcharge * 4000
+          : preset.defaultSurcharge,
+      sortOrder: idx,
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  await batch.commit();
 
   const dashboard = await getSuperAdminDashboardData();
 
   return NextResponse.json(
     {
-      tenantId: created.tenant.id,
-      slug: created.tenant.slug,
+      tenantId: newTenantRef.id,
+      slug: parsed.data.slug,
       dashboard,
     },
     { status: 201 }

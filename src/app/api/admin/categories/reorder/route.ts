@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import {
+  categoriesCol,
+  commitBatchedWrites,
+  tenantDoc,
+} from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
 import { reorderCategoriesSchema } from "@/lib/validation";
 import { revalidatePublicMenu } from "@/lib/menu-data";
@@ -19,36 +23,31 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  // Strictly verify all submitted category IDs belong to this tenant
-  const owned = await prisma.category.findMany({
-    where: {
-      tenantId: ctx.tenantId,
-      id: { in: parsed.data.orderedIds },
-    },
-    select: { id: true },
-  });
+  const catCollection = categoriesCol(ctx.tenantId);
+  const snaps = await Promise.all(
+    parsed.data.orderedIds.map((id) => catCollection.doc(id).get())
+  );
 
-  if (owned.length !== parsed.data.orderedIds.length) {
+  if (snaps.some((s) => !s.exists || s.data()?.tenantId !== ctx.tenantId)) {
     return NextResponse.json(
       { error: "One or more categories do not belong to your venue" },
       { status: 403 }
     );
   }
 
-  await prisma.$transaction(
-    parsed.data.orderedIds.map((id, index) =>
-      prisma.category.updateMany({
-        where: { id, tenantId: ctx.tenantId },
-        data: { sortOrder: index },
-      })
-    )
+  const now = new Date();
+  await commitBatchedWrites(
+    parsed.data.orderedIds.map((id, index) => (batch) => {
+      batch.update(catCollection.doc(id), {
+        sortOrder: index,
+        updatedAt: now,
+      });
+    })
   );
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: ctx.tenantId },
-    select: { slug: true },
-  });
-  if (tenant) revalidatePublicMenu(tenant.slug);
+  const tenantSnap = await tenantDoc(ctx.tenantId).get();
+  const slug = tenantSnap.data()?.slug;
+  if (slug) revalidatePublicMenu(slug);
 
   return NextResponse.json({ ok: true });
 }

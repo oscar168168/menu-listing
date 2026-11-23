@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { findUserByEmail } from "@/lib/firestore";
 import {
   clearSessionCookies,
   setSessionCookie,
@@ -18,37 +18,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: parsed.data.email },
-    });
-
-    if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
+    const found = await findUserByEmail(parsed.data.email);
+    if (
+      !found ||
+      !verifyPassword(parsed.data.password, found.data.passwordHash)
+    ) {
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
+    const user = {
+      id: found.id,
+      email: found.data.email,
+      name: found.data.name,
+      role: found.data.role,
+      tenantId: found.data.tenantId ?? null,
+    };
+
     await clearSessionCookies();
-    await setSessionCookie({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      tenantId: user.tenantId,
-    });
+    await setSessionCookie(user);
 
     const redirectTo =
       user.role === "SUPER_ADMIN" ? "/super-admin" : "/admin";
 
     return NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        tenantId: user.tenantId,
-      },
+      user,
       redirectTo,
     });
   } catch (error) {
