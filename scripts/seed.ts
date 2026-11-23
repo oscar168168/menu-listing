@@ -7,6 +7,7 @@ try {
 import { hashPassword } from "../src/lib/auth";
 import {
   DEMO_CATALOG_VERSION,
+  PAK_KHLANG_168_PROFILE,
   syncTenantDefaultCatalog,
 } from "../src/lib/default-catalog";
 import {
@@ -141,12 +142,12 @@ async function main() {
   console.log(`✓ Super Admin ready: ${superAdmin.email}`);
 
   // ==========================================================================
-  // 2. Venue 1: Sora Seafood Grill (CART mode, KHR Primary + Dual USD)
+  // 2. Venue 1: សម្រស់ឆ្នេរប៉ាក់ខ្លង 168 / Somros Chhne Pak Khlang 168
   // ==========================================================================
   const sora = await upsertTenant({
-    name: "Sora Seafood Grill",
-    nameEn: "Sora Seafood Grill",
-    nameKm: "សូរ៉ា គ្រឿងសមុទ្រអាំង",
+    name: PAK_KHLANG_168_PROFILE.name,
+    nameEn: PAK_KHLANG_168_PROFILE.nameEn,
+    nameKm: PAK_KHLANG_168_PROFILE.nameKm,
     slug: "sora-seafood-grill",
     vendorMode: "CART",
     currency: "KHR",
@@ -154,23 +155,7 @@ async function main() {
     exchangeRate: 4100,
     khrRounding: 100,
     primaryColor: "#1E293B",
-    metaJson: {
-      tagline: "Live tank seafood & charcoal grill in BKK1, Phnom Penh",
-      taglineEn: "Live tank seafood & charcoal grill in BKK1, Phnom Penh",
-      taglineKm: "គ្រឿងសមុទ្ររស់ និង អាំងធ្យូងធម្មជាតិ នៅបឹងកេងកង១ ភ្នំពេញ",
-      openingHours: "Daily 11:00 – 23:00",
-      address: "No. 48 Street 306, BKK1, Phnom Penh",
-      phone: "+855 23 998 412",
-      telegramUrl: "https://t.me/soraseafoodpp",
-      facebookUrl: "https://facebook.com/soraseafoodgrill",
-      googleMapsUrl: "https://maps.google.com/?q=BKK1+Phnom+Penh",
-      wifiName: "Sora_BKK1_5G",
-      wifiPassword: "kampot2026",
-      footerNote: "Prices include local VAT. Freshly prepared to order.",
-      footerNoteKm:
-        "តម្លៃបូកបញ្ចូលពន្ធរួចជាស្រេច។ ចម្អិនថ្មីៗតាមការកុម្ម៉ង់។",
-      serviceNote: "All taxes included · No service charge",
-    },
+    metaJson: { ...PAK_KHLANG_168_PROFILE.metaJson },
   });
 
   await upsertUser({

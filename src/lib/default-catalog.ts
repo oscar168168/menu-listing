@@ -8,7 +8,32 @@ import {
 import { DEFAULT_MENU_CATEGORIES } from "@/lib/i18n";
 import type { PricingType } from "@/types/menu";
 
-export const DEMO_CATALOG_VERSION = "v3-khr-7cats-images";
+export const DEMO_CATALOG_VERSION = "v4-pak-khlang-168";
+
+export const PAK_KHLANG_168_PROFILE = {
+  name: "Somros Chhne Pak Khlang 168",
+  nameEn: "Somros Chhne Pak Khlang 168",
+  nameKm: "សម្រស់ឆ្នេរប៉ាក់ខ្លង 168",
+  metaJson: {
+    tagline:
+      "Pak Khlang Beachfront Restaurant — Made-to-order food & drinks, Koh Kong",
+    taglineEn:
+      "Pak Khlang Beachfront Restaurant — Made-to-order food & drinks, Koh Kong",
+    taglineKm:
+      "អាហារដ្ឋានឆ្នេរសមុទ្រប៉ាក់ខ្លង ១៦៨ — មានលក់ម្ហូបកម្មង់ និងភេសជ្ជៈគ្រប់មុខ",
+    address:
+      "HWMV+2C, ឃុំប៉ាក់ខ្លង ស្រុកមណ្ឌលសីមា ខេត្តកោះកុង (Pak Khlang, Mondol Seima, Koh Kong)",
+    phone: "093 765 166 / 071 886 0606 / 093 886 769",
+    facebookUrl:
+      "https://www.facebook.com/p/%E1%9E%86%E1%9F%92%E1%9E%93%E1%9F%81%E1%9E%9A%E1%9E%94%E1%9F%89%E1%9E%B6%E1%9E%80%E1%9F%8B%E1%9E%81%E1%9F%92%E1%9E%9B%E1%9E%84-168-100069414237223/",
+    googleMapsUrl:
+      "https://www.google.com/maps/place/Pak+Khlang+Beach+168/@11.5826078,102.9435186,17z/data=!4m6!3m5!1s0x3106650066e69f4f:0xf93485f77dc5f9fd!8m2!3d11.5826078!4d102.9435186",
+    footerNote:
+      "Beachfront restaurant at Pak Khlang, Mondol Seima, Koh Kong. Birthday parties and special events welcome.",
+    footerNoteKm:
+      "អាហារដ្ឋានឆ្នេរសមុទ្រប៉ាក់ខ្លង ខេត្តកោះកុង មានទទួលធ្វើពិធីខួបកំណើត និងកម្មវិធីផ្សេងៗ។",
+  },
+} as const;
 
 export type DefaultCategoryKey =
   (typeof DEFAULT_MENU_CATEGORIES)[number]["key"];
@@ -659,10 +684,18 @@ export async function syncTenantDefaultCatalog(
     ...(tenant.metaJson && typeof tenant.metaJson === "object"
       ? tenant.metaJson
       : {}),
+    ...(isSora ? PAK_KHLANG_168_PROFILE.metaJson : {}),
     demoCatalogVersion: DEMO_CATALOG_VERSION,
   };
 
   const tenantUpdates = {
+    ...(isSora
+      ? {
+          name: PAK_KHLANG_168_PROFILE.name,
+          nameEn: PAK_KHLANG_168_PROFILE.nameEn,
+          nameKm: PAK_KHLANG_168_PROFILE.nameKm,
+        }
+      : {}),
     currency: "KHR",
     showDualCurrency: true,
     exchangeRate: 4100,

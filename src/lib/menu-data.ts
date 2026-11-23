@@ -288,7 +288,7 @@ function loadCachedPublicMenuByNormalizedSlug(
         cookingStylePresets: [],
       };
     },
-    ["public-menu-v7", normalizedSlug],
+    ["public-menu-v8", normalizedSlug],
     {
       revalidate: 300,
       tags: [getPublicMenuTag(normalizedSlug)],
