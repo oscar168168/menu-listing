@@ -140,7 +140,16 @@ function parseServiceAccountFromEnv(): ServiceAccount | null {
     const jsonText = raw.startsWith("{")
       ? raw
       : Buffer.from(raw, "base64").toString("utf8");
-    return JSON.parse(jsonText) as ServiceAccount;
+    const parsed = JSON.parse(jsonText) as ServiceAccount & {
+      private_key?: string;
+    };
+    if (typeof parsed.private_key === "string") {
+      parsed.private_key = parsed.private_key.replace(/\\n/g, "\n");
+    }
+    if (typeof parsed.privateKey === "string") {
+      parsed.privateKey = parsed.privateKey.replace(/\\n/g, "\n");
+    }
+    return parsed;
   } catch (error) {
     console.warn("Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:", error);
     return null;

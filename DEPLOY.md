@@ -1,53 +1,44 @@
-# Deploying MenuOS to GitHub + Firebase App Hosting (Cloud Firestore)
+# Deploying MenuOS (100% Free Plan: Firebase Spark + Vercel Hobby)
 
-## Prerequisites
-1. **Cloud Firestore** enabled in Firebase project `menu-listing` (Standard Edition, `FIRESTORE_NATIVE`).
-2. A **Firebase Blaze (pay-as-you-go)** plan for App Hosting:  
-   https://console.firebase.google.com/project/menu-listing/overview?purchaseBillingPlan=metered
-3. GitHub repository: `oscar168168/menu-listing`
+This setup uses **no paid plans** and **no credit card**:
+- **Database:** Firebase **Spark (free)** Cloud Firestore
+- **Next.js SSR & API Hosting:** **Vercel Hobby (free)** (since Firebase App Hosting requires the Blaze plan)
+- **Image Uploads (optional):** **Cloudinary Free Tier** (25 GB free, no card required)
 
 ---
 
-## Step 1 — Deploy Firestore Rules & Indexes
+## Step 1 — Deploy Firestore Rules & Indexes (Free on Spark)
 ```sh
 npx -y firebase-tools@latest deploy --only firestore --project menu-listing
 ```
 
 ---
 
-## Step 2 — Set Firebase App Hosting Secret (`AUTH_SECRET`)
-No `DATABASE_URL` is needed — `firebase-admin` automatically connects to Cloud Firestore using Firebase App Hosting's built-in Application Default Credentials.
-
-Generate and store a strong HMAC secret for session cookies:
-```sh
-openssl rand -hex 32
-npx -y firebase-tools@latest apphosting:secrets:set AUTH_SECRET --project menu-listing
-```
-
----
-
-## Step 3 — Update `apphosting.yaml`
-1. Set `NEXT_PUBLIC_APP_URL` to your deployed App Hosting URL (or custom domain) so generated table QR codes link to your live site.
-2. Uncomment `FIREBASE_STORAGE_BUCKET` (`menu-listing.firebasestorage.app`) so uploaded dish photos & venue logos persist in Firebase Storage instead of container disk.
-3. Commit and push to `main`.
-
----
-
-## Step 4 — Connect GitHub to Firebase App Hosting
-- **Via Firebase Console:** Open **App Hosting → Get started**, select `oscar168168/menu-listing`, branch `main`, and deploy.
-- **Or via CLI:**
-  ```sh
-  npx -y firebase-tools@latest apphosting:backends:create \
-    --project menu-listing \
-    --backend menu-listing \
-    --primary-region asia-east1
-  ```
-
----
-
-## Step 5 — Seed Initial Restaurants & Accounts in Live Firestore
-Download a service account private key once from **Firebase Console → Project settings → Service accounts → Generate new private key**, then run:
+## Step 2 — Seed Initial Restaurants & Accounts in Cloud Firestore
+Download a service account JSON key from **Firebase Console → Project settings → Service accounts → Generate new private key**, then run:
 ```sh
 GOOGLE_APPLICATION_CREDENTIALS="/path/to/menu-listing-firebase-adminsdk.json" npm run db:seed
 ```
-(Delete the temporary local key file afterward and change the seeded demo passwords after logging in.)
+*(Keep that downloaded JSON file safe locally or delete it after Step 4; `.gitignore` already excludes `*-firebase-adminsdk-*.json`.)*
+
+---
+
+## Step 3 — Deploy Next.js to Vercel Hobby (Free)
+1. Push your latest commit to GitHub (`oscar168168/menu-listing`).
+2. Go to [vercel.com/new](https://vercel.com/new), import `oscar168168/menu-listing` under your **Hobby (free)** account.
+3. Add the following **Environment Variables** in Vercel Project Settings:
+   - `FIREBASE_PROJECT_ID` = `menu-listing`
+   - `FIREBASE_SERVICE_ACCOUNT_JSON` = base64-encoded (recommended) or single-line contents of your downloaded service account JSON file:
+     ```sh
+     base64 -i /path/to/menu-listing-firebase-adminsdk.json | tr -d '\n'
+     ```
+   - `AUTH_SECRET` = output of `openssl rand -hex 32`
+   - `NEXT_PUBLIC_APP_URL` = your Vercel deployment URL (e.g. `https://menu-listing.vercel.app`)
+   - *(Optional, for dish/logo uploads)* `CLOUDINARY_URL` = `cloudinary://API_KEY:API_SECRET@CLOUD_NAME`
+4. Click **Deploy**.
+
+---
+
+## Step 4 — Security Cleanup
+- Delete your temporary local `*-firebase-adminsdk-*.json` file once `FIREBASE_SERVICE_ACCOUNT_JSON` is saved in Vercel.
+- Sign in to `/login` and update the seeded demo passwords (`admin@menuos.app`, `owner@soraseafood.com`, `chef@kepbaykitchen.com`).
