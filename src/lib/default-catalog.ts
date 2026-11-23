@@ -8,7 +8,7 @@ import {
 import { DEFAULT_MENU_CATEGORIES } from "@/lib/i18n";
 import type { PricingType } from "@/types/menu";
 
-export const DEMO_CATALOG_VERSION = "v2-khr-7cats";
+export const DEMO_CATALOG_VERSION = "v3-khr-7cats-images";
 
 export type DefaultCategoryKey =
   (typeof DEFAULT_MENU_CATEGORIES)[number]["key"];
@@ -44,7 +44,8 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "ត្រីតុកកែចំហុយភ្លាមៗ ជាមួយខ្ញីខ្ចី ស្លឹកខ្ទឹម និង ទឹកស៊ីអ៊ីវពិសេសប្រចាំហាង។",
     pricingType: "FIXED",
     priceDecimal: 40000,
-    imageUrl: null,
+    imageUrl:
+      "https://www.wokandkin.com/wp-content/uploads/2021/05/Steamed-Fish-with-Ginger-and-Shallots-saved-for-web-1200px.png",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 0,
@@ -62,7 +63,8 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "ងាវស្រស់ស្រុះល្មម ញ៉ាំផ្ទាប់ជាមួយទឹកអំពិលទុំសណ្តែកដីលីង។",
     pricingType: "FIXED",
     priceDecimal: 25000,
-    imageUrl: null,
+    imageUrl:
+      "https://cdn.i-scmp.com/sites/default/files/styles/square/public/d8/images/2019/09/18/scmp_02aug17_fe_foodshoot2550_jonw4348_new_.jpg?itok=fvGPCN8I",
     tags: [],
     isAvailable: true,
     sortOrder: 1,
@@ -80,7 +82,8 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "ខ្យងហូលសមុទ្រអាំងជាមួយប្រេងស្លឹកខ្ទឹម និង ម្រេចខ្ចី។",
     pricingType: "FIXED",
     priceDecimal: 25000,
-    imageUrl: null,
+    imageUrl:
+      "https://i0.wp.com/thegoodlifefrance.com/wp-content/uploads/2019/11/snails-cooked-in-garlic-butter.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 2,
@@ -118,7 +121,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "ក្តាមសេះស្រស់ចំហុយជាមួយគល់ស្លឹកគ្រៃ និង ស្លឹកក្រូចសើចឈ្ងុយឆ្ងាញ់។",
     pricingType: "FIXED",
     priceDecimal: 35000,
-    imageUrl: null,
+    imageUrl: "https://vuacuacamau.vn/images/posts/steamed-blue-swimmer-crab.webp",
     tags: [],
     isAvailable: true,
     sortOrder: 1,
@@ -156,7 +159,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "បង្គាស្រស់ត្រជាក់ លាយទឹកត្រីកោះកុង ម្ទេសហឹរ ខ្ទឹមស និង ម្រះស្រួយ។",
     pricingType: "FIXED",
     priceDecimal: 35000,
-    imageUrl: null,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/f/f6/SpicyRawShrimpSalad.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 1,
@@ -174,7 +177,8 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "បង្គាសមុទ្របំពងស្រួយលីងជាមួយខ្ទឹមសបំពង និង ម្រេចសកំពត។",
     pricingType: "FIXED",
     priceDecimal: 25000,
-    imageUrl: null,
+    imageUrl:
+      "https://www.seriouseats.com/thmb/eYqPkgaqMxxA5vKYb-807q5DbiI=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/__opt__aboutcom__coeus__resources__content_migration__serious_eats__seriouseats.com__recipes__images__2012__07__20120717-chichi-shrimp-c765d1ceb15d4125b8220cc6953219bd.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 2,
@@ -194,7 +198,8 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "មឹកស្រស់អាំងធ្យូងឈ្ងុយ ញ៉ាំជាមួយទឹកត្រីកោះកុងហឹរឆ្ងាញ់។",
     pricingType: "FIXED",
     priceDecimal: 35000,
-    imageUrl: null,
+    imageUrl:
+      "https://images.squarespace-cdn.com/content/v1/5e9483a9bb182a1caddc2e21/1600936560729-WHHCQH5671Z389Q9560P/D8E8859F-946D-4A07-B4F4-BC7709C1066E.jpeg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 0,
@@ -212,7 +217,8 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "មឹកស្រស់ស្រុះញាំជាមួយស្វាយខ្ចី ជីអង្កាម និង សណ្តែកដីលីង។",
     pricingType: "FIXED",
     priceDecimal: 25000,
-    imageUrl: null,
+    imageUrl:
+      "https://api.photon.aremedia.net.au/wp-content/uploads/sites/11/food/2015/09/16/27172/C148F552-Da37fd1-ThaiMangoSquidSalad-RMAFAD-27-(1).jpg?fit=2048%2C1536&format=auto",
     tags: [],
     isAvailable: true,
     sortOrder: 1,
@@ -232,7 +238,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "បាយអង្ករផ្កាម្លិះឆាឈ្ងុយ ជាមួយបង្គា មឹក សាច់ក្តាម ស្លឹកខ្ទឹម និង ពងមាន់។",
     pricingType: "FIXED",
     priceDecimal: 25000,
-    imageUrl: null,
+    imageUrl: "https://www.yummymedley.com/wp-content/uploads/2017/05/seafood-fried-rice.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 0,
@@ -250,7 +256,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "មីសួអប់ក្នុងឆ្នាំងដីក្តៅៗ ជាមួយសាច់ក្តាម ម្រេចស ខ្ញី និង គិនឆាយឈ្ងុយ។",
     pricingType: "FIXED",
     priceDecimal: 35000,
-    imageUrl: null,
+    imageUrl: "https://carryitlikeharry.com/wp-content/uploads/2017/07/DSCF0492.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 1,
@@ -267,7 +273,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     descriptionKm: "ស្រាបៀរអង្គរត្រជាក់ៗ។",
     pricingType: "FIXED",
     priceDecimal: 6000,
-    imageUrl: null,
+    imageUrl: "https://domrey.com/uploads/catalogs/8848858120028.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 0,
@@ -282,7 +288,8 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     descriptionKm: "ស្រាបៀរកម្ពុជាត្រជាក់ៗ។",
     pricingType: "FIXED",
     priceDecimal: 6000,
-    imageUrl: null,
+    imageUrl:
+      "https://aeoncambodia.sgp1.digitaloceanspaces.com/image/catalog/product/8847100740878.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 1,
@@ -317,7 +324,8 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     descriptionKm: "ដូងក្រអូបត្រជាក់កាប់ស្រស់ៗភ្លាមៗ។",
     pricingType: "FIXED",
     priceDecimal: 8000,
-    imageUrl: null,
+    imageUrl:
+      "https://rachelcooksthai.com/wp-content/uploads/2011/02/How-to-Open-a-Young-Coconut-4.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 1,
@@ -338,7 +346,8 @@ export const KEP_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "សម្លម្ជូរគ្រឿងត្រីសមុទ្រស្រស់ ដាក់ស្លឹកអំពិលខ្ចី ព្រលិត និង ជីរណាឈ្ងុយ។",
     pricingType: "FIXED",
     priceDecimal: 35000,
-    imageUrl: null,
+    imageUrl:
+      "https://www.wokandkin.com/wp-content/uploads/2021/05/Steamed-Fish-with-Ginger-and-Shallots-saved-for-web-1200px.png",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 0,
@@ -356,7 +365,8 @@ export const KEP_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "ខ្យងហូលសមុទ្រអាំងជាមួយប្រេងស្លឹកខ្ទឹម និង ម្រេចខ្ចី។",
     pricingType: "FIXED",
     priceDecimal: 25000,
-    imageUrl: null,
+    imageUrl:
+      "https://i0.wp.com/thegoodlifefrance.com/wp-content/uploads/2019/11/snails-cooked-in-garlic-butter.jpg",
     tags: [],
     isAvailable: false,
     sortOrder: 1,
@@ -410,7 +420,8 @@ export const KEP_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "មឹកកូនស្រស់លាបទឹកត្រីអាំងធ្យូង ញ៉ាំជាមួយទឹកត្រីកោះកុងហឹរឆ្ងាញ់។",
     pricingType: "FIXED",
     priceDecimal: 35000,
-    imageUrl: null,
+    imageUrl:
+      "https://images.squarespace-cdn.com/content/v1/5e9483a9bb182a1caddc2e21/1600936560729-WHHCQH5671Z389Q9560P/D8E8859F-946D-4A07-B4F4-BC7709C1066E.jpeg",
     tags: [],
     isAvailable: true,
     sortOrder: 0,
@@ -428,7 +439,7 @@ export const KEP_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "បាយឆាសាច់ក្តាមកែបផ្អែម ជាមួយពងមាន់ និង ម្រេចកំពតឈ្ងុយ។",
     pricingType: "FIXED",
     priceDecimal: 25000,
-    imageUrl: null,
+    imageUrl: "https://www.yummymedley.com/wp-content/uploads/2017/05/seafood-fried-rice.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 0,
@@ -443,7 +454,7 @@ export const KEP_DEMO_ITEMS: SeedMenuItemSpec[] = [
     descriptionKm: "ស្រាបៀរអង្គរត្រជាក់ៗ។",
     pricingType: "FIXED",
     priceDecimal: 6000,
-    imageUrl: null,
+    imageUrl: "https://domrey.com/uploads/catalogs/8848858120028.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 0,
@@ -476,7 +487,8 @@ export const KEP_DEMO_ITEMS: SeedMenuItemSpec[] = [
     descriptionKm: "ទឹកត្នោតផ្អែមធម្មជាតិដងពេលព្រឹក ដាក់ទឹកកកត្រជាក់។",
     pricingType: "FIXED",
     priceDecimal: 6000,
-    imageUrl: null,
+    imageUrl:
+      "https://rachelcooksthai.com/wp-content/uploads/2011/02/How-to-Open-a-Young-Coconut-4.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 1,
