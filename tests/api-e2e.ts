@@ -107,7 +107,13 @@ async function run() {
   assert.ok(soraHtml.includes(`--brand-primary-foreground:${soraTheme.foreground}`));
   assert.ok(soraHtml.includes('lang="km"'), "Default menu language must be Khmer");
   assert.ok(soraHtml.includes("ក្តាមឆាម្រេចកំពត"), "Khmer dish title must render by default");
-  assert.ok(soraHtml.includes("73,800 ៛"), "USD-primary dual KHR conversion must render");
+  assert.ok(soraHtml.includes("គ្រឿងសមុទ្រ"), "Seafood default category must render");
+  assert.ok(soraHtml.includes("បង្គា និង បង្កង"), "Shrimp default category must render");
+  assert.ok(soraHtml.includes("មឹក"), "Squid default category must render");
+  assert.ok(soraHtml.includes("ស្រាបៀរ"), "Beer default category must render");
+  assert.ok(soraHtml.includes("40,000 ៛"), "40,000 ៛ dish price must render");
+  assert.ok(soraHtml.includes("35,000 ៛"), "35,000 ៛ dish price must render");
+  assert.ok(soraHtml.includes("25,000 ៛"), "25,000 ៛ dish price must render");
   if (soraFound.data.vendorMode === "CART") {
     assert.ok(soraHtml.includes("Add ក្តាមឆាម្រេចកំពត to cart"), "CART vendor mode must render add-to-cart controls");
   }
@@ -128,8 +134,8 @@ async function run() {
   assert.ok(kepHtml.includes(`--brand-primary:${kepTheme.primary}`));
   assert.ok(kepHtml.includes(`--brand-primary-foreground:${kepTheme.foreground}`));
   assert.ok(kepHtml.includes("ក្តាមសេះឆាម្រេចខ្ចី"), "Kep Khmer dish title must render by default");
-  assert.ok(kepHtml.includes("65,000 ៛"), "KHR-primary menu must render KHR prices");
-  assert.ok(kepHtml.includes("$15.85"), "KHR-primary menu must render dual USD conversion");
+  assert.ok(kepHtml.includes("40,000 ៛"), "KHR-primary menu must render KHR prices");
+  assert.ok(kepHtml.includes("$9.76"), "KHR-primary menu must render dual USD conversion");
   if (kepFound.data.vendorMode === "LISTING_ONLY") {
     assert.ok(!kepHtml.includes("to cart"), "LISTING_ONLY vendor mode must omit add-to-cart controls");
   }
@@ -355,7 +361,7 @@ async function run() {
   };
   assert.equal(provSummary.id, provTenantId);
   assert.equal(provSummary.slug, testSlug);
-  assert.equal(provSummary.categoryCount, 1);
+  assert.equal(provSummary.categoryCount, 7);
   assert.equal(provAnalytics.tenantId, provTenantId);
 
   const superDashRes = await req("/api/super-admin/tenants", { jar: superJar });

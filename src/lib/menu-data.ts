@@ -20,6 +20,10 @@ import {
   normalizeKhrRounding,
   normalizePrimaryCurrency,
 } from "@/lib/currency";
+import {
+  DEMO_CATALOG_VERSION,
+  syncTenantDefaultCatalog,
+} from "@/lib/default-catalog";
 import type {
   CookingStyleOption,
   ItemVariant,
@@ -218,7 +222,20 @@ function loadCachedPublicMenuByNormalizedSlug(
       const tenantFound = await findTenantBySlug(slugKey);
       if (!tenantFound) return null;
 
-      const { id: tenantId, data: tenant } = tenantFound;
+      const { id: tenantId } = tenantFound;
+      let tenant = tenantFound.data;
+      const metaObj =
+        tenant.metaJson && typeof tenant.metaJson === "object"
+          ? (tenant.metaJson as Record<string, unknown>)
+          : {};
+      if (
+        (tenant.slug === "sora-seafood-grill" ||
+          tenant.slug === "kep-bay-kitchen") &&
+        metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
+      ) {
+        tenant = await syncTenantDefaultCatalog(tenantId, tenant);
+      }
+
       if (tenant.status === "SUSPENDED") {
         return {
           tenant: serializeTenant(tenantId, tenant),
@@ -271,7 +288,7 @@ function loadCachedPublicMenuByNormalizedSlug(
         cookingStylePresets: [],
       };
     },
-    ["public-menu-v5", normalizedSlug],
+    ["public-menu-v6", normalizedSlug],
     {
       revalidate: 300,
       tags: [getPublicMenuTag(normalizedSlug)],
@@ -388,16 +405,29 @@ export const getCachedHomeVenues = unstable_cache(
 export async function getAdminTenantMenu(
   tenantId: string
 ): Promise<TenantMenuPayload | null> {
-  const [tenantSnap, catSnap, itemSnap, presetSnap] = await Promise.all([
-    tenantDoc(tenantId).get(),
+  const tenantSnap = await tenantDoc(tenantId).get();
+  if (!tenantSnap.exists) return null;
+  let tenant = tenantSnap.data();
+  if (!tenant) return null;
+
+  const metaObj =
+    tenant.metaJson && typeof tenant.metaJson === "object"
+      ? (tenant.metaJson as Record<string, unknown>)
+      : {};
+  if (
+    (tenant.slug === "sora-seafood-grill" ||
+      tenant.slug === "kep-bay-kitchen") &&
+    metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
+  ) {
+    tenant = await syncTenantDefaultCatalog(tenantId, tenant);
+    revalidatePublicMenu(tenant.slug);
+  }
+
+  const [catSnap, itemSnap, presetSnap] = await Promise.all([
     categoriesCol(tenantId).get(),
     menuItemsCol(tenantId).get(),
     cookingStylesCol(tenantId).get(),
   ]);
-
-  if (!tenantSnap.exists) return null;
-  const tenant = tenantSnap.data();
-  if (!tenant) return null;
 
   const itemsByCategory = new Map<
     string,

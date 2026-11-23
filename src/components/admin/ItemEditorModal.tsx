@@ -1,7 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, ImagePlus, Plus, Trash2, X } from "lucide-react";
+import {
+  ChevronDown,
+  ClipboardPaste,
+  ImagePlus,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { NativeSwitch } from "@/components/ui/NativeSwitch";
 import { NativeSelect } from "@/components/ui/NativeSelect";
@@ -58,6 +65,22 @@ const WEIGHT_UNIT_OPTIONS: WeightUnit[] = [
   "PER_PIECE",
   "PER_PORTION",
 ];
+
+const KHR_PRICE_SUGGESTIONS = [
+  15000, 20000, 25000, 30000, 35000, 40000, 50000, 60000,
+] as const;
+
+const USD_PRICE_SUGGESTIONS = [5, 6, 8.5, 10, 12, 15] as const;
+
+function isLikelyImageUrl(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length > 500) return false;
+  return (
+    /^https?:\/\/\S+/i.test(trimmed) ||
+    /^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(trimmed) ||
+    /^\/(images|uploads|api\/media)\/\S+/i.test(trimmed)
+  );
+}
 
 function ItemEditorForm({
   editingItem,
@@ -200,6 +223,72 @@ function ItemEditorForm({
     }
   };
 
+  const handleFormPaste = (e: React.ClipboardEvent<HTMLFormElement>) => {
+    const items = e.clipboardData?.items;
+    if (items) {
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            void handleFileUpload(file);
+            return;
+          }
+        }
+      }
+    }
+
+    const target = e.target as HTMLElement | null;
+    const isTextInput =
+      target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
+    if (!isTextInput) {
+      const pastedText = e.clipboardData?.getData("text/plain")?.trim() ?? "";
+      if (isLikelyImageUrl(pastedText)) {
+        e.preventDefault();
+        setError(null);
+        setImageUrl(pastedText);
+      }
+    }
+  };
+
+  const handlePasteFromClipboard = async () => {
+    if (uploading) return;
+    setError(null);
+    try {
+      if (navigator.clipboard?.read) {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const clipItem of clipboardItems) {
+          const imageType = clipItem.types.find((t) =>
+            t.startsWith("image/")
+          );
+          if (imageType) {
+            const blob = await clipItem.getType(imageType);
+            const ext = imageType.split("/")[1] || "png";
+            const file = new File([blob], `pasted-dish.${ext}`, {
+              type: imageType,
+            });
+            await handleFileUpload(file);
+            return;
+          }
+        }
+      }
+      if (navigator.clipboard?.readText) {
+        const text = (await navigator.clipboard.readText()).trim();
+        if (isLikelyImageUrl(text)) {
+          setImageUrl(text);
+          return;
+        }
+      }
+      setError(
+        "No image found in clipboard. Copy an image (or image URL) and press ⌘V / Ctrl+V."
+      );
+    } catch {
+      setError(
+        "Press ⌘V / Ctrl+V anywhere in this window to paste a copied image."
+      );
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameEn.trim() && !nameKm.trim()) {
@@ -302,11 +391,18 @@ function ItemEditorForm({
     variants.length +
     extraTags.length;
 
+  const priceSuggestions =
+    currency === "KHR" ? KHR_PRICE_SUGGESTIONS : USD_PRICE_SUGGESTIONS;
+
   return (
-    <form onSubmit={(e) => void handleSubmit(e)} className="p-5 space-y-4">
+    <form
+      onSubmit={(e) => void handleSubmit(e)}
+      onPaste={handleFormPaste}
+      className="p-5 space-y-4"
+    >
       {/* 1. Photo + Name (Fast 5-Second Primary Entry) */}
       <div className="flex items-start gap-3.5">
-        <div className="shrink-0">
+        <div className="shrink-0 flex flex-col items-center gap-1.5">
           <input
             ref={fileInputRef}
             type="file"
@@ -347,9 +443,20 @@ function ItemEditorForm({
               </span>
             </button>
           )}
+
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => void handlePasteFromClipboard()}
+            title="Paste copied image or image URL from clipboard (⌘V / Ctrl+V)"
+            className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-600 transition-colors hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-950 disabled:opacity-50"
+          >
+            <ClipboardPaste className="h-3 w-3" strokeWidth={1.5} />
+            <span>Paste</span>
+          </button>
         </div>
 
-        <div className="min-w-0 flex-1 space-y-2">
+        <div className="min-w-0 flex-1 space-y-1.5">
           <div>
             <label
               htmlFor="dish-name-main"
@@ -364,80 +471,125 @@ function ItemEditorForm({
               maxLength={120}
               value={nameEn}
               onChange={(e) => setNameEn(e.target.value)}
-              placeholder="e.g. Kampot Pepper Crab"
+              placeholder="e.g. ក្តាមឆាម្រេចកំពត / Kampot Pepper Crab"
               autoFocus
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-brand focus:outline-none"
             />
           </div>
-          {imageUrl && (
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="text-[11px] font-medium text-zinc-500 underline underline-offset-2 hover:text-zinc-900"
-            >
-              {uploading ? "Uploading..." : "Change photo"}
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-400">
+            <span>Tip: press ⌘V / Ctrl+V to paste any copied photo</span>
+            {imageUrl && (
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-950"
+              >
+                {uploading ? "Uploading..." : "Upload file"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* 2. Price & Category Side-by-Side */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label
-            htmlFor="dish-price-main"
-            className="block text-[12px] font-medium text-zinc-700"
-          >
-            {pricingType === "MARKET_PRICE"
-              ? "Price (Market Price)"
-              : `Price (${currency})`}
-          </label>
-          <div className="mt-1 flex items-center rounded-lg border border-zinc-200 bg-white focus-within:border-brand">
-            <span className="pl-3 pr-1 text-[13px] font-medium text-zinc-500">
-              {currency === "KHR" ? "៛" : "$"}
-            </span>
-            <input
-              id="dish-price-main"
-              type="number"
-              step={currency === "KHR" ? "100" : "0.01"}
-              min="0"
-              disabled={pricingType === "MARKET_PRICE"}
-              required={pricingType !== "MARKET_PRICE"}
-              value={pricingType === "MARKET_PRICE" ? "" : price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder={
-                pricingType === "MARKET_PRICE"
-                  ? "Market price"
-                  : currency === "KHR"
-                    ? "28000"
-                    : "12.50"
-              }
-              className="w-full bg-transparent py-2 pr-3 text-[14px] tabular-nums text-zinc-950 placeholder:text-zinc-400 focus:outline-none disabled:bg-zinc-50 disabled:text-zinc-400"
-            />
+      {/* 2. Price & Category Side-by-Side + 1-Tap Price Suggestions */}
+      <div className="space-y-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label
+              htmlFor="dish-price-main"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              {pricingType === "MARKET_PRICE"
+                ? "Price (Market Price)"
+                : `Price (${currency})`}
+            </label>
+            <div className="mt-1 flex items-center rounded-lg border border-zinc-200 bg-white focus-within:border-brand">
+              <span className="pl-3 pr-1 text-[13px] font-medium text-zinc-500">
+                {currency === "KHR" ? "៛" : "$"}
+              </span>
+              <input
+                id="dish-price-main"
+                type="number"
+                step={currency === "KHR" ? "100" : "0.01"}
+                min="0"
+                disabled={pricingType === "MARKET_PRICE"}
+                required={pricingType !== "MARKET_PRICE"}
+                value={pricingType === "MARKET_PRICE" ? "" : price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder={
+                  pricingType === "MARKET_PRICE"
+                    ? "Market price"
+                    : currency === "KHR"
+                      ? "25000"
+                      : "6.50"
+                }
+                className="w-full bg-transparent py-2 pr-3 text-[14px] tabular-nums text-zinc-950 placeholder:text-zinc-400 focus:outline-none disabled:bg-zinc-50 disabled:text-zinc-400"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="dish-category-main"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              Category
+            </label>
+            <div className="mt-1">
+              <NativeSelect
+                id="dish-category-main"
+                value={categoryId}
+                onChange={setCategoryId}
+                fullWidth
+                options={categories.map((cat) => ({
+                  value: cat.id,
+                  label:
+                    cat.nameKm && cat.nameEn && cat.nameKm !== cat.nameEn
+                      ? `${cat.nameKm} · ${cat.nameEn}`
+                      : cat.nameKm || cat.nameEn || cat.name,
+                }))}
+              />
+            </div>
           </div>
         </div>
 
-        <div>
-          <label
-            htmlFor="dish-category-main"
-            className="block text-[12px] font-medium text-zinc-700"
-          >
-            Category
-          </label>
-          <div className="mt-1">
-            <NativeSelect
-              id="dish-category-main"
-              value={categoryId}
-              onChange={setCategoryId}
-              fullWidth
-              options={categories.map((cat) => ({
-                value: cat.id,
-                label: cat.nameEn || cat.name,
-              }))}
-            />
+        {/* 1-Tap Quick Price Suggestion Chips (e.g. 25,000៛, 35,000៛, 40,000៛) */}
+        {pricingType !== "MARKET_PRICE" && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <span className="mr-0.5 text-[11px] font-medium text-zinc-400">
+              Quick price:
+            </span>
+            {priceSuggestions.map((suggested) => {
+              const rawVal =
+                currency === "KHR"
+                  ? String(suggested)
+                  : Number.isInteger(suggested)
+                    ? suggested.toFixed(2)
+                    : suggested.toFixed(2);
+              const isSelected =
+                price.trim() !== "" && Number(price) === suggested;
+              const chipLabel =
+                currency === "KHR"
+                  ? `${suggested.toLocaleString("en-US")} ៛`
+                  : `$${rawVal}`;
+              return (
+                <button
+                  key={suggested}
+                  type="button"
+                  onClick={() => setPrice(rawVal)}
+                  className={`rounded-md border px-2 py-0.5 text-[11.5px] font-medium tabular-nums transition-colors ${
+                    isSelected
+                      ? "border-brand bg-brand"
+                      : "border-zinc-200 bg-[#FAFAFA] text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-950"
+                  }`}
+                >
+                  {chipLabel}
+                </button>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
 
       {/* 3. Two Simple 1-Tap Toggles: Signature? & In Stock? */}

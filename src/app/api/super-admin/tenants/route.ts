@@ -14,7 +14,10 @@ import {
   getSuperAdminDashboardData,
   revalidatePublicMenu,
 } from "@/lib/menu-data";
-import { DEFAULT_COOKING_STYLE_PRESETS } from "@/lib/i18n";
+import {
+  DEFAULT_COOKING_STYLE_PRESETS,
+  DEFAULT_MENU_CATEGORIES,
+} from "@/lib/i18n";
 import type {
   ScanAnalyticsRow,
   SuperAdminTenantSummary,
@@ -102,16 +105,18 @@ export async function POST(request: NextRequest) {
     updatedAt: now,
   });
 
-  const defaultCatRef = categoriesCol(newTenantRef.id).doc();
-  batch.set(defaultCatRef, {
-    tenantId: newTenantRef.id,
-    name: "Fresh Seafood",
-    nameEn: "Fresh Seafood",
-    nameKm: "គ្រឿងសមុទ្រស្រស់",
-    sortOrder: 0,
-    isVisible: true,
-    createdAt: now,
-    updatedAt: now,
+  DEFAULT_MENU_CATEGORIES.forEach((cat, idx) => {
+    const catRef = categoriesCol(newTenantRef.id).doc();
+    batch.set(catRef, {
+      tenantId: newTenantRef.id,
+      name: cat.nameEn,
+      nameEn: cat.nameEn,
+      nameKm: cat.nameKm,
+      sortOrder: idx,
+      isVisible: true,
+      createdAt: now,
+      updatedAt: now,
+    });
   });
 
   DEFAULT_COOKING_STYLE_PRESETS.forEach((preset, idx) => {
@@ -146,7 +151,7 @@ export async function POST(request: NextRequest) {
     ownerEmail: parsed.data.ownerEmail,
     ownerName: parsed.data.ownerName,
     itemCount: 0,
-    categoryCount: 1,
+    categoryCount: DEFAULT_MENU_CATEGORIES.length,
     scanCount: 0,
     scansLast7Days: 0,
     createdAt: now.toISOString(),

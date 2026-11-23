@@ -90,6 +90,16 @@ export function isHighlightedTag(tag: string): boolean {
   return Boolean(SEAFOOD_TAG_DICTIONARY[tag]?.highlight);
 }
 
+export const DEFAULT_MENU_CATEGORIES = [
+  { key: "seafood", nameKm: "គ្រឿងសមុទ្រ", nameEn: "Seafood" },
+  { key: "crab", nameKm: "ក្តាម", nameEn: "Crab" },
+  { key: "shrimp", nameKm: "បង្គា និង បង្កង", nameEn: "Shrimp" },
+  { key: "squid", nameKm: "មឹក", nameEn: "Squid" },
+  { key: "rice", nameKm: "បាយ និង មី", nameEn: "Rice" },
+  { key: "beer", nameKm: "ស្រាបៀរ", nameEn: "Beer" },
+  { key: "drink", nameKm: "ភេសជ្ជៈ", nameEn: "Drink" },
+] as const;
+
 export const DEFAULT_COOKING_STYLE_PRESETS = [
   { nameKm: "អាំង", nameEn: "Charcoal Grilled", defaultSurcharge: 0 },
   { nameKm: "ចំហុយស៊ីអ៊ីវ", nameEn: "Steamed with Soy & Ginger", defaultSurcharge: 0 },

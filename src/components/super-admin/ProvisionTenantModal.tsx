@@ -33,7 +33,7 @@ function ProvisionTenantForm({
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [tagline, setTagline] = useState("");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("KHR");
   const [vendorMode, setVendorMode] = useState<VendorMode>("CART");
   const [primaryColor, setPrimaryColor] = useState("#1E293B");
   const [ownerName, setOwnerName] = useState("");
