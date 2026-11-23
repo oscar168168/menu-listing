@@ -5,9 +5,15 @@ import { getCachedPublicMenuBySlug } from "@/lib/menu-data";
 import { getTenantThemeStyle } from "@/lib/theme";
 import { PublicMenuClient } from "@/components/public-menu/PublicMenuClient";
 
+export const revalidate = 300;
+export const dynamicParams = true;
+
+export function generateStaticParams() {
+  return [];
+}
+
 interface PublicMenuPageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ table?: string }>;
 }
 
 export async function generateMetadata({
@@ -25,12 +31,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function PublicMenuPage({
-  params,
-  searchParams,
-}: PublicMenuPageProps) {
+export default async function PublicMenuPage({ params }: PublicMenuPageProps) {
   const { slug } = await params;
-  const { table } = await searchParams;
   const data = await getCachedPublicMenuBySlug(slug);
 
   if (!data) {
@@ -55,11 +57,6 @@ export default async function PublicMenuPage({
     );
   }
 
-  const sanitizedTable =
-    typeof table === "string" && /^[a-zA-Z0-9_-]{1,24}$/.test(table.trim())
-      ? table.trim()
-      : undefined;
-
   // Server-side CSS custom property injection guarantees zero FOUC
   const themeVars = getTenantThemeStyle(data.tenant.primaryColor);
 
@@ -68,7 +65,6 @@ export default async function PublicMenuPage({
       <PublicMenuClient
         tenant={data.tenant}
         categories={data.categories}
-        tableCode={sanitizedTable}
       />
     </div>
   );

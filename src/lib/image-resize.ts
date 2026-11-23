@@ -1,7 +1,7 @@
 "use client";
 
-const MAX_BYTES_WITHOUT_RESIZE = 320 * 1024; // 320KB
-const TARGET_MAX_BYTES = 750 * 1024; // Safely under 900KB Firestore limit
+const MAX_BYTES_WITHOUT_RESIZE = 80 * 1024; // 80KB
+const TARGET_MAX_BYTES = 220 * 1024; // Fast mobile loading & well under 900KB Firestore limit
 
 function canvasToBlob(
   canvas: HTMLCanvasElement,
@@ -35,7 +35,7 @@ function loadImageFromFile(file: File): Promise<HTMLImageElement> {
  */
 export async function compressImageForUpload(
   file: File,
-  maxDimension = 1200
+  maxDimension = 960
 ): Promise<File> {
   if (file.type === "image/svg+xml") {
     return file;
@@ -61,9 +61,9 @@ export async function compressImageForUpload(
   }
 
   const attempts: Array<{ maxDim: number; quality: number }> = [
-    { maxDim: maxDimension, quality: 0.84 },
-    { maxDim: 960, quality: 0.72 },
-    { maxDim: 720, quality: 0.62 },
+    { maxDim: maxDimension, quality: 0.8 },
+    { maxDim: Math.min(maxDimension, 760), quality: 0.72 },
+    { maxDim: Math.min(maxDimension, 640), quality: 0.62 },
   ];
 
   const baseName = file.name.replace(/\.[^.]+$/, "") || "dish-photo";

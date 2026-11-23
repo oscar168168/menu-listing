@@ -25,9 +25,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const itemRef = menuItemsCol(ctx.tenantId).doc(id);
-  const [itemSnap, tenantSnap] = await Promise.all([
+  const targetCatId = parsed.data.categoryId;
+  const [itemSnap, tenantSnap, targetCatSnap] = await Promise.all([
     itemRef.get(),
     tenantDoc(ctx.tenantId).get(),
+    targetCatId !== undefined
+      ? categoriesCol(ctx.tenantId).doc(targetCatId).get()
+      : Promise.resolve(null),
   ]);
   const existing = itemSnap.data();
   const tenant = tenantSnap.data();
@@ -36,14 +40,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Menu item not found" }, { status: 404 });
   }
 
-  if (
-    parsed.data.categoryId !== undefined &&
-    parsed.data.categoryId !== existing.categoryId
-  ) {
-    const targetSnap = await categoriesCol(ctx.tenantId)
-      .doc(parsed.data.categoryId)
-      .get();
-    if (!targetSnap.exists || targetSnap.data()?.tenantId !== ctx.tenantId) {
+  if (targetCatId !== undefined && targetCatId !== existing.categoryId) {
+    if (!targetCatSnap?.exists || targetCatSnap.data()?.tenantId !== ctx.tenantId) {
       return NextResponse.json(
         { error: "Target category does not belong to your venue" },
         { status: 403 }

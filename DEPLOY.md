@@ -1,13 +1,14 @@
 # Deploying MenuOS (100% Free Plan: Firebase Spark + Vercel Hobby)
 
 This setup uses **no paid plans** and **no credit card**:
-- **Database & Built-in Image Storage:** Firebase **Spark (free)** Cloud Firestore
-- **Next.js SSR & API Hosting:** **Vercel Hobby (free)** (since Firebase App Hosting requires the Blaze plan)
+- **Database & Built-in Image Storage:** Firebase **Spark (free)** Cloud Firestore (Singapore `asia-southeast1`)
+- **Next.js SSR & API Hosting:** **Vercel Hobby (free)** pinned to `sin1` (Singapore via [`vercel.json`](vercel.json)) so functions sit in the same region as Firestore
 - **External Image CDN (optional):** **Cloudinary Free Tier** (only needed if you want external CDN hosting; built-in Firestore media storage works automatically with zero setup)
 
 ---
 
 ## Step 1 — Deploy Firestore Rules & Indexes (Free on Spark)
+Deploy `firestore.rules` and `firestore.indexes.json` before production traffic so indexed queries (such as homepage active venue ordering) run at full speed:
 ```sh
 npx -y firebase-tools@latest deploy --only firestore --project menu-listing
 ```
@@ -34,8 +35,9 @@ GOOGLE_APPLICATION_CREDENTIALS="/path/to/menu-listing-firebase-adminsdk.json" np
      ```
    - `AUTH_SECRET` = output of `openssl rand -hex 32`
    - `NEXT_PUBLIC_APP_URL` = your Vercel deployment URL (e.g. `https://menu-listing.vercel.app`)
+   - *(Optional)* `FIRESTORE_ENABLE_TRACING` = `off` (defaulted to `off` in `src/lib/firestore.ts` to avoid OpenTelemetry tracing overhead on serverless cold starts)
    - *(Optional)* `CLOUDINARY_URL` = `cloudinary://API_KEY:API_SECRET@CLOUD_NAME`
-4. Click **Deploy**.
+4. Click **Deploy**. (`vercel.json` pins serverless functions to `sin1` Singapore next to `asia-southeast1` Firestore.)
 
 ---
 

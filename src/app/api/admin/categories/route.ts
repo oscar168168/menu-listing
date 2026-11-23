@@ -19,15 +19,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const tenantSnap = await tenantDoc(ctx.tenantId).get();
+  const [tenantSnap, existingCats] = await Promise.all([
+    tenantDoc(ctx.tenantId).get(),
+    categoriesCol(ctx.tenantId).select("sortOrder").get(),
+  ]);
   const tenant = tenantSnap.data();
   if (!tenantSnap.exists || !tenant) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
-  const existingCats = await categoriesCol(ctx.tenantId)
-    .select("sortOrder")
-    .get();
   const maxSortOrder = existingCats.docs.reduce((max, doc) => {
     const val = doc.data().sortOrder;
     return typeof val === "number" && val > max ? val : max;

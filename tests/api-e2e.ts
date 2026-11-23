@@ -90,20 +90,34 @@ async function run() {
   assert.equal(unauthSuper.status, 403);
   console.log("✓ Auth guards enforce 401/403");
 
-  // 2. Public Cambodian Seafood SSR Menus (Khmer default, USD+KHR and KHR+USD)
+  // 2. Public Cambodian Seafood ISR Menus (Khmer default, USD+KHR and KHR+USD, Edge/ISR cacheable across ?table=)
   const soraFound = await findTenantBySlug("sora-seafood-grill");
   assert.ok(soraFound, "Sora Seafood Grill tenant must be seeded");
   const soraTheme = computeThemeContrast(soraFound.data.primaryColor);
 
-  const soraHtml = await (await req("/m/sora-seafood-grill?table=05")).text();
+  const soraRes = await req("/m/sora-seafood-grill?table=05");
+  assert.equal(soraRes.status, 200);
+  const soraCacheControl = soraRes.headers.get("cache-control") ?? "";
+  assert.ok(
+    !soraCacheControl.includes("no-store"),
+    `Public menu must be ISR/Edge cacheable (got Cache-Control: ${soraCacheControl})`
+  );
+  const soraHtml = await soraRes.text();
   assert.ok(soraHtml.includes(`--brand-primary:${soraTheme.primary}`));
   assert.ok(soraHtml.includes(`--brand-primary-foreground:${soraTheme.foreground}`));
   assert.ok(soraHtml.includes('lang="km"'), "Default menu language must be Khmer");
-  assert.ok(soraHtml.includes("តុ 05"), "Khmer table badge must render by default");
   assert.ok(soraHtml.includes("ក្តាមឆាម្រេចកំពត"), "Khmer dish title must render by default");
   assert.ok(soraHtml.includes("73,800 ៛"), "USD-primary dual KHR conversion must render");
   if (soraFound.data.vendorMode === "CART") {
     assert.ok(soraHtml.includes("Add ក្តាមឆាម្រេចកំពត to cart"), "CART vendor mode must render add-to-cart controls");
+  }
+
+  // Verify subsequent QR scan with different ?table= param reuses ISR cache cleanly
+  const soraSecondRes = await req("/m/sora-seafood-grill?table=09");
+  assert.equal(soraSecondRes.status, 200);
+  const secondNextCache = soraSecondRes.headers.get("x-nextjs-cache");
+  if (secondNextCache) {
+    assert.equal(secondNextCache, "HIT", "Second QR table request should hit ISR cache");
   }
 
   const kepFound = await findTenantBySlug("kep-bay-kitchen");
@@ -119,9 +133,9 @@ async function run() {
   if (kepFound.data.vendorMode === "LISTING_ONLY") {
     assert.ok(!kepHtml.includes("to cart"), "LISTING_ONLY vendor mode must omit add-to-cart controls");
   }
-  console.log("✓ Public Khmer-default Cambodian seafood menus (CART & LISTING_ONLY modes) render zero-FOUC");
+  console.log("✓ Public Khmer-default Cambodian seafood menus (CART & LISTING_ONLY modes) render zero-FOUC + ISR");
 
-  // 3. Scan analytics ping
+  // 3. Scan analytics ping (non-blocking after() persistence)
   const scansBefore = (await scanEventsCol(soraFound.id).count().get()).data().count;
   const scanRes = await req("/api/scans", {
     method: "POST",
@@ -129,7 +143,13 @@ async function run() {
     body: JSON.stringify({ slug: "sora-seafood-grill", tableCode: "E2E-05" }),
   });
   assert.equal(scanRes.status, 201);
-  const scansAfter = (await scanEventsCol(soraFound.id).count().get()).data().count;
+  let scansAfter = scansBefore;
+  const scanDeadline = Date.now() + 3000;
+  while (Date.now() < scanDeadline) {
+    scansAfter = (await scanEventsCol(soraFound.id).count().get()).data().count;
+    if (scansAfter >= scansBefore + 1) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
   assert.equal(scansAfter, scansBefore + 1);
   const e2eScans = await scanEventsCol(soraFound.id)
     .where("tableCode", "==", "E2E-05")
@@ -271,6 +291,21 @@ async function run() {
   const uploadedMediaId = uploadJson.url.split("/").pop()!;
   await getDb().doc(`tenants/${soraFound.id}/media/${uploadedMediaId}`).delete();
 
+  // Verify category reorder endpoint (single getAll RPC)
+  const soraMenuRes = await req("/api/admin/menu", { jar: soraJar });
+  assert.equal(soraMenuRes.status, 200);
+  const soraMenuJson = (await soraMenuRes.json()) as {
+    categories: Array<{ id: string }>;
+  };
+  const reorderIds = soraMenuJson.categories.map((c) => c.id);
+  const reorderRes = await req("/api/admin/categories/reorder", {
+    method: "PATCH",
+    jar: soraJar,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderedIds: reorderIds }),
+  });
+  assert.equal(reorderRes.status, 200);
+
   // Clean up temp category (cascade deletes tempItem too)
   await req(`/api/admin/categories/${tempCat.id}`, {
     method: "DELETE",
@@ -309,9 +344,22 @@ async function run() {
     }),
   });
   assert.equal(provRes.status, 201);
-  const { tenantId: provTenantId } = (await provRes.json()) as {
+  const {
+    tenantId: provTenantId,
+    summary: provSummary,
+    analyticsRow: provAnalytics,
+  } = (await provRes.json()) as {
     tenantId: string;
+    summary: { id: string; slug: string; categoryCount: number };
+    analyticsRow: { tenantId: string; totalScans: number };
   };
+  assert.equal(provSummary.id, provTenantId);
+  assert.equal(provSummary.slug, testSlug);
+  assert.equal(provSummary.categoryCount, 1);
+  assert.equal(provAnalytics.tenantId, provTenantId);
+
+  const superDashRes = await req("/api/super-admin/tenants", { jar: superJar });
+  assert.equal(superDashRes.status, 200);
 
   // Verify default cooking styles were auto-seeded for the provisioned venue
   const presetCount = (await cookingStylesCol(provTenantId).count().get()).data().count;

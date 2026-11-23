@@ -92,9 +92,10 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
   const catRef = categoriesCol(ctx.tenantId).doc(id);
-  const [catSnap, tenantSnap] = await Promise.all([
+  const [catSnap, tenantSnap, itemsSnap] = await Promise.all([
     catRef.get(),
     tenantDoc(ctx.tenantId).get(),
+    menuItemsCol(ctx.tenantId).where("categoryId", "==", id).select().get(),
   ]);
 
   const existing = catSnap.data();
@@ -102,11 +103,6 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   if (!catSnap.exists || !existing || existing.tenantId !== ctx.tenantId || !tenant) {
     return NextResponse.json({ error: "Category not found" }, { status: 404 });
   }
-
-  // Cascade delete items belonging to this category
-  const itemsSnap = await menuItemsCol(ctx.tenantId)
-    .where("categoryId", "==", id)
-    .get();
 
   const ops: Array<(batch: FirebaseFirestore.WriteBatch) => void> = itemsSnap.docs.map(
     (doc) => (batch) => batch.delete(doc.ref)

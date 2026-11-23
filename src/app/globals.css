@@ -14,7 +14,6 @@
     color: #09090b;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
   }
 
   body {
@@ -305,6 +304,11 @@
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+.menu-category-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 480px;
 }
 
 /* ============================================================================

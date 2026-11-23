@@ -194,10 +194,17 @@ export function getDb(): Firestore {
     return globalForFirestore.firestoreClient;
   }
 
+  if (!("FIRESTORE_ENABLE_TRACING" in process.env)) {
+    process.env.FIRESTORE_ENABLE_TRACING = "off";
+  }
+
   const db = getFirestore(getFirebaseAdminApp());
   if (!globalForFirestore.firestoreSettingsApplied) {
     try {
-      db.settings({ ignoreUndefinedProperties: true });
+      db.settings({
+        ignoreUndefinedProperties: true,
+        preferRest: !process.env.FIRESTORE_EMULATOR_HOST,
+      });
     } catch {
       // settings already applied during hot reload
     }

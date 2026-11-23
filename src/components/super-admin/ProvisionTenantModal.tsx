@@ -8,7 +8,7 @@ import {
   CURATED_THEME_PRESETS,
   SUPPORTED_CURRENCIES,
 } from "@/lib/theme";
-import { slugify } from "@/lib/validation";
+import { slugify } from "@/lib/slug";
 import type {
   ScanAnalyticsRow,
   SuperAdminTenantSummary,
@@ -18,17 +18,9 @@ import type {
 interface ProvisionTenantModalProps {
   open: boolean;
   onClose: () => void;
-  onProvisioned: (dashboard: {
-    tenants: SuperAdminTenantSummary[];
-    analytics: ScanAnalyticsRow[];
-    totals: {
-      totalTenants: number;
-      activeTenants: number;
-      suspendedTenants: number;
-      totalItems: number;
-      totalScans: number;
-      scansLast7Days: number;
-    };
+  onProvisioned: (created: {
+    summary: SuperAdminTenantSummary;
+    analyticsRow: ScanAnalyticsRow;
   }) => void;
 }
 
@@ -86,12 +78,16 @@ function ProvisionTenantForm({
       });
       const json = (await res.json()) as {
         error?: string;
-        dashboard?: Parameters<ProvisionTenantModalProps["onProvisioned"]>[0];
+        summary?: SuperAdminTenantSummary;
+        analyticsRow?: ScanAnalyticsRow;
       };
-      if (!res.ok || !json.dashboard) {
+      if (!res.ok || !json.summary || !json.analyticsRow) {
         throw new Error(json.error ?? "Failed to provision venue");
       }
-      onProvisioned(json.dashboard);
+      onProvisioned({
+        summary: json.summary,
+        analyticsRow: json.analyticsRow,
+      });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create venue");

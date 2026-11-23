@@ -19,9 +19,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const [catSnap, tenantSnap] = await Promise.all([
+  const [catSnap, tenantSnap, existingItems] = await Promise.all([
     categoriesCol(ctx.tenantId).doc(parsed.data.categoryId).get(),
     tenantDoc(ctx.tenantId).get(),
+    menuItemsCol(ctx.tenantId)
+      .where("categoryId", "==", parsed.data.categoryId)
+      .select("sortOrder")
+      .get(),
   ]);
   const category = catSnap.data();
   const tenant = tenantSnap.data();
@@ -33,10 +37,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const existingItems = await menuItemsCol(ctx.tenantId)
-    .where("categoryId", "==", catSnap.id)
-    .select("sortOrder")
-    .get();
   const maxSortOrder = existingItems.docs.reduce((max, doc) => {
     const val = doc.data().sortOrder;
     return typeof val === "number" && val > max ? val : max;

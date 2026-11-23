@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -21,18 +22,50 @@ import {
 } from "lucide-react";
 import { getTenantThemeStyle } from "@/lib/theme";
 import { CategorySidebar } from "@/components/admin/CategorySidebar";
-import { CategoryModal } from "@/components/admin/CategoryModal";
-import {
-  ItemEditorModal,
-  type ItemFormPayload,
-} from "@/components/admin/ItemEditorModal";
+import type { ItemFormPayload } from "@/components/admin/ItemEditorModal";
 import { MenuManager } from "@/components/admin/MenuManager";
-import { QuickMarketPanel } from "@/components/admin/QuickMarketPanel";
-import { ThemeStudio } from "@/components/admin/ThemeStudio";
-import { QrCenter } from "@/components/admin/QrCenter";
-import { MobilePreviewFrame } from "@/components/admin/MobilePreviewFrame";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { Toast, type ToastMessage } from "@/components/ui/Toast";
+
+const CategoryModal = dynamic(
+  () =>
+    import("@/components/admin/CategoryModal").then((m) => m.CategoryModal),
+  { ssr: false }
+);
+
+const ItemEditorModal = dynamic(
+  () =>
+    import("@/components/admin/ItemEditorModal").then(
+      (m) => m.ItemEditorModal
+    ),
+  { ssr: false }
+);
+
+const QuickMarketPanel = dynamic(
+  () =>
+    import("@/components/admin/QuickMarketPanel").then(
+      (m) => m.QuickMarketPanel
+    ),
+  { ssr: false }
+);
+
+const ThemeStudio = dynamic(
+  () => import("@/components/admin/ThemeStudio").then((m) => m.ThemeStudio),
+  { ssr: false }
+);
+
+const QrCenter = dynamic(
+  () => import("@/components/admin/QrCenter").then((m) => m.QrCenter),
+  { ssr: false }
+);
+
+const MobilePreviewFrame = dynamic(
+  () =>
+    import("@/components/admin/MobilePreviewFrame").then(
+      (m) => m.MobilePreviewFrame
+    ),
+  { ssr: false }
+);
 import type {
   SerializedCategory,
   SerializedCookingStylePreset,
@@ -79,18 +112,32 @@ export function AdminWorkspace({
 
   // Modals owned at workspace level so sidebar + quick '+' rail button work from anywhere
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [categoryModalMounted, setCategoryModalMounted] = useState(false);
   const [editingCategory, setEditingCategory] =
     useState<SerializedCategory | null>(null);
   const [deletingCategory, setDeletingCategory] =
     useState<SerializedCategory | null>(null);
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [itemModalMounted, setItemModalMounted] = useState(false);
   const [editingItem, setEditingItem] = useState<SerializedMenuItem | null>(
     null
   );
   const [deletingItem, setDeletingItem] = useState<SerializedMenuItem | null>(
     null
   );
+
+  const openCategoryModal = useCallback((cat: SerializedCategory | null) => {
+    setCategoryModalMounted(true);
+    setEditingCategory(cat);
+    setCategoryModalOpen(true);
+  }, []);
+
+  const openItemModal = useCallback((item: SerializedMenuItem | null) => {
+    setItemModalMounted(true);
+    setEditingItem(item);
+    setItemModalOpen(true);
+  }, []);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -398,13 +445,11 @@ export function AdminWorkspace({
   const handleExitImpersonation = async () => {
     await fetch("/api/super-admin/impersonate", { method: "DELETE" });
     router.push("/super-admin");
-    router.refresh();
   };
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
-    router.refresh();
   };
 
   const themeVars = getTenantThemeStyle(tenant.primaryColor);
@@ -500,10 +545,7 @@ export function AdminWorkspace({
             <button
               type="button"
               disabled={categories.length === 0}
-              onClick={() => {
-                setEditingItem(null);
-                setItemModalOpen(true);
-              }}
+              onClick={() => openItemModal(null)}
               title="Add new dish"
               aria-label="Add new dish"
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand transition-opacity hover:opacity-90 disabled:opacity-40"
@@ -611,14 +653,8 @@ export function AdminWorkspace({
               categories={categories}
               selectedCategoryId={selectedCategoryId}
               onSelectCategory={setSelectedCategoryId}
-              onCreateCategory={() => {
-                setEditingCategory(null);
-                setCategoryModalOpen(true);
-              }}
-              onEditCategory={(cat) => {
-                setEditingCategory(cat);
-                setCategoryModalOpen(true);
-              }}
+              onCreateCategory={() => openCategoryModal(null)}
+              onEditCategory={(cat) => openCategoryModal(cat)}
               onDeleteCategory={setDeletingCategory}
               onToggleVisibility={(cat, next) =>
                 void handleToggleCategoryVisibility(cat, next)
@@ -819,14 +855,8 @@ export function AdminWorkspace({
                     selectedCategoryId={selectedCategoryId}
                     searchQuery={globalSearch}
                     onSearchChange={setGlobalSearch}
-                    onAddDish={() => {
-                      setEditingItem(null);
-                      setItemModalOpen(true);
-                    }}
-                    onEditDish={(item) => {
-                      setEditingItem(item);
-                      setItemModalOpen(true);
-                    }}
+                    onAddDish={() => openItemModal(null)}
+                    onEditDish={(item) => openItemModal(item)}
                     onDeleteDish={setDeletingItem}
                     onToggleAvailability={(item, checked) =>
                       void handleToggleItemAvailability(item, checked)
@@ -888,13 +918,11 @@ export function AdminWorkspace({
             }}
             onCreateCategory={() => {
               setMobileDrawerOpen(false);
-              setEditingCategory(null);
-              setCategoryModalOpen(true);
+              openCategoryModal(null);
             }}
             onEditCategory={(cat) => {
               setMobileDrawerOpen(false);
-              setEditingCategory(cat);
-              setCategoryModalOpen(true);
+              openCategoryModal(cat);
             }}
             onDeleteCategory={(cat) => {
               setMobileDrawerOpen(false);
@@ -909,28 +937,32 @@ export function AdminWorkspace({
         </div>
       </NativeDialog>
 
-      {/* Modals */}
-      <CategoryModal
-        open={categoryModalOpen}
-        editingCategory={editingCategory}
-        onClose={() => setCategoryModalOpen(false)}
-        onSave={handleSaveCategory}
-      />
+      {/* Modals (loaded on first open) */}
+      {categoryModalMounted && (
+        <CategoryModal
+          open={categoryModalOpen}
+          editingCategory={editingCategory}
+          onClose={() => setCategoryModalOpen(false)}
+          onSave={handleSaveCategory}
+        />
+      )}
 
-      <ItemEditorModal
-        open={itemModalOpen}
-        editingItem={editingItem}
-        defaultCategoryId={
-          selectedCategoryId !== "ALL"
-            ? selectedCategoryId
-            : categories[0]?.id ?? ""
-        }
-        categories={categories}
-        cookingStylePresets={cookingStylePresets}
-        currency={tenant.currency}
-        onClose={() => setItemModalOpen(false)}
-        onSave={handleSaveItem}
-      />
+      {itemModalMounted && (
+        <ItemEditorModal
+          open={itemModalOpen}
+          editingItem={editingItem}
+          defaultCategoryId={
+            selectedCategoryId !== "ALL"
+              ? selectedCategoryId
+              : categories[0]?.id ?? ""
+          }
+          categories={categories}
+          cookingStylePresets={cookingStylePresets}
+          currency={tenant.currency}
+          onClose={() => setItemModalOpen(false)}
+          onSave={handleSaveItem}
+        />
+      )}
 
       {/* Delete Category Confirmation */}
       <NativeDialog

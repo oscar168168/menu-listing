@@ -1,13 +1,16 @@
 "use client";
 
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
 } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import {
   ClipboardList,
@@ -30,9 +33,7 @@ import {
   resolveLocalized,
   UI_COPY,
 } from "@/lib/i18n";
-import { ItemDetailSheet } from "@/components/public-menu/ItemDetailSheet";
-import { VenueInfoSheet } from "@/components/public-menu/VenueInfoSheet";
-import { ShortlistModal } from "@/components/public-menu/ShortlistModal";
+import { parseTableCodeFromSearch, sanitizeTableCode } from "@/lib/table-code";
 import type {
   CookingStyleOption,
   ItemVariant,
@@ -43,11 +44,39 @@ import type {
   ShortlistEntry,
 } from "@/types/menu";
 
+const ItemDetailSheet = dynamic(
+  () =>
+    import("@/components/public-menu/ItemDetailSheet").then(
+      (m) => m.ItemDetailSheet
+    ),
+  { ssr: false }
+);
+
+const VenueInfoSheet = dynamic(
+  () =>
+    import("@/components/public-menu/VenueInfoSheet").then(
+      (m) => m.VenueInfoSheet
+    ),
+  { ssr: false }
+);
+
+const ShortlistModal = dynamic(
+  () =>
+    import("@/components/public-menu/ShortlistModal").then(
+      (m) => m.ShortlistModal
+    ),
+  { ssr: false }
+);
+
 interface PublicMenuClientProps {
   tenant: SerializedTenant;
   categories: SerializedCategory[];
   tableCode?: string;
   isPreview?: boolean;
+}
+
+function isBuiltInMediaUrl(src: string): boolean {
+  return src.startsWith("/api/media/");
 }
 
 function getShortlistStorageKey(slug: string): string {
@@ -72,6 +101,13 @@ function subscribeStorage(listener: () => void) {
   };
 }
 
+const emptySubscribe = () => () => {};
+
+function readClientTableCode(): string {
+  if (typeof window === "undefined") return "";
+  return parseTableCodeFromSearch(window.location.search);
+}
+
 function readStoredLocale(): Locale {
   if (typeof window === "undefined") return "km";
   try {
@@ -90,6 +126,374 @@ function readStoredShortlistRaw(slug: string): string {
     return "[]";
   }
 }
+
+interface MenuProductCardProps {
+  item: SerializedMenuItem;
+  locale: Locale;
+  isCartMode: boolean;
+  currencyConfig: DualCurrencyConfig;
+  inShortlistQty: number;
+  fromPriceLabel: string;
+  soldOutLabel: string;
+  liveTankLabel: string;
+  marketPriceLabel: string;
+  isAboveFold: boolean;
+  isLcpImage: boolean;
+  isPreview: boolean;
+  onSelectItem: (item: SerializedMenuItem) => void;
+  onAddSimpleItem: (item: SerializedMenuItem) => void;
+  onUpdateShortlistQty: (key: string, delta: number) => void;
+}
+
+const MenuProductCard = memo(function MenuProductCard({
+  item,
+  locale,
+  isCartMode,
+  currencyConfig,
+  inShortlistQty,
+  fromPriceLabel,
+  soldOutLabel,
+  liveTankLabel,
+  marketPriceLabel,
+  isAboveFold,
+  isLcpImage,
+  isPreview,
+  onSelectItem,
+  onAddSimpleItem,
+  onUpdateShortlistQty,
+}: MenuProductCardProps) {
+  const title = resolveLocalized(
+    locale,
+    item.nameKm,
+    item.nameEn,
+    item.name
+  );
+  const needsSheetConfig =
+    item.variants.length > 0 || item.cookingStyles.length > 0;
+  const simpleKey = `${item.id}::base::none`;
+  const cornerBadgeTag = !item.isAvailable
+    ? soldOutLabel
+    : item.tags.includes("Live Tank")
+      ? liveTankLabel
+      : null;
+
+  const { dualFormatted, marketRange } = useMemo(() => {
+    if (item.pricingType === "MARKET_PRICE") {
+      return {
+        dualFormatted: null,
+        marketRange: formatMarketRange(
+          item.marketPriceMin,
+          item.marketPriceMax,
+          currencyConfig,
+          { weightUnit: item.weightUnit, locale }
+        ),
+      };
+    }
+
+    if (item.variants.length > 0) {
+      const minPrice = Math.min(...item.variants.map((v) => v.price));
+      const maxPrice = Math.max(...item.variants.map((v) => v.price));
+      return {
+        dualFormatted: formatDualPrice(minPrice, currencyConfig, {
+          locale,
+          prefix: minPrice !== maxPrice ? fromPriceLabel : undefined,
+        }),
+        marketRange: null,
+      };
+    }
+
+    return {
+      dualFormatted: formatDualPrice(item.price, currencyConfig, {
+        weightUnit:
+          item.pricingType === "WEIGHT_BASED" ? item.weightUnit : null,
+        locale,
+      }),
+      marketRange: null,
+    };
+  }, [item, currencyConfig, locale, fromPriceLabel]);
+
+  return (
+    <article
+      className={`product-card flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white ${
+        !item.isAvailable ? "opacity-55" : ""
+      }`}
+    >
+      {/* 1. Big Square Image Area */}
+      <div className="relative aspect-square w-full overflow-hidden bg-[#F4F4F5]">
+        {item.imageUrl ? (
+          <Image
+            src={item.imageUrl}
+            alt={title}
+            fill
+            sizes="(max-width: 480px) 46vw, 220px"
+            unoptimized={isBuiltInMediaUrl(item.imageUrl)}
+            preload={isLcpImage && !isPreview}
+            fetchPriority={isLcpImage && !isPreview ? "high" : undefined}
+            loading={isLcpImage && !isPreview ? undefined : isAboveFold ? "eager" : "lazy"}
+            className={`object-cover ${
+              !item.isAvailable ? "grayscale-[35%]" : ""
+            }`}
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-zinc-300"
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-200 bg-white/80">
+              <UtensilsCrossed
+                className="h-5 w-5 text-zinc-400"
+                strokeWidth={1.5}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Restrained Top-Left Micro Badge (Sold Out or Live Tank) */}
+        {cornerBadgeTag && (
+          <span
+            className={`km-badge pointer-events-none absolute left-2 top-2 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
+              !item.isAvailable
+                ? "border-zinc-300 bg-white/95 text-zinc-600"
+                : "border-zinc-200 bg-white/95 text-zinc-900"
+            }`}
+          >
+            {cornerBadgeTag}
+          </span>
+        )}
+
+        {/* Mode 1 (CART) Only: Clean Floating Add / Stepper Button */}
+        {isCartMode && item.isAvailable && (
+          <div className="absolute bottom-2 right-2">
+            {!needsSheetConfig && inShortlistQty > 0 ? (
+              <div className="inline-flex items-center rounded-full border border-brand bg-white">
+                <button
+                  type="button"
+                  onClick={() => onUpdateShortlistQty(simpleKey, -1)}
+                  aria-label={`Remove one ${title}`}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-l-full text-zinc-800 hover:bg-zinc-100"
+                >
+                  <Minus className="h-3 w-3" strokeWidth={1.5} />
+                </button>
+                <span className="min-w-[1.2rem] text-center text-[12px] font-semibold tabular-nums text-zinc-950">
+                  {inShortlistQty}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onUpdateShortlistQty(simpleKey, 1)}
+                  aria-label={`Add one more ${title}`}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-r-full bg-brand"
+                >
+                  <Plus className="h-3 w-3" strokeWidth={1.5} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (needsSheetConfig) {
+                    onSelectItem(item);
+                  } else {
+                    onAddSimpleItem(item);
+                  }
+                }}
+                aria-label={`Add ${title} to cart`}
+                className={`inline-flex h-8 items-center justify-center gap-1 rounded-full border text-[12px] font-semibold transition-colors ${
+                  inShortlistQty > 0
+                    ? "border-brand bg-brand px-2.5"
+                    : "w-8 border-zinc-200 bg-white/95 text-zinc-900 hover:border-zinc-400 hover:bg-white"
+                }`}
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                {inShortlistQty > 0 && (
+                  <span className="tabular-nums">{inShortlistQty}</span>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 2. Food Title + 3. Price (Clean Centered Editorial Hierarchy) */}
+      <div className="flex flex-1 flex-col items-center justify-between gap-1.5 px-2.5 pt-2.5 pb-3 text-center">
+        <h3 className="w-full text-[13.5px] font-semibold text-zinc-950">
+          <button
+            type="button"
+            onClick={() => onSelectItem(item)}
+            className="card-trigger line-clamp-2 w-full text-center text-zinc-950"
+          >
+            {title}
+          </button>
+        </h3>
+
+        <div className="w-full">
+          {item.pricingType === "MARKET_PRICE" ? (
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="km-badge inline-block rounded-md border border-brand-subtle bg-brand-subtle px-2 py-0.5 text-[11px] font-semibold text-zinc-900">
+                {marketPriceLabel}
+              </span>
+              {marketRange && (
+                <span className="text-[11px] tabular-nums text-zinc-500">
+                  {marketRange.primary}
+                </span>
+              )}
+            </div>
+          ) : (
+            dualFormatted && (
+              <div className="flex flex-col items-center tabular-nums">
+                <span className="text-[14px] font-semibold text-zinc-950">
+                  {dualFormatted.primary}
+                </span>
+                {dualFormatted.secondary && (
+                  <span className="text-[11px] text-zinc-500">
+                    {dualFormatted.secondary}
+                  </span>
+                )}
+              </div>
+            )
+          )}
+        </div>
+      </div>
+    </article>
+  );
+});
+
+interface MenuCategorySectionsProps {
+  filteredCategories: SerializedCategory[];
+  locale: Locale;
+  isCartMode: boolean;
+  currencyConfig: DualCurrencyConfig;
+  itemQtyMap: Map<string, number>;
+  hasCoverUrl: boolean;
+  isPreview: boolean;
+  searchQuery: string;
+  hasSelectedTags: boolean;
+  onResetFilters: () => void;
+  onSelectItem: (item: SerializedMenuItem) => void;
+  onAddSimpleItem: (item: SerializedMenuItem) => void;
+  onUpdateShortlistQty: (key: string, delta: number) => void;
+  registerSectionRef: (catId: string, node: HTMLElement | null) => void;
+}
+
+const MenuCategorySections = memo(function MenuCategorySections({
+  filteredCategories,
+  locale,
+  isCartMode,
+  currencyConfig,
+  itemQtyMap,
+  hasCoverUrl,
+  isPreview,
+  searchQuery,
+  hasSelectedTags,
+  onResetFilters,
+  onSelectItem,
+  onAddSimpleItem,
+  onUpdateShortlistQty,
+  registerSectionRef,
+}: MenuCategorySectionsProps) {
+  const t = UI_COPY[locale];
+  const liveTankLabel = localizeTag("Live Tank", locale);
+
+  if (filteredCategories.length === 0) {
+    return (
+      <div className="px-6 py-16 text-center">
+        <p className="text-[15px] font-medium text-zinc-900">
+          {t.noMatchesTitle}
+        </p>
+        <p className="mt-1 text-[13px] text-zinc-500">
+          {searchQuery || hasSelectedTags ? t.noMatchesBody : t.noItemsBody}
+        </p>
+        {(searchQuery || hasSelectedTags) && (
+          <button
+            type="button"
+            onClick={onResetFilters}
+            className="km-btn mt-4 rounded-md border border-zinc-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-zinc-900 hover:bg-zinc-100"
+          >
+            {t.resetFilters}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  let runningItemIndex = 0;
+  let runningImageIndex = 0;
+
+  return (
+    <>
+      {filteredCategories.map((category, catIdx) => {
+        const itemsBeforeSection = runningItemIndex;
+        const catTitle = resolveLocalized(
+          locale,
+          category.nameKm,
+          category.nameEn,
+          category.name
+        );
+        const deferBelowFold =
+          !isPreview && catIdx > 0 && itemsBeforeSection >= 4;
+        const estimatedHeightPx =
+          44 + Math.ceil(category.items.length / 2) * 268;
+        const sectionStyle: CSSProperties | undefined = deferBelowFold
+          ? ({
+              containIntrinsicSize: `auto none auto ${estimatedHeightPx}px`,
+            } as CSSProperties)
+          : undefined;
+
+        return (
+          <section
+            key={category.id}
+            data-category-id={category.id}
+            ref={(node) => registerSectionRef(category.id, node)}
+            style={sectionStyle}
+            className={`scroll-mt-[106px] pt-3 ${
+              deferBelowFold ? "menu-category-deferred" : ""
+            }`}
+          >
+            <div className="flex items-baseline justify-between px-4 pb-2">
+              <h2 className="text-[12px] font-semibold uppercase tracking-[0.04em] text-zinc-600">
+                {catTitle}
+              </h2>
+              <span className="text-[11px] tabular-nums text-zinc-400">
+                {category.items.length}
+              </span>
+            </div>
+
+            {/* 2-Column Visual Product Card Grid */}
+            <div className="grid grid-cols-2 gap-3 px-3.5 pb-2">
+              {category.items.map((item) => {
+                const itemGlobalIdx = runningItemIndex++;
+                const hasImage = Boolean(item.imageUrl);
+                const imgIdx = hasImage ? runningImageIndex++ : -1;
+                const isAboveFold = itemGlobalIdx < 4;
+                const isLcpImage = !hasCoverUrl && imgIdx === 0;
+
+                return (
+                  <MenuProductCard
+                    key={item.id}
+                    item={item}
+                    locale={locale}
+                    isCartMode={isCartMode}
+                    currencyConfig={currencyConfig}
+                    inShortlistQty={itemQtyMap.get(item.id) ?? 0}
+                    fromPriceLabel={t.fromPrice}
+                    soldOutLabel={t.soldOut}
+                    liveTankLabel={liveTankLabel}
+                    marketPriceLabel={t.marketPrice}
+                    isAboveFold={isAboveFold}
+                    isLcpImage={isLcpImage}
+                    isPreview={isPreview}
+                    onSelectItem={onSelectItem}
+                    onAddSimpleItem={onAddSimpleItem}
+                    onUpdateShortlistQty={onUpdateShortlistQty}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </>
+  );
+});
 
 export function PublicMenuClient({
   tenant,
@@ -111,6 +515,17 @@ export function PublicMenuClient({
     () => "km" as Locale
   );
   const locale = isPreview ? previewLocale : storedLocale;
+
+  const clientTableCode = useSyncExternalStore(
+    emptySubscribe,
+    readClientTableCode,
+    () => ""
+  );
+  const resolvedTableCode = isPreview
+    ? sanitizeTableCode(tableCode) ?? ""
+    : tableCode !== undefined
+      ? sanitizeTableCode(tableCode) ?? ""
+      : clientTableCode;
 
   const [previewShortlist, setPreviewShortlist] = useState<ShortlistEntry[]>(
     []
@@ -136,17 +551,27 @@ export function PublicMenuClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
   const [selectedItem, setSelectedItem] = useState<SerializedMenuItem | null>(
     null
   );
+  const [detailMounted, setDetailMounted] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [infoMounted, setInfoMounted] = useState(false);
   const [shortlistOpen, setShortlistOpen] = useState(false);
-  const [editableTableCode, setEditableTableCode] = useState(tableCode ?? "");
+  const [shortlistMounted, setShortlistMounted] = useState(false);
+  const [tableCodeOverride, setTableCodeOverride] = useState<string | null>(
+    null
+  );
+  const editableTableCode = tableCodeOverride ?? resolvedTableCode;
 
   const stripRef = useRef<HTMLDivElement>(null);
   const pillRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
   const isManualScrollRef = useRef(false);
+  const manualScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const hasMountedPillEffectRef = useRef(false);
 
   const t = UI_COPY[locale];
@@ -252,6 +677,28 @@ export function PublicMenuClient({
     [persistShortlist, isCartMode]
   );
 
+  const handleAddSimpleItem = useCallback(
+    (item: SerializedMenuItem) => {
+      handleAddToShortlist({ item, quantity: 1 });
+    },
+    [handleAddToShortlist]
+  );
+
+  const handleSelectItem = useCallback((item: SerializedMenuItem) => {
+    setDetailMounted(true);
+    setSelectedItem(item);
+  }, []);
+
+  const handleOpenInfo = useCallback(() => {
+    setInfoMounted(true);
+    setInfoOpen(true);
+  }, []);
+
+  const handleOpenShortlist = useCallback(() => {
+    setShortlistMounted(true);
+    setShortlistOpen(true);
+  }, []);
+
   const handleUpdateShortlistQty = useCallback(
     (key: string, delta: number) => {
       persistShortlist((prev) =>
@@ -331,7 +778,8 @@ export function PublicMenuClient({
   // Non-blocking QR scan analytics ping
   useEffect(() => {
     if (isPreview) return;
-    const dedupeKey = `menuos:scanned:${tenant.slug}:${tableCode ?? "direct"}`;
+    const activeTable = resolvedTableCode || null;
+    const dedupeKey = `menuos:scanned:${tenant.slug}:${activeTable ?? "direct"}`;
     try {
       if (sessionStorage.getItem(dedupeKey)) return;
       sessionStorage.setItem(dedupeKey, "1");
@@ -341,7 +789,7 @@ export function PublicMenuClient({
 
     const payload = JSON.stringify({
       slug: tenant.slug,
-      tableCode: tableCode ?? null,
+      tableCode: activeTable,
     });
 
     if (typeof navigator !== "undefined" && navigator.sendBeacon) {
@@ -355,7 +803,7 @@ export function PublicMenuClient({
         keepalive: true,
       });
     }
-  }, [tenant.slug, tableCode, isPreview]);
+  }, [tenant.slug, resolvedTableCode, isPreview]);
 
   // Scroll-spy synchronization across category sections
   useEffect(() => {
@@ -388,6 +836,15 @@ export function PublicMenuClient({
 
     return () => observer.disconnect();
   }, [filteredCategories, isPreview]);
+
+  // Clean up manual scroll timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (manualScrollTimerRef.current) {
+        clearTimeout(manualScrollTimerRef.current);
+      }
+    };
+  }, []);
 
   // Scrollability affordance fallback when scroll-driven animations unsupported
   useEffect(() => {
@@ -431,14 +888,31 @@ export function PublicMenuClient({
     });
   }, [effectiveActiveCategoryId]);
 
+  const registerSectionRef = useCallback(
+    (catId: string, node: HTMLElement | null) => {
+      if (node) sectionRefs.current.set(catId, node);
+      else sectionRefs.current.delete(catId);
+    },
+    []
+  );
+
+  const handleResetFilters = useCallback(() => {
+    setSearchQuery("");
+    setSelectedTags([]);
+  }, []);
+
   const scrollToCategory = (catId: string) => {
     setActiveCategoryId(catId);
     const el = sectionRefs.current.get(catId);
     if (!el) return;
     isManualScrollRef.current = true;
+    if (manualScrollTimerRef.current) {
+      clearTimeout(manualScrollTimerRef.current);
+    }
     el.scrollIntoView({ behavior: "smooth", block: "start" });
-    setTimeout(() => {
+    manualScrollTimerRef.current = setTimeout(() => {
       isManualScrollRef.current = false;
+      manualScrollTimerRef.current = null;
     }, 650);
   };
 
@@ -506,7 +980,9 @@ export function PublicMenuClient({
             alt=""
             fill
             sizes="480px"
-            priority
+            unoptimized={isBuiltInMediaUrl(tenant.coverUrl)}
+            preload={!isPreview}
+            fetchPriority={isPreview ? undefined : "high"}
             className="object-cover"
           />
         </div>
@@ -523,6 +999,8 @@ export function PublicMenuClient({
                   alt={`${venueName} logo`}
                   fill
                   sizes="36px"
+                  loading="eager"
+                  unoptimized={isBuiltInMediaUrl(tenant.logoUrl)}
                   className="object-contain p-1"
                 />
               </div>
@@ -583,7 +1061,7 @@ export function PublicMenuClient({
 
             <button
               type="button"
-              onClick={() => setInfoOpen(true)}
+              onClick={handleOpenInfo}
               aria-label={t.hoursAndInfo}
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
             >
@@ -594,7 +1072,7 @@ export function PublicMenuClient({
             {isCartMode && (
               <button
                 type="button"
-                onClick={() => setShortlistOpen(true)}
+                onClick={handleOpenShortlist}
                 aria-label={`${t.shortlistBarCta} (${shortlistCount})`}
                 className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-900 transition-colors hover:bg-zinc-100"
               >
@@ -613,9 +1091,9 @@ export function PublicMenuClient({
       {/* Sticky Search Bar + Filter + Category Pills */}
       <nav
         aria-label="Menu search and categories"
-        className="sticky top-0 z-20 border-b border-zinc-200 bg-[#FAFAFA]/95 backdrop-blur-xs"
+        className="sticky top-0 z-20 border-b border-zinc-200 bg-[#FAFAFA]"
       >
-        {/* Clean Pill Search Input with Inline Filter Button (Reference Layout) */}
+        {/* Clean Pill Search Input with Inline Filter Button */}
         <div className="px-3.5 pt-2.5 pb-2">
           <div className="relative flex items-center rounded-xl border border-zinc-200 bg-white focus-within:border-brand">
             <Search
@@ -729,286 +1207,22 @@ export function PublicMenuClient({
 
       {/* 2-Column Big Image + Food Title + Price Product Grid */}
       <main className={shortlistCount > 0 ? "pb-28" : "pb-10"}>
-        {filteredCategories.length === 0 ? (
-          <div className="px-6 py-16 text-center">
-            <p className="text-[15px] font-medium text-zinc-900">
-              {t.noMatchesTitle}
-            </p>
-            <p className="mt-1 text-[13px] text-zinc-500">
-              {searchQuery || selectedTags.length > 0
-                ? t.noMatchesBody
-                : t.noItemsBody}
-            </p>
-            {(searchQuery || selectedTags.length > 0) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSelectedTags([]);
-                }}
-                className="km-btn mt-4 rounded-md border border-zinc-200 bg-white px-3.5 py-1.5 text-[13px] font-medium text-zinc-900 hover:bg-zinc-100"
-              >
-                {t.resetFilters}
-              </button>
-            )}
-          </div>
-        ) : (
-          filteredCategories.map((category) => {
-            const catTitle = resolveLocalized(
-              locale,
-              category.nameKm,
-              category.nameEn,
-              category.name
-            );
-            return (
-              <section
-                key={category.id}
-                data-category-id={category.id}
-                ref={(node) => {
-                  if (node) sectionRefs.current.set(category.id, node);
-                  else sectionRefs.current.delete(category.id);
-                }}
-                className="scroll-mt-[106px] pt-3"
-              >
-                <div className="flex items-baseline justify-between px-4 pb-2">
-                  <h2 className="text-[12px] font-semibold uppercase tracking-[0.04em] text-zinc-600">
-                    {catTitle}
-                  </h2>
-                  <span className="text-[11px] tabular-nums text-zinc-400">
-                    {category.items.length}
-                  </span>
-                </div>
-
-                {/* 2-Column Visual Product Card Grid */}
-                <div className="grid grid-cols-2 gap-3 px-3.5 pb-2">
-                  {category.items.map((item) => {
-                    const title = resolveLocalized(
-                      locale,
-                      item.nameKm,
-                      item.nameEn,
-                      item.name
-                    );
-                    const needsSheetConfig =
-                      item.variants.length > 0 || item.cookingStyles.length > 0;
-                    const inShortlistQty = itemQtyMap.get(item.id) ?? 0;
-                    const simpleKey = `${item.id}::base::none`;
-                    const cornerBadgeTag = !item.isAvailable
-                      ? t.soldOut
-                      : item.tags.includes("Live Tank")
-                        ? localizeTag("Live Tank", locale)
-                        : null;
-
-                    let dualFormatted: {
-                      primary: string;
-                      secondary: string | null;
-                    } | null = null;
-                    let marketRange: {
-                      primary: string;
-                      secondary: string | null;
-                    } | null = null;
-
-                    if (item.pricingType === "MARKET_PRICE") {
-                      marketRange = formatMarketRange(
-                        item.marketPriceMin,
-                        item.marketPriceMax,
-                        currencyConfig,
-                        { weightUnit: item.weightUnit, locale }
-                      );
-                    } else if (item.variants.length > 0) {
-                      const minPrice = Math.min(
-                        ...item.variants.map((v) => v.price)
-                      );
-                      const maxPrice = Math.max(
-                        ...item.variants.map((v) => v.price)
-                      );
-                      dualFormatted = formatDualPrice(
-                        minPrice,
-                        currencyConfig,
-                        {
-                          locale,
-                          prefix:
-                            minPrice !== maxPrice ? t.fromPrice : undefined,
-                        }
-                      );
-                    } else {
-                      dualFormatted = formatDualPrice(
-                        item.price,
-                        currencyConfig,
-                        {
-                          weightUnit:
-                            item.pricingType === "WEIGHT_BASED"
-                              ? item.weightUnit
-                              : null,
-                          locale,
-                        }
-                      );
-                    }
-
-                    return (
-                      <article
-                        key={item.id}
-                        className={`product-card flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white ${
-                          !item.isAvailable ? "opacity-55" : ""
-                        }`}
-                      >
-                        {/* 1. Big Square Image Area */}
-                        <div className="relative aspect-square w-full overflow-hidden bg-[#F4F4F5]">
-                          {item.imageUrl ? (
-                            <Image
-                              src={item.imageUrl}
-                              alt={title}
-                              fill
-                              sizes="(max-width: 480px) 46vw, 220px"
-                              loading="lazy"
-                              className={`object-cover ${
-                                !item.isAvailable ? "grayscale-[35%]" : ""
-                              }`}
-                            />
-                          ) : (
-                            <div
-                              aria-hidden="true"
-                              className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-zinc-300"
-                            >
-                              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-200 bg-white/80">
-                                <UtensilsCrossed
-                                  className="h-5 w-5 text-zinc-400"
-                                  strokeWidth={1.5}
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Restrained Top-Left Micro Badge (Sold Out or Live Tank) */}
-                          {cornerBadgeTag && (
-                            <span
-                              className={`km-badge pointer-events-none absolute left-2 top-2 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
-                                !item.isAvailable
-                                  ? "border-zinc-300 bg-white/95 text-zinc-600"
-                                  : "border-zinc-200 bg-white/95 text-zinc-900"
-                              }`}
-                            >
-                              {cornerBadgeTag}
-                            </span>
-                          )}
-
-                          {/* Mode 1 (CART) Only: Clean Floating Add / Stepper Button */}
-                          {isCartMode && item.isAvailable && (
-                            <div className="absolute bottom-2 right-2">
-                              {!needsSheetConfig && inShortlistQty > 0 ? (
-                                <div className="inline-flex items-center rounded-full border border-brand bg-white">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleUpdateShortlistQty(simpleKey, -1)
-                                    }
-                                    aria-label={`Remove one ${title}`}
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded-l-full text-zinc-800 hover:bg-zinc-100"
-                                  >
-                                    <Minus
-                                      className="h-3 w-3"
-                                      strokeWidth={1.5}
-                                    />
-                                  </button>
-                                  <span className="min-w-[1.2rem] text-center text-[12px] font-semibold tabular-nums text-zinc-950">
-                                    {inShortlistQty}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleUpdateShortlistQty(simpleKey, 1)
-                                    }
-                                    aria-label={`Add one more ${title}`}
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded-r-full bg-brand"
-                                  >
-                                    <Plus
-                                      className="h-3 w-3"
-                                      strokeWidth={1.5}
-                                    />
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (needsSheetConfig) {
-                                      setSelectedItem(item);
-                                    } else {
-                                      handleAddToShortlist({
-                                        item,
-                                        quantity: 1,
-                                      });
-                                    }
-                                  }}
-                                  aria-label={`Add ${title} to cart`}
-                                  className={`inline-flex h-8 items-center justify-center gap-1 rounded-full border text-[12px] font-semibold transition-colors ${
-                                    inShortlistQty > 0
-                                      ? "border-brand bg-brand px-2.5"
-                                      : "w-8 border-zinc-200 bg-white/95 text-zinc-900 hover:border-zinc-400 hover:bg-white"
-                                  }`}
-                                >
-                                  <Plus
-                                    className="h-3.5 w-3.5"
-                                    strokeWidth={1.75}
-                                  />
-                                  {inShortlistQty > 0 && (
-                                    <span className="tabular-nums">
-                                      {inShortlistQty}
-                                    </span>
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 2. Food Title + 3. Price (Clean Centered Editorial Hierarchy) */}
-                        <div className="flex flex-1 flex-col items-center justify-between gap-1.5 px-2.5 pt-2.5 pb-3 text-center">
-                          <h3 className="w-full text-[13.5px] font-semibold text-zinc-950">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedItem(item)}
-                              className="card-trigger line-clamp-2 w-full text-center text-zinc-950"
-                            >
-                              {title}
-                            </button>
-                          </h3>
-
-                          <div className="w-full">
-                            {item.pricingType === "MARKET_PRICE" ? (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <span className="km-badge inline-block rounded-md border border-brand-subtle bg-brand-subtle px-2 py-0.5 text-[11px] font-semibold text-zinc-900">
-                                  {t.marketPrice}
-                                </span>
-                                {marketRange && (
-                                  <span className="text-[11px] tabular-nums text-zinc-500">
-                                    {marketRange.primary}
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              dualFormatted && (
-                                <div className="flex flex-col items-center tabular-nums">
-                                  <span className="text-[14px] font-semibold text-zinc-950">
-                                    {dualFormatted.primary}
-                                  </span>
-                                  {dualFormatted.secondary && (
-                                    <span className="text-[11px] text-zinc-500">
-                                      {dualFormatted.secondary}
-                                    </span>
-                                  )}
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })
-        )}
+        <MenuCategorySections
+          filteredCategories={filteredCategories}
+          locale={locale}
+          isCartMode={isCartMode}
+          currencyConfig={currencyConfig}
+          itemQtyMap={itemQtyMap}
+          hasCoverUrl={Boolean(tenant.coverUrl)}
+          isPreview={isPreview}
+          searchQuery={searchQuery}
+          hasSelectedTags={selectedTags.length > 0}
+          onResetFilters={handleResetFilters}
+          onSelectItem={handleSelectItem}
+          onAddSimpleItem={handleAddSimpleItem}
+          onUpdateShortlistQty={handleUpdateShortlistQty}
+          registerSectionRef={registerSectionRef}
+        />
       </main>
 
       {/* Minimal Venue Footer */}
@@ -1021,7 +1235,7 @@ export function PublicMenuClient({
           <span>{venueName}</span>
           <button
             type="button"
-            onClick={() => setInfoOpen(true)}
+            onClick={handleOpenInfo}
             className="underline decoration-zinc-300 underline-offset-4 hover:text-zinc-700"
           >
             {t.hoursAndInfo}
@@ -1040,7 +1254,7 @@ export function PublicMenuClient({
         >
           <button
             type="button"
-            onClick={() => setShortlistOpen(true)}
+            onClick={handleOpenShortlist}
             className="flex w-full items-center justify-between gap-3 rounded-xl border border-black/10 bg-brand px-4 py-3 text-left transition-opacity hover:opacity-95"
           >
             <div className="flex items-center gap-2.5 min-w-0">
@@ -1077,26 +1291,30 @@ export function PublicMenuClient({
         </div>
       )}
 
-      {/* Item Detail Native Bottom Sheet */}
-      <ItemDetailSheet
-        item={selectedItem}
-        tenant={tenant}
-        locale={locale}
-        enableCart={isCartMode}
-        onClose={() => setSelectedItem(null)}
-        onAddToShortlist={handleAddToShortlist}
-      />
+      {/* Item Detail Native Bottom Sheet (lazy-loaded on first dish tap) */}
+      {detailMounted && (
+        <ItemDetailSheet
+          item={selectedItem}
+          tenant={tenant}
+          locale={locale}
+          enableCart={isCartMode}
+          onClose={() => setSelectedItem(null)}
+          onAddToShortlist={handleAddToShortlist}
+        />
+      )}
 
-      {/* Venue Info Native Bottom Sheet */}
-      <VenueInfoSheet
-        open={infoOpen}
-        onClose={() => setInfoOpen(false)}
-        tenant={tenant}
-        locale={locale}
-      />
+      {/* Venue Info Native Bottom Sheet (lazy-loaded on first info tap) */}
+      {infoMounted && (
+        <VenueInfoSheet
+          open={infoOpen}
+          onClose={() => setInfoOpen(false)}
+          tenant={tenant}
+          locale={locale}
+        />
+      )}
 
       {/* Show-to-Staff Cart Summary Modal — Mode 1 (CART) ONLY */}
-      {isCartMode && (
+      {isCartMode && shortlistMounted && (
         <ShortlistModal
           open={shortlistOpen}
           onClose={() => setShortlistOpen(false)}
@@ -1104,7 +1322,7 @@ export function PublicMenuClient({
           locale={locale}
           entries={shortlist}
           tableCode={editableTableCode}
-          onTableCodeChange={setEditableTableCode}
+          onTableCodeChange={setTableCodeOverride}
           onUpdateQty={handleUpdateShortlistQty}
           onClearAll={handleClearShortlist}
         />

@@ -9,8 +9,7 @@ const inter = Inter({
 });
 
 const kantumruyPro = Kantumruy_Pro({
-  subsets: ["khmer", "latin"],
-  weight: ["400", "500", "600", "700"],
+  subsets: ["khmer"],
   variable: "--font-kantumruy",
   display: "swap",
 });

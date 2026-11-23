@@ -8,67 +8,32 @@ import {
   Smartphone,
 } from "lucide-react";
 import {
-  categoriesCol,
-  menuItemsCol,
-  tenantsCol,
-  toDate,
-} from "@/lib/firestore";
+  getCachedHomeVenues,
+  type HomeVenueSummary,
+} from "@/lib/menu-data";
 import { computeThemeContrast, parseTenantMeta } from "@/lib/theme";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
 
 export default async function HomePage() {
-  let activeTenants: Array<{
-    id: string;
-    name: string;
-    nameEn: string | null;
-    nameKm: string | null;
-    slug: string;
-    currency: string;
-    showDualCurrency: boolean;
-    exchangeRate: number;
-    vendorMode: "CART" | "LISTING_ONLY";
-    primaryColor: string;
-    metaJson: unknown;
-    categoryCount: number;
-    itemCount: number;
-  }> = [];
+  let activeTenants: HomeVenueSummary[] = [];
 
-  try {
-    const snap = await tenantsCol().where("status", "==", "ACTIVE").get();
-    const sorted = snap.docs
-      .map((doc) => ({ id: doc.id, data: doc.data() }))
-      .sort(
-        (a, b) =>
-          toDate(a.data.createdAt).getTime() - toDate(b.data.createdAt).getTime()
-      )
-      .slice(0, 6);
+  const isBuildWithoutCreds =
+    process.env.NEXT_PHASE === "phase-production-build" &&
+    !process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim() &&
+    !process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim() &&
+    !process.env.FIRESTORE_EMULATOR_HOST?.trim();
 
-    activeTenants = await Promise.all(
-      sorted.map(async ({ id, data }) => {
-        const [catCount, itemCount] = await Promise.all([
-          categoriesCol(id).count().get(),
-          menuItemsCol(id).count().get(),
-        ]);
-        return {
-          id,
-          name: data.name,
-          nameEn: data.nameEn,
-          nameKm: data.nameKm,
-          slug: data.slug,
-          currency: data.currency,
-          showDualCurrency: data.showDualCurrency ?? true,
-          exchangeRate: data.exchangeRate ?? 4100,
-          vendorMode: data.vendorMode ?? "CART",
-          primaryColor: data.primaryColor,
-          metaJson: data.metaJson,
-          categoryCount: catCount.data().count,
-          itemCount: itemCount.data().count,
-        };
-      })
-    );
-  } catch (err) {
-    console.warn("HomePage Firestore load warning:", err);
+  if (!isBuildWithoutCreds) {
+    try {
+      activeTenants = await getCachedHomeVenues();
+    } catch (err) {
+      if (process.env.NEXT_PHASE === "phase-production-build") {
+        console.warn("HomePage build-time Firestore warning:", err);
+      } else {
+        throw err;
+      }
+    }
   }
 
   const primaryDemoSlug = activeTenants[0]?.slug ?? "sora-seafood-grill";
@@ -90,12 +55,14 @@ export default async function HomePage() {
           <nav className="flex items-center gap-2 text-[13px]">
             <Link
               href="/admin"
+              prefetch={false}
               className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
             >
               Menu Admin
             </Link>
             <Link
               href="/super-admin"
+              prefetch={false}
               className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
             >
               Super Admin

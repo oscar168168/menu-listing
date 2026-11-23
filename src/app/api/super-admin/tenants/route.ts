@@ -8,10 +8,17 @@ import {
   tenantsCol,
   usersCol,
 } from "@/lib/firestore";
-import { hashPassword, requireSuperAdmin } from "@/lib/auth";
+import { hashPasswordAsync, requireSuperAdmin } from "@/lib/auth";
 import { provisionTenantSchema } from "@/lib/validation";
-import { getSuperAdminDashboardData } from "@/lib/menu-data";
+import {
+  getSuperAdminDashboardData,
+  revalidatePublicMenu,
+} from "@/lib/menu-data";
 import { DEFAULT_COOKING_STYLE_PRESETS } from "@/lib/i18n";
+import type {
+  ScanAnalyticsRow,
+  SuperAdminTenantSummary,
+} from "@/types/menu";
 
 export async function GET() {
   const admin = await requireSuperAdmin();
@@ -38,9 +45,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const [existingSlug, existingEmail] = await Promise.all([
+  const [existingSlug, existingEmail, passwordHash] = await Promise.all([
     findTenantBySlug(parsed.data.slug),
     findUserByEmail(parsed.data.ownerEmail),
+    hashPasswordAsync(parsed.data.ownerPassword),
   ]);
 
   if (existingSlug) {
@@ -87,7 +95,7 @@ export async function POST(request: NextRequest) {
   batch.set(newOwnerRef, {
     name: parsed.data.ownerName,
     email: parsed.data.ownerEmail,
-    passwordHash: hashPassword(parsed.data.ownerPassword),
+    passwordHash,
     role: "MENU_ADMIN",
     tenantId: newTenantRef.id,
     createdAt: now,
@@ -123,14 +131,43 @@ export async function POST(request: NextRequest) {
   });
 
   await batch.commit();
+  revalidatePublicMenu(parsed.data.slug);
 
-  const dashboard = await getSuperAdminDashboardData();
+  const summary: SuperAdminTenantSummary = {
+    id: newTenantRef.id,
+    name: parsed.data.name,
+    nameKm: parsed.data.nameKm || "",
+    nameEn: parsed.data.name,
+    slug: parsed.data.slug,
+    status: "ACTIVE",
+    vendorMode: parsed.data.vendorMode,
+    primaryColor: parsed.data.primaryColor,
+    currency: parsed.data.currency,
+    ownerEmail: parsed.data.ownerEmail,
+    ownerName: parsed.data.ownerName,
+    itemCount: 0,
+    categoryCount: 1,
+    scanCount: 0,
+    scansLast7Days: 0,
+    createdAt: now.toISOString(),
+  };
+
+  const analyticsRow: ScanAnalyticsRow = {
+    tenantId: newTenantRef.id,
+    tenantName: parsed.data.name,
+    slug: parsed.data.slug,
+    primaryColor: parsed.data.primaryColor,
+    totalScans: 0,
+    last7Days: 0,
+    topTables: [],
+  };
 
   return NextResponse.json(
     {
       tenantId: newTenantRef.id,
       slug: parsed.data.slug,
-      dashboard,
+      summary,
+      analyticsRow,
     },
     { status: 201 }
   );

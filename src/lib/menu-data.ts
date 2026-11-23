@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { unstable_cache, revalidatePath, revalidateTag } from "next/cache";
 import {
   categoriesCol,
@@ -30,6 +31,7 @@ import type {
   SerializedTenant,
   SuperAdminTenantSummary,
   TenantMenuPayload,
+  VendorMode,
   WeightUnit,
 } from "@/types/menu";
 
@@ -188,12 +190,15 @@ export function serializeCookingStylePreset(
 }
 
 export function getPublicMenuTag(slug: string): string {
-  return `public-menu:${slug}`;
+  return `public-menu:${slug.trim().toLowerCase()}`;
 }
 
 export function revalidatePublicMenu(slug: string): void {
-  revalidateTag(getPublicMenuTag(slug), "max");
-  revalidatePath(`/m/${slug}`);
+  const normalized = slug.trim().toLowerCase();
+  revalidateTag(getPublicMenuTag(normalized), { expire: 0 });
+  revalidatePath(`/m/${normalized}`);
+  revalidateTag("home-venues", { expire: 0 });
+  revalidatePath("/");
 }
 
 function compareSortAndDate(
@@ -205,16 +210,12 @@ function compareSortAndDate(
   return toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime();
 }
 
-/**
- * Cached public menu loader for sub-second QR loads.
- * Strictly scopes categories & items inside tenants/{tenantId} and filters hidden categories.
- */
-export async function getCachedPublicMenuBySlug(
-  slug: string
+function loadCachedPublicMenuByNormalizedSlug(
+  normalizedSlug: string
 ): Promise<TenantMenuPayload | null> {
   const cachedFn = unstable_cache(
-    async (normalizedSlug: string): Promise<TenantMenuPayload | null> => {
-      const tenantFound = await findTenantBySlug(normalizedSlug);
+    async (slugKey: string): Promise<TenantMenuPayload | null> => {
+      const tenantFound = await findTenantBySlug(slugKey);
       if (!tenantFound) return null;
 
       const { id: tenantId, data: tenant } = tenantFound;
@@ -226,10 +227,9 @@ export async function getCachedPublicMenuBySlug(
         };
       }
 
-      const [catSnap, itemSnap, presetSnap] = await Promise.all([
-        categoriesCol(tenantId).get(),
+      const [catSnap, itemSnap] = await Promise.all([
+        categoriesCol(tenantId).where("isVisible", "==", true).get(),
         menuItemsCol(tenantId).get(),
-        cookingStylesCol(tenantId).get(),
       ]);
 
       const itemsByCategory = new Map<
@@ -265,26 +265,122 @@ export async function getCachedPublicMenuBySlug(
         })
         .filter((cat) => cat.items.length > 0);
 
-      const presets = presetSnap.docs
-        .map((doc) => ({ id: doc.id, data: doc.data() }))
-        .sort((a, b) => compareSortAndDate(a.data, b.data))
-        .map((p) => serializeCookingStylePreset(p.id, p.data));
-
       return {
         tenant: serializeTenant(tenantId, tenant),
         categories: serializedCategories,
-        cookingStylePresets: presets,
+        cookingStylePresets: [],
       };
     },
-    ["public-menu-v4", slug],
+    ["public-menu-v5", normalizedSlug],
     {
       revalidate: 300,
-      tags: [getPublicMenuTag(slug)],
+      tags: [getPublicMenuTag(normalizedSlug)],
     }
   );
 
-  return cachedFn(slug.toLowerCase());
+  return cachedFn(normalizedSlug);
 }
+
+/**
+ * Request-deduplicated + cached public menu loader for sub-second QR loads.
+ * Strictly scopes categories & items inside tenants/{tenantId} and filters hidden categories.
+ */
+export const getCachedPublicMenuBySlug = cache(
+  async (slug: string): Promise<TenantMenuPayload | null> => {
+    const normalizedSlug = slug.trim().toLowerCase();
+    if (!normalizedSlug) return null;
+    return loadCachedPublicMenuByNormalizedSlug(normalizedSlug);
+  }
+);
+
+export interface HomeVenueSummary {
+  id: string;
+  name: string;
+  nameEn: string | null;
+  nameKm: string | null;
+  slug: string;
+  currency: string;
+  showDualCurrency: boolean;
+  exchangeRate: number;
+  vendorMode: VendorMode;
+  primaryColor: string;
+  metaJson: unknown;
+  categoryCount: number;
+  itemCount: number;
+}
+
+export const getCachedHomeVenues = unstable_cache(
+  async (): Promise<HomeVenueSummary[]> => {
+    let activeDocs: Array<{ id: string; data: FirestoreTenantDoc }>;
+    try {
+      const snap = await tenantsCol()
+        .where("status", "==", "ACTIVE")
+        .orderBy("createdAt", "asc")
+        .limit(6)
+        .select(
+          "name",
+          "nameEn",
+          "nameKm",
+          "slug",
+          "currency",
+          "showDualCurrency",
+          "exchangeRate",
+          "vendorMode",
+          "primaryColor",
+          "metaJson",
+          "createdAt"
+        )
+        .get();
+      activeDocs = snap.docs.map((doc) => ({
+        id: doc.id,
+        data: doc.data() as FirestoreTenantDoc,
+      }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (!msg.includes("FAILED_PRECONDITION") && !msg.includes("index")) {
+        throw err;
+      }
+      const snap = await tenantsCol().where("status", "==", "ACTIVE").get();
+      activeDocs = snap.docs
+        .map((doc) => ({ id: doc.id, data: doc.data() }))
+        .sort(
+          (a, b) =>
+            toDate(a.data.createdAt).getTime() -
+            toDate(b.data.createdAt).getTime()
+        )
+        .slice(0, 6);
+    }
+
+    return Promise.all(
+      activeDocs.map(async ({ id, data }) => {
+        const [catCount, itemCount] = await Promise.all([
+          categoriesCol(id).count().get(),
+          menuItemsCol(id).count().get(),
+        ]);
+        return {
+          id,
+          name: data.name,
+          nameEn: data.nameEn ?? null,
+          nameKm: data.nameKm ?? null,
+          slug: data.slug,
+          currency: data.currency,
+          showDualCurrency: data.showDualCurrency ?? true,
+          exchangeRate: data.exchangeRate ?? 4100,
+          vendorMode: data.vendorMode ?? "CART",
+          primaryColor: data.primaryColor,
+          metaJson: data.metaJson,
+          categoryCount: catCount.data().count,
+          itemCount: itemCount.data().count,
+        };
+      })
+    );
+  },
+  ["home-venues-v1"],
+  {
+    revalidate: 120,
+    tags: ["home-venues"],
+  }
+);
 
 /**
  * Uncached admin loader strictly scoped by tenantId.
@@ -360,8 +456,23 @@ export async function getSuperAdminDashboardData(): Promise<{
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const [tenantsSnap, adminsSnap] = await Promise.all([
-    tenantsCol().get(),
-    usersCol().where("role", "==", "MENU_ADMIN").get(),
+    tenantsCol()
+      .select(
+        "name",
+        "nameKm",
+        "nameEn",
+        "slug",
+        "status",
+        "vendorMode",
+        "primaryColor",
+        "currency",
+        "createdAt"
+      )
+      .get(),
+    usersCol()
+      .where("role", "==", "MENU_ADMIN")
+      .select("email", "name", "tenantId", "createdAt")
+      .get(),
   ]);
 
   const ownerByTenant = new Map<
@@ -383,7 +494,7 @@ export async function getSuperAdminDashboardData(): Promise<{
   }
 
   const tenantDocs = tenantsSnap.docs
-    .map((doc) => ({ id: doc.id, data: doc.data() }))
+    .map((doc) => ({ id: doc.id, data: doc.data() as FirestoreTenantDoc }))
     .sort(
       (a, b) =>
         toDate(b.data.createdAt).getTime() - toDate(a.data.createdAt).getTime()
@@ -396,7 +507,7 @@ export async function getSuperAdminDashboardData(): Promise<{
         catCountSnap,
         scanTotalSnap,
         scan7dSnap,
-        tableScansSnap,
+        recentTableScansSnap,
       ] = await Promise.all([
         menuItemsCol(id).count().get(),
         categoriesCol(id).count().get(),
@@ -406,13 +517,14 @@ export async function getSuperAdminDashboardData(): Promise<{
           .count()
           .get(),
         scanEventsCol(id)
-          .where("tableCode", ">", "")
+          .orderBy("scannedAt", "desc")
+          .limit(300)
           .select("tableCode")
           .get(),
       ]);
 
       const tableCounts = new Map<string, number>();
-      for (const scanDoc of tableScansSnap.docs) {
+      for (const scanDoc of recentTableScansSnap.docs) {
         const code = scanDoc.data().tableCode;
         if (typeof code === "string" && code.trim()) {
           tableCounts.set(code, (tableCounts.get(code) ?? 0) + 1);

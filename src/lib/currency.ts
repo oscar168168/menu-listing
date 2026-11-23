@@ -54,15 +54,21 @@ export function convertKhrToUsd(khr: number, exchangeRate = 4100): number {
   return Math.round((khr / rate) * 100) / 100;
 }
 
+const USD_FORMATTER = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const KHR_FORMATTER = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 0,
+});
+
 export function formatUsd(amount: number): string {
-  return `$${amount.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return `$${USD_FORMATTER.format(amount)}`;
 }
 
 export function formatKhr(amount: number): string {
-  return `${Math.round(amount).toLocaleString("en-US")} ៛`;
+  return `${KHR_FORMATTER.format(Math.round(amount) || 0)} ៛`;
 }
 
 /**

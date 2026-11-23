@@ -22,15 +22,16 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    const rawData = doc.data;
     const bytes =
-      doc.data instanceof Uint8Array
-        ? doc.data
-        : new Uint8Array(Buffer.from(doc.data));
+      rawData instanceof Uint8Array
+        ? rawData
+        : new Uint8Array(rawData);
 
     const headers: Record<string, string> = {
       "Content-Type": doc.mimeType || "application/octet-stream",
       "Content-Length": String(bytes.byteLength),
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
       "X-Content-Type-Options": "nosniff",
     };
 
@@ -38,7 +39,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       headers["Content-Security-Policy"] = "default-src 'none'; sandbox";
     }
 
-    return new NextResponse(new Uint8Array(bytes), {
+    return new NextResponse(bytes as unknown as BodyInit, {
       status: 200,
       headers,
     });

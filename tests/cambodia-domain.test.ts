@@ -12,6 +12,7 @@ import {
   localizeTag,
   resolveLocalized,
 } from "../src/lib/i18n";
+import { parseTableCodeFromSearch, sanitizeTableCode } from "../src/lib/table-code";
 
 describe("Cambodian localization & fallback helpers", () => {
   it("falls back cleanly when either Khmer or English is blank", () => {
@@ -28,6 +29,16 @@ describe("Cambodian localization & fallback helpers", () => {
     assert.equal(localizeTag("Signature", "km"), "ប្រចាំហាង");
     assert.equal(formatWeightUnit("PER_500G", "en"), "/ 500g");
     assert.equal(formatWeightUnit("PER_KG", "km"), "/ គីឡូ");
+  });
+
+  it("parses and sanitizes table codes client-side from QR URL search params", () => {
+    assert.equal(parseTableCodeFromSearch("?table=05"), "05");
+    assert.equal(parseTableCodeFromSearch("?foo=1&table=PATIO-2"), "PATIO-2");
+    assert.equal(parseTableCodeFromSearch("?table=%2007%20"), "07");
+    assert.equal(parseTableCodeFromSearch("?table=bad/value!"), "");
+    assert.equal(parseTableCodeFromSearch(""), "");
+    assert.equal(sanitizeTableCode("A_12"), "A_12");
+    assert.equal(sanitizeTableCode("x".repeat(25)), undefined);
   });
 });
 

@@ -141,6 +141,8 @@ function ItemDetailBody({
             alt={primaryTitle}
             fill
             sizes="(max-width: 480px) 100vw, 480px"
+            unoptimized={item.imageUrl.startsWith("/api/media/")}
+            fetchPriority="low"
             className={`object-cover ${
               !item.isAvailable ? "opacity-50 grayscale-[35%]" : ""
             }`}

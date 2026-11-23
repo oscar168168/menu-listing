@@ -104,7 +104,7 @@ export function ThemeStudio({
     try {
       const optimized = await compressImageForUpload(
         file,
-        field === "logo" ? 600 : 1200
+        field === "logo" ? 400 : 960
       );
       const formData = new FormData();
       formData.append("file", optimized);

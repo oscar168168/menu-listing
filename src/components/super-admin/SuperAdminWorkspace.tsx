@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -15,7 +16,6 @@ import {
 } from "lucide-react";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { Toast, type ToastMessage } from "@/components/ui/Toast";
-import { ProvisionTenantModal } from "@/components/super-admin/ProvisionTenantModal";
 import type {
   ScanAnalyticsRow,
   SessionUser,
@@ -23,6 +23,14 @@ import type {
   TenantStatusType,
   VendorMode,
 } from "@/types/menu";
+
+const ProvisionTenantModal = dynamic(
+  () =>
+    import("@/components/super-admin/ProvisionTenantModal").then(
+      (m) => m.ProvisionTenantModal
+    ),
+  { ssr: false }
+);
 
 interface SuperAdminDashboardPayload {
   tenants: SuperAdminTenantSummary[];
@@ -53,6 +61,7 @@ export function SuperAdminWorkspace({
     "ALL"
   );
   const [provisionOpen, setProvisionOpen] = useState(false);
+  const [provisionMounted, setProvisionMounted] = useState(false);
   const [confirmSuspendTenant, setConfirmSuspendTenant] =
     useState<SuperAdminTenantSummary | null>(null);
   const [busyTenantId, setBusyTenantId] = useState<string | null>(null);
@@ -169,7 +178,6 @@ export function SuperAdminWorkspace({
       });
       if (!res.ok) throw new Error("Impersonation failed");
       router.push("/admin");
-      router.refresh();
     } catch {
       notify("Unable to open venue admin workspace", "error");
       setBusyTenantId(null);
@@ -179,7 +187,6 @@ export function SuperAdminWorkspace({
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
-    router.refresh();
   };
 
   const formatDate = (iso: string) =>
@@ -211,7 +218,10 @@ export function SuperAdminWorkspace({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setProvisionOpen(true)}
+              onClick={() => {
+                setProvisionMounted(true);
+                setProvisionOpen(true);
+              }}
               className="inline-flex items-center gap-1.5 rounded-md bg-zinc-950 px-3.5 py-1.5 text-[13px] font-medium text-white hover:bg-zinc-800"
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -622,15 +632,27 @@ export function SuperAdminWorkspace({
         </section>
       </main>
 
-      {/* Provision Tenant Modal */}
-      <ProvisionTenantModal
-        open={provisionOpen}
-        onClose={() => setProvisionOpen(false)}
-        onProvisioned={(nextDashboard) => {
-          setData(nextDashboard);
-          notify("New venue provisioned and ready");
-        }}
-      />
+      {/* Provision Tenant Modal (lazy-loaded on first open) */}
+      {provisionMounted && (
+        <ProvisionTenantModal
+          open={provisionOpen}
+          onClose={() => setProvisionOpen(false)}
+          onProvisioned={({ summary, analyticsRow }) => {
+            setData((prev) => ({
+              tenants: [summary, ...prev.tenants],
+              analytics: [...prev.analytics, analyticsRow].sort(
+                (a, b) => b.totalScans - a.totalScans
+              ),
+              totals: {
+                ...prev.totals,
+                totalTenants: prev.totals.totalTenants + 1,
+                activeTenants: prev.totals.activeTenants + 1,
+              },
+            }));
+            notify("New venue provisioned and ready");
+          }}
+        />
+      )}
 
       {/* Suspend Tenant Confirmation */}
       <NativeDialog

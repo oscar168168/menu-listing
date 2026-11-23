@@ -1,17 +1,10 @@
 import { z } from "zod";
 import { normalizeHex } from "@/lib/theme";
+import { slugify } from "@/lib/slug";
+
+export { slugify };
 
 export const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-export function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-}
 
 export const hexColorSchema = z
   .string()

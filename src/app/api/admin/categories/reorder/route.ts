@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   categoriesCol,
   commitBatchedWrites,
+  getDb,
   tenantDoc,
 } from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
@@ -24,11 +25,23 @@ export async function PATCH(request: NextRequest) {
   }
 
   const catCollection = categoriesCol(ctx.tenantId);
-  const snaps = await Promise.all(
-    parsed.data.orderedIds.map((id) => catCollection.doc(id).get())
+  const tenantRef = tenantDoc(ctx.tenantId);
+  const catRefs = parsed.data.orderedIds.map((id) => catCollection.doc(id));
+  const [tenantSnap, ...catSnaps] = await getDb().getAll(
+    tenantRef,
+    ...catRefs
   );
 
-  if (snaps.some((s) => !s.exists || s.data()?.tenantId !== ctx.tenantId)) {
+  const tenant = tenantSnap?.data();
+  if (!tenantSnap?.exists || !tenant) {
+    return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+  }
+
+  if (
+    catSnaps.some(
+      (s) => !s.exists || s.data()?.tenantId !== ctx.tenantId
+    )
+  ) {
     return NextResponse.json(
       { error: "One or more categories do not belong to your venue" },
       { status: 403 }
@@ -45,9 +58,7 @@ export async function PATCH(request: NextRequest) {
     })
   );
 
-  const tenantSnap = await tenantDoc(ctx.tenantId).get();
-  const slug = tenantSnap.data()?.slug;
-  if (slug) revalidatePublicMenu(slug);
+  if (tenant.slug) revalidatePublicMenu(tenant.slug);
 
   return NextResponse.json({ ok: true });
 }

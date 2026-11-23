@@ -3,7 +3,7 @@ import { findUserByEmail } from "@/lib/firestore";
 import {
   clearSessionCookies,
   setSessionCookie,
-  verifyPassword,
+  verifyPasswordAsync,
 } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const found = await findUserByEmail(parsed.data.email);
     if (
       !found ||
-      !verifyPassword(parsed.data.password, found.data.passwordHash)
+      !(await verifyPasswordAsync(parsed.data.password, found.data.passwordHash))
     ) {
       return NextResponse.json(
         { error: "Invalid email or password" },

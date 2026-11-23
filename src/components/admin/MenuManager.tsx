@@ -388,6 +388,10 @@ export function MenuManager({
                           <img
                             src={item.imageUrl}
                             alt={item.nameEn}
+                            width={44}
+                            height={44}
+                            loading="lazy"
+                            decoding="async"
                             className={`h-11 w-11 shrink-0 rounded-lg border border-zinc-200 object-cover ${
                               !item.isAvailable ? "opacity-50" : ""
                             }`}
@@ -671,6 +675,10 @@ export function MenuManager({
                             <img
                               src={item.imageUrl}
                               alt={item.nameEn}
+                              width={36}
+                              height={36}
+                              loading="lazy"
+                              decoding="async"
                               className="h-9 w-9 shrink-0 rounded-md border border-zinc-200 object-cover"
                             />
                           ) : (

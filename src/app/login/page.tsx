@@ -52,7 +52,6 @@ export default function LoginPage() {
         throw new Error(data.error ?? "Sign-in failed");
       }
       router.push(data.redirectTo);
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid credentials");
       setLoading(false);

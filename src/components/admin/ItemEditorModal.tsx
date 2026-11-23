@@ -181,7 +181,7 @@ function ItemEditorForm({
     setUploading(true);
     setError(null);
     try {
-      const optimized = await compressImageForUpload(file, 1200);
+      const optimized = await compressImageForUpload(file, 960);
       const formData = new FormData();
       formData.append("file", optimized);
       const res = await fetch("/api/upload", {
