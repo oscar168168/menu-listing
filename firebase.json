@@ -1,0 +1,14 @@
+{
+  "apphosting": {
+    "backendId": "menu-listing",
+    "rootDir": "/",
+    "ignore": [
+      "node_modules",
+      ".git",
+      ".next",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "public/uploads"
+    ]
+  }
+}

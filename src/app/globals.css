@@ -1,0 +1,676 @@
+@import "tailwindcss";
+
+:root {
+  --brand-primary: #18181b;
+  --brand-primary-foreground: #ffffff;
+  --brand-primary-subtle: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+  --brand-primary-subtle-fallback: rgba(24, 24, 27, 0.1);
+  --brand-primary-border: color-mix(in srgb, var(--brand-primary) 24%, transparent);
+}
+
+@layer base {
+  html {
+    background-color: #fafafa;
+    color: #09090b;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-inter), var(--font-kantumruy), "Inter",
+      "Kantumruy Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      sans-serif;
+    background-color: #fafafa;
+    color: #09090b;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.02em;
+  }
+
+  /* Khmer typography discipline: prevent subscript (ជើងអក្សរ) & upper vowel (ស្រៈលើ) clipping */
+  [lang="km"] {
+    font-family: var(--font-kantumruy), "Kantumruy Pro", var(--font-inter),
+      sans-serif;
+    line-height: 1.72;
+    letter-spacing: 0;
+  }
+
+  [lang="km"] h1,
+  [lang="km"] h2,
+  [lang="km"] h3,
+  [lang="km"] h4 {
+    letter-spacing: 0;
+    line-height: 1.65;
+  }
+
+  [lang="km"] .km-pill {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    line-height: 1.65;
+  }
+
+  [lang="km"] .km-badge {
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    line-height: 1.6;
+  }
+
+  [lang="km"] .km-btn {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+    line-height: 1.65;
+  }
+
+  /* ==========================================================================
+     Product Card Grid (Per modern-web-guidance `card`)
+     Stretched button trigger on title + elevated independent action buttons
+     ========================================================================== */
+  .product-card:has(.card-trigger) {
+    position: relative;
+    transition: border-color 0.16s ease;
+  }
+
+  .product-card .card-trigger::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  .product-card .card-trigger:focus-visible {
+    outline: none;
+  }
+
+  .product-card:has(.card-trigger:focus-visible) {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+  }
+
+  .product-card:has(.card-trigger:hover) {
+    border-color: #a1a1aa;
+  }
+
+  .product-card:has(.card-trigger) button:not(.card-trigger),
+  .product-card:has(.card-trigger) a:not(.card-trigger) {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ==========================================================================
+     Admin Breadcrumbs (Per modern-web-guidance `breadcrumbs`)
+     CSS-generated decorative divider with empty alt stays out of a11y tree
+     ========================================================================== */
+  .admin-breadcrumb > ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .admin-breadcrumb > ol > li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .admin-breadcrumb > ol > li + li::before {
+    content: "/" / "";
+    color: #a1a1aa;
+    font-size: 0.8125rem;
+  }
+
+  /* ==========================================================================
+     Size-Aware Admin Catalog Grid (Per modern-web-guidance `size-aware-styling`)
+     Adapts column count to its own pane width when sidebars/preview toggle
+     ========================================================================== */
+  .admin-catalog-grid-container {
+    container-type: inline-size;
+  }
+
+  .admin-catalog-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.875rem;
+  }
+
+  @media (min-width: 768px) {
+    .admin-catalog-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .admin-catalog-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @supports (container-type: inline-size) {
+    @media (min-width: 768px) {
+      .admin-catalog-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @container (min-width: 580px) {
+      .admin-catalog-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @container (min-width: 920px) {
+      .admin-catalog-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+  }
+
+  /* ==========================================================================
+     Branded Native <select> (Per modern-web-guidance `branded-select-styling`)
+     Opt-in appearance: base-select with top-layer ::picker(select) + graceful fallback
+     ========================================================================== */
+  .ui-select-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .ui-select {
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #18181b;
+    background-color: #ffffff;
+    border: 1px solid #e4e4e7;
+    border-radius: 0.5rem;
+    padding: 0.45rem 0.75rem;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    min-inline-size: 8.5rem;
+  }
+
+  .ui-select:hover {
+    border-color: #a1a1aa;
+    background-color: #fafafa;
+  }
+
+  .ui-select:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+    border-color: var(--brand-primary);
+  }
+
+  @supports (appearance: base-select) {
+    .ui-select,
+    .ui-select::picker(select) {
+      appearance: base-select;
+    }
+
+    .ui-select {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .ui-select::picker-icon {
+      color: #71717a;
+      font-size: 0.65rem;
+      transition: transform 0.16s ease;
+    }
+
+    .ui-select:open::picker-icon {
+      transform: rotate(180deg);
+    }
+
+    .ui-select::picker(select) {
+      margin-block-start: 0.25rem;
+      padding: 0.25rem;
+      border: 1px solid #e4e4e7;
+      border-radius: 0.625rem;
+      background-color: #ffffff;
+      color: #09090b;
+      min-inline-size: anchor-size(width);
+    }
+
+    .ui-select option {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.65rem;
+      border-radius: 0.375rem;
+      font-size: 0.8125rem;
+      font-weight: 400;
+      color: #18181b;
+      cursor: pointer;
+    }
+
+    .ui-select option:hover,
+    .ui-select option:focus-visible {
+      background-color: #f4f4f5;
+    }
+
+    .ui-select option:checked {
+      font-weight: 600;
+      background-color: var(--brand-primary-subtle-fallback);
+      background-color: var(--brand-primary-subtle);
+      color: #09090b;
+    }
+
+    .ui-select option::checkmark {
+      color: var(--brand-primary);
+      font-size: 0.75rem;
+    }
+
+    .ui-select-fallback-icon {
+      display: none;
+    }
+  }
+
+  @supports not (appearance: base-select) {
+    .ui-select {
+      appearance: none;
+      -webkit-appearance: none;
+      padding-inline-end: 2rem;
+    }
+  }
+
+  /* Clean native <details> disclosure (content-first-noise-reduction) */
+  details.ui-details > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+
+  details.ui-details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  details.ui-details[open] .ui-details-chevron {
+    transform: rotate(180deg);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   80/20 Brand Accent Utilities
+   ============================================================================ */
+.bg-brand {
+  background-color: var(--brand-primary);
+  color: var(--brand-primary-foreground);
+}
+
+.bg-brand-subtle {
+  background-color: var(--brand-primary-subtle-fallback);
+  background-color: var(--brand-primary-subtle);
+}
+
+.text-brand {
+  color: var(--brand-primary);
+}
+
+.border-brand {
+  border-color: var(--brand-primary);
+}
+
+.border-brand-subtle {
+  border-color: var(--brand-primary-border);
+}
+
+/* ============================================================================
+   Native <dialog> Modal & Bottom Sheet — Top-Layer Animations + Scroll Lock
+   Per modern-web-guidance: dialog, light-dismiss-a-dialog,
+   prevent-page-scroll-under-modal-dialog, animate-to-from-top-layer
+   ============================================================================ */
+dialog.ui-dialog {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #09090b;
+  max-width: none;
+  max-height: none;
+  opacity: 0;
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: 0.22s;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-behavior: allow-discrete;
+}
+
+dialog.ui-dialog[open] {
+  display: flex;
+}
+
+dialog.ui-dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog.ui-dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgb(9 9 11 / 0);
+  transition-property: background-color, display, overlay;
+  transition-duration: 0.22s;
+  transition-timing-function: ease-out;
+  transition-behavior: allow-discrete;
+}
+
+/* Centered Modal Variant */
+dialog.ui-dialog-modal {
+  margin: auto;
+  width: min(100% - 2rem, 34rem);
+  max-height: calc(100dvh - 2rem);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.ui-dialog-modal {
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+dialog.ui-dialog-modal[open]:where(:not([data-closing])) {
+  opacity: 1;
+}
+
+@starting-style {
+  dialog.ui-dialog-modal[open]:where(:not([data-closing])) {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.ui-dialog-modal[open]:where(:not([data-closing])) {
+    transform: translateY(0) scale(1);
+  }
+
+  @starting-style {
+    dialog.ui-dialog-modal[open]:where(:not([data-closing])) {
+      transform: translateY(8px) scale(0.98);
+    }
+  }
+}
+
+/* Bottom Sheet Variant (Mobile Menu Item Detail & Info Drawer) */
+dialog.ui-dialog-sheet {
+  margin: auto auto 0 auto;
+  width: min(100%, 480px);
+  max-height: 90dvh;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.ui-dialog-sheet {
+    transform: translateY(28px);
+  }
+}
+
+dialog.ui-dialog-sheet[open]:where(:not([data-closing])) {
+  opacity: 1;
+}
+
+@starting-style {
+  dialog.ui-dialog-sheet[open]:where(:not([data-closing])) {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.ui-dialog-sheet[open]:where(:not([data-closing])) {
+    transform: translateY(0);
+  }
+
+  @starting-style {
+    dialog.ui-dialog-sheet[open]:where(:not([data-closing])) {
+      transform: translateY(28px);
+    }
+  }
+}
+
+dialog.ui-dialog[open]:where(:not([data-closing]))::backdrop {
+  background-color: rgb(9 9 11 / 0.42);
+}
+
+@starting-style {
+  dialog.ui-dialog[open]:where(:not([data-closing]))::backdrop {
+    background-color: rgb(9 9 11 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.ui-dialog,
+  dialog.ui-dialog::backdrop {
+    transition-duration: 0.1s;
+  }
+}
+
+/* ============================================================================
+   Horizontal Category Strip — Scrollability Fade Hints + Scrollbar Styling
+   Per modern-web-guidance: scrollability-affordance-hints,
+   customize-scrollbar-color-and-thickness
+   ============================================================================ */
+@property --fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.category-scroll-strip {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 2.25rem;
+  --fade-size: 2.25rem;
+  --fade-dir: right;
+  --fade-start-pos: 0;
+  --fade-end-pos: 100%;
+  --scrollbar-thumb: #d4d4d8;
+  --scrollbar-track: transparent;
+  scrollbar-width: none;
+  mask:
+    linear-gradient(black, black) no-clip subtract,
+    linear-gradient(to var(--fade-dir), black, transparent) var(--fade-start-pos) 0 / var(--fade-start) 100% no-repeat no-clip,
+    linear-gradient(to var(--fade-dir), transparent, black) var(--fade-end-pos) 0 / var(--fade-end) 100% no-repeat no-clip;
+  animation: reveal-fade-start linear both, hide-fade-end linear both;
+  animation-timeline: scroll(self inline), scroll(self inline);
+  animation-range: 0px var(--fade-size), calc(100% - var(--fade-size)) 100%;
+  transition: --fade-start 0.18s ease, --fade-end 0.18s ease;
+}
+
+.category-scroll-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.category-scroll-strip.more-start {
+  --fade-start: var(--fade-size);
+}
+
+.category-scroll-strip.more-end {
+  --fade-end: var(--fade-size);
+}
+
+@keyframes reveal-fade-start {
+  from {
+    --fade-start: 0px;
+  }
+  to {
+    --fade-start: var(--fade-size);
+  }
+}
+
+@keyframes hide-fade-end {
+  from {
+    --fade-end: var(--fade-size);
+  }
+  to {
+    --fade-end: 0px;
+  }
+}
+
+/* Custom thin scrollbars for admin panels */
+.thin-scrollbar {
+  --scrollbar-thumb: #a1a1aa;
+  --scrollbar-track: #f4f4f5;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+@supports not (scrollbar-color: auto) {
+  .thin-scrollbar {
+    scrollbar-width: auto;
+  }
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 4px;
+  }
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+}
+
+/* ============================================================================
+   Native <input type="checkbox" switch> Styling + Non-Safari Fallback
+   Per modern-web-guidance: switch
+   ============================================================================ */
+input[type="checkbox"][switch] {
+  accent-color: var(--brand-primary);
+  margin: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+input[type="checkbox"][switch][data-switch-fallback="true"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 2.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  background-color: #e4e4e7;
+  border: 1px solid #d4d4d8;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+input[type="checkbox"][switch][data-switch-fallback="true"]::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 9999px;
+  background-color: #ffffff;
+  border: 1px solid rgb(9 9 11 / 0.08);
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+input[type="checkbox"][switch][data-switch-fallback="true"]:checked {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+input[type="checkbox"][switch][data-switch-fallback="true"]:checked::before {
+  transform: translateX(1rem);
+}
+
+input[type="checkbox"][switch]:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+
+/* ============================================================================
+   Responsive Data Table (Super Admin Tenant Directory)
+   Per modern-web-guidance: responsive-table
+   ============================================================================ */
+.responsive-table-wrapper {
+  overflow: auto;
+  max-inline-size: 100%;
+  container-type: inline-size;
+}
+
+.responsive-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.responsive-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+
+@container (width < 760px) {
+  .responsive-table,
+  .responsive-table thead,
+  .responsive-table tbody,
+  .responsive-table tr,
+  .responsive-table th,
+  .responsive-table td {
+    display: block;
+  }
+
+  .responsive-table thead {
+    display: none;
+  }
+
+  .responsive-table tbody tr {
+    margin-block-end: 0.75rem;
+    border: 1px solid #e4e4e7;
+    border-radius: 0.5rem;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  .responsive-table tbody th[scope="row"] {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background: #fafafa;
+    border-bottom: 1px solid #e4e4e7;
+    padding: 0.75rem 1rem;
+    text-align: left;
+  }
+
+  .responsive-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid #f4f4f5;
+  }
+
+  .responsive-table tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  .responsive-table tbody td[data-label]::before {
+    content: attr(data-label);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #71717a;
+    flex-shrink: 0;
+  }
+}

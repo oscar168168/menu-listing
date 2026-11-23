@@ -1,0 +1,39 @@
+# Firebase App Hosting configuration (Cloud Run + Cloud Build)
+# Docs: https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 20
+  concurrency: 80
+
+env:
+  # Cloud PostgreSQL connection string stored in Cloud Secret Manager:
+  #   npx -y firebase-tools@latest apphosting:secrets:set DATABASE_URL
+  - variable: DATABASE_URL
+    secret: DATABASE_URL
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Random 64-char HMAC secret for signed session cookies:
+  #   npx -y firebase-tools@latest apphosting:secrets:set AUTH_SECRET
+  - variable: AUTH_SECRET
+    secret: AUTH_SECRET
+    availability:
+      - RUNTIME
+
+  # Replace with your deployed App Hosting URL or custom domain (used in QR code links)
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://your-backend.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Optional: Firebase Storage bucket name (e.g. your-project.firebasestorage.app)
+  # When set, /api/upload persists dish photos & logos in Firebase Storage instead of local disk.
+  # - variable: FIREBASE_STORAGE_BUCKET
+  #   value: your-project.firebasestorage.app
+  #   availability:
+  #     - RUNTIME

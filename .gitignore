@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+.env
+.env*.local
+!.env.example
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+public/uploads/*
+!public/uploads/.gitkeep
+*.tsbuildinfo
+next-env.d.ts
+gemini-code-*.md
