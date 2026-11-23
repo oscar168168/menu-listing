@@ -18,7 +18,7 @@ import {
 } from "../src/lib/firestore";
 import { computeThemeContrast } from "../src/lib/theme";
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:3000";
 
 class CookieJar {
   private cookies = new Map<string, string>();
@@ -90,7 +90,7 @@ async function run() {
   assert.equal(unauthSuper.status, 403);
   console.log("✓ Auth guards enforce 401/403");
 
-  // 2. Public Cambodian Seafood SSR Menus (USD+KHR and KHR+USD)
+  // 2. Public Cambodian Seafood SSR Menus (Khmer default, USD+KHR and KHR+USD)
   const soraFound = await findTenantBySlug("sora-seafood-grill");
   assert.ok(soraFound, "Sora Seafood Grill tenant must be seeded");
   const soraTheme = computeThemeContrast(soraFound.data.primaryColor);
@@ -98,12 +98,12 @@ async function run() {
   const soraHtml = await (await req("/m/sora-seafood-grill?table=05")).text();
   assert.ok(soraHtml.includes(`--brand-primary:${soraTheme.primary}`));
   assert.ok(soraHtml.includes(`--brand-primary-foreground:${soraTheme.foreground}`));
-  assert.ok(soraHtml.includes("Table 05"));
-  assert.ok(soraHtml.includes("Kampot Pepper Crab"));
-  assert.ok(soraHtml.includes("Market Price"));
-  assert.ok(soraHtml.includes("74,000 ៛"), "USD-primary dual KHR conversion must render");
+  assert.ok(soraHtml.includes('lang="km"'), "Default menu language must be Khmer");
+  assert.ok(soraHtml.includes("តុ 05"), "Khmer table badge must render by default");
+  assert.ok(soraHtml.includes("ក្តាមឆាម្រេចកំពត"), "Khmer dish title must render by default");
+  assert.ok(soraHtml.includes("73,800 ៛"), "USD-primary dual KHR conversion must render");
   if (soraFound.data.vendorMode === "CART") {
-    assert.ok(soraHtml.includes("Add Kampot Pepper Crab to cart"), "CART vendor mode must render add-to-cart controls");
+    assert.ok(soraHtml.includes("Add ក្តាមឆាម្រេចកំពត to cart"), "CART vendor mode must render add-to-cart controls");
   }
 
   const kepFound = await findTenantBySlug("kep-bay-kitchen");
@@ -113,12 +113,13 @@ async function run() {
   const kepHtml = await (await req("/m/kep-bay-kitchen?table=03")).text();
   assert.ok(kepHtml.includes(`--brand-primary:${kepTheme.primary}`));
   assert.ok(kepHtml.includes(`--brand-primary-foreground:${kepTheme.foreground}`));
+  assert.ok(kepHtml.includes("ក្តាមសេះឆាម្រេចខ្ចី"), "Kep Khmer dish title must render by default");
   assert.ok(kepHtml.includes("65,000 ៛"), "KHR-primary menu must render KHR prices");
   assert.ok(kepHtml.includes("$15.85"), "KHR-primary menu must render dual USD conversion");
   if (kepFound.data.vendorMode === "LISTING_ONLY") {
     assert.ok(!kepHtml.includes("to cart"), "LISTING_ONLY vendor mode must omit add-to-cart controls");
   }
-  console.log("✓ Public bilingual Cambodian seafood menus (CART & LISTING_ONLY modes) render zero-FOUC");
+  console.log("✓ Public Khmer-default Cambodian seafood menus (CART & LISTING_ONLY modes) render zero-FOUC");
 
   // 3. Scan analytics ping
   const scansBefore = (await scanEventsCol(soraFound.id).count().get()).data().count;
@@ -228,9 +229,9 @@ async function run() {
   });
   assert.equal(switchMarket.status, 200);
 
-  // Verify public SSR menu updated immediately
+  // Verify public SSR menu updated immediately (renders in Khmer by default)
   const refreshedHtml = await (await req("/m/sora-seafood-grill")).text();
-  assert.ok(refreshedHtml.includes("Koh Kong Live Oysters"));
+  assert.ok(refreshedHtml.includes("អយស្ទ័រកោះកុង"));
 
   // QR SVG, PNG, and Printable Table Card
   const qrPngRes = await req("/api/admin/qr?format=png&table=05", { jar: soraJar });

@@ -7,15 +7,32 @@ try {
 import { hashPassword } from "../src/lib/auth";
 import {
   categoriesCol,
+  commitBatchedWrites,
   cookingStylesCol,
   findTenantBySlug,
   findUserByEmail,
   getDb,
+  menuItemsCol,
   scanEventsCol,
   tenantsCol,
   usersCol,
-  menuItemsCol,
 } from "../src/lib/firestore";
+
+const shouldReset = process.argv.includes("--reset");
+
+async function clearTenantMenu(tenantId: string) {
+  const [cats, items, styles] = await Promise.all([
+    categoriesCol(tenantId).get(),
+    menuItemsCol(tenantId).get(),
+    cookingStylesCol(tenantId).get(),
+  ]);
+  const ops: Array<(batch: FirebaseFirestore.WriteBatch) => void> = [
+    ...items.docs.map((d) => (b: FirebaseFirestore.WriteBatch) => b.delete(d.ref)),
+    ...cats.docs.map((d) => (b: FirebaseFirestore.WriteBatch) => b.delete(d.ref)),
+    ...styles.docs.map((d) => (b: FirebaseFirestore.WriteBatch) => b.delete(d.ref)),
+  ];
+  await commitBatchedWrites(ops);
+}
 
 async function upsertUser(input: {
   email: string;
@@ -103,7 +120,11 @@ async function upsertTenant(input: {
 }
 
 async function main() {
-  console.log("Seeding MenuOS Cloud Firestore database...");
+  console.log(
+    shouldReset
+      ? "Resetting & seeding MenuOS Cloud Firestore demo items..."
+      : "Seeding MenuOS Cloud Firestore database..."
+  );
   const db = getDb();
   const now = new Date();
 
@@ -118,7 +139,7 @@ async function main() {
   console.log(`✓ Super Admin ready: ${superAdmin.email}`);
 
   // ==========================================================================
-  // 2. Venue 1: Sora Seafood Grill (Phnom Penh — USD Primary + Dual KHR)
+  // 2. Venue 1: Sora Seafood Grill (Default settings: CART, USD+KHR, 100៛)
   // ==========================================================================
   const soraId = await upsertTenant({
     name: "Sora Seafood Grill",
@@ -129,7 +150,7 @@ async function main() {
     currency: "USD",
     showDualCurrency: true,
     exchangeRate: 4100,
-    khrRounding: 500,
+    khrRounding: 100,
     primaryColor: "#1E293B",
     metaJson: {
       tagline: "Live tank seafood & charcoal grill in BKK1, Phnom Penh",
@@ -144,10 +165,10 @@ async function main() {
       wifiName: "Sora_BKK1_5G",
       wifiPassword: "kampot2026",
       footerNote:
-        "Prices exclude 10% VAT. Live tank seafood is weighed table-side prior to cooking.",
+        "Prices include local VAT. Freshly prepared to order.",
       footerNoteKm:
-        "តម្លៃមិនទាន់បូកបញ្ចូលពន្ធអាករ ១០% ទេ។ គ្រឿងសមុទ្ររស់ត្រូវបានថ្លឹងបង្ហាញនៅតុមុនពេលចម្អិន។",
-      serviceNote: "10% VAT applies · No service charge",
+        "តម្លៃបូកបញ្ចូលពន្ធរួចជាស្រេច។ ចម្អិនថ្មីៗតាមការកុម្ម៉ង់។",
+      serviceNote: "All taxes included · No service charge",
     },
   });
 
@@ -158,6 +179,10 @@ async function main() {
     role: "MENU_ADMIN",
     tenantId: soraId,
   });
+
+  if (shouldReset) {
+    await clearTenantMenu(soraId);
+  }
 
   const soraPresetCount = (await cookingStylesCol(soraId).count().get()).data().count;
   if (soraPresetCount === 0) {
@@ -185,16 +210,16 @@ async function main() {
   const soraCatCount = (await categoriesCol(soraId).count().get()).data().count;
   if (soraCatCount === 0) {
     const batch = db.batch();
-    const liveTankRef = categoriesCol(soraId).doc();
+    const signatureCatRef = categoriesCol(soraId).doc();
     const coldPlatesRef = categoriesCol(soraId).doc();
     const riceNoodleRef = categoriesCol(soraId).doc();
     const drinksRef = categoriesCol(soraId).doc();
 
-    batch.set(liveTankRef, {
+    batch.set(signatureCatRef, {
       tenantId: soraId,
-      name: "Live Tank & Crab",
-      nameEn: "Live Tank & Crab",
-      nameKm: "គ្រឿងសមុទ្ររស់ និង ក្តាម",
+      name: "Signature Seafood",
+      nameEn: "Signature Seafood",
+      nameKm: "ម្ហូបគ្រឿងសមុទ្រប្រចាំហាង",
       sortOrder: 0,
       isVisible: true,
       createdAt: now,
@@ -202,8 +227,8 @@ async function main() {
     });
     batch.set(coldPlatesRef, {
       tenantId: soraId,
-      name: "Koh Kong & Raw Plates",
-      nameEn: "Koh Kong & Raw Plates",
+      name: "Salads & Raw Plates",
+      nameEn: "Salads & Raw Plates",
       nameKm: "ភ្លា និង ញាំគ្រឿងសមុទ្រ",
       sortOrder: 1,
       isVisible: true,
@@ -231,98 +256,86 @@ async function main() {
       updatedAt: now,
     });
 
+    // Demo items match default simplified item settings: FIXED price, Signature toggle, In stock toggle, clean image
     const soraItems = [
       {
-        categoryId: liveTankRef.id,
+        categoryId: signatureCatRef.id,
         name: "Kampot Pepper Crab",
         nameEn: "Kampot Pepper Crab",
         nameKm: "ក្តាមឆាម្រេចកំពត",
         description:
-          "Live Kep mud crab wok-tossed with fresh green Kampot peppercorn clusters, garlic, and light oyster glaze.",
+          "Fresh Kep crab wok-tossed with green Kampot peppercorn clusters and garlic.",
         descriptionEn:
-          "Live Kep mud crab wok-tossed with fresh green Kampot peppercorn clusters, garlic, and light oyster glaze.",
+          "Fresh Kep crab wok-tossed with green Kampot peppercorn clusters and garlic.",
         descriptionKm:
-          "ក្តាមសមុទ្ររស់ពីខេត្តកែប ឆាជាមួយម្រេចខ្ចីកំពតស្រស់ ខ្ទឹមស និង ទឹកប្រេងខ្យងពិសេស។",
-        pricingType: "WEIGHT_BASED" as const,
-        weightUnit: "PER_500G" as const,
+          "ក្តាមសមុទ្រឆាជាមួយម្រេចខ្ចីកំពតស្រស់ ខ្ទឹមស និង ទឹកប្រេងខ្យងពិសេស។",
+        pricingType: "FIXED" as const,
+        weightUnit: null,
         priceDecimal: 18.0,
         marketPriceMin: null,
         marketPriceMax: null,
         variantsJson: null,
-        cookingStylesJson: [
-          { id: "kampot-pepper", nameKm: "ឆាម្រេចកំពត", nameEn: "Kampot Pepper Stir-fry", surcharge: 0 },
-          { id: "tamarind", nameKm: "ឆាអំពិលទុំ", nameEn: "Tamarind Sauce", surcharge: 1.5 },
-          { id: "steamed-ginger", nameKm: "ចំហុយខ្ញី", nameEn: "Steamed with Ginger", surcharge: 0 },
-          { id: "grilled", nameKm: "អាំងធ្យូង", nameEn: "Charcoal Grilled", surcharge: 0 },
-        ],
+        cookingStylesJson: null,
         imageUrl: "/images/kampot-pepper-crab.jpg",
-        tags: ["Live Tank", "Signature"],
+        tags: ["Signature"],
         isAvailable: true,
         sortOrder: 0,
       },
       {
-        categoryId: liveTankRef.id,
+        categoryId: signatureCatRef.id,
         name: "Grilled Giant River Prawns",
         nameEn: "Grilled Giant River Prawns",
-        nameKm: "បង្កងអាំង",
+        nameKm: "បង្កងអាំងធ្យូង",
         description:
-          "Live Mekong giant river prawns split and seared over hardwood charcoal with roe butter and green chili seafood dip.",
+          "Mekong giant river prawns grilled over charcoal with green chili seafood dip.",
         descriptionEn:
-          "Live Mekong giant river prawns split and seared over hardwood charcoal with roe butter and green chili seafood dip.",
+          "Mekong giant river prawns grilled over charcoal with green chili seafood dip.",
         descriptionKm:
-          "បង្កងទន្លេមេគង្គរស់ពុះអាំងលើធ្យូងឈើធម្មជាតិ ឈ្ងុយខ្លាញ់បង្កង ញ៉ាំជាមួយទឹកត្រីកោះកុង។",
-        pricingType: "MARKET_PRICE" as const,
-        weightUnit: "PER_KG" as const,
-        priceDecimal: 0,
-        marketPriceMin: 26.0,
-        marketPriceMax: 34.0,
+          "បង្កងទន្លេមេគង្គអាំងលើធ្យូងឈើធម្មជាតិ ញ៉ាំជាមួយទឹកត្រីកោះកុង។",
+        pricingType: "FIXED" as const,
+        weightUnit: null,
+        priceDecimal: 24.0,
+        marketPriceMin: null,
+        marketPriceMax: null,
         variantsJson: null,
-        cookingStylesJson: [
-          { id: "charcoal-grill", nameKm: "អាំងធ្យូង", nameEn: "Charcoal Grilled", surcharge: 0 },
-          { id: "garlic-butter", nameKm: "អាំងប័រខ្ទឹមស", nameEn: "Garlic Butter Grill", surcharge: 2.0 },
-          { id: "tamarind-prawn", nameKm: "ឆាអំពិលទុំ", nameEn: "Tamarind Sauce", surcharge: 2.0 },
-        ],
+        cookingStylesJson: null,
         imageUrl: "/images/grilled-river-prawns.jpg",
-        tags: ["Live Tank", "Signature"],
+        tags: ["Signature"],
         isAvailable: true,
         sortOrder: 1,
       },
       {
-        categoryId: liveTankRef.id,
+        categoryId: signatureCatRef.id,
         name: "Steamed Grouper with Soy & Ginger",
         nameEn: "Steamed Grouper with Soy & Ginger",
         nameKm: "ត្រីតុកកែចំហុយស៊ីអ៊ីវ",
         description:
-          "Whole live tiger grouper steamed to order with julienned young ginger, scallion threads, and house superior soy.",
+          "Whole tiger grouper steamed with young ginger, scallion threads, and light soy.",
         descriptionEn:
-          "Whole live tiger grouper steamed to order with julienned young ginger, scallion threads, and house superior soy.",
+          "Whole tiger grouper steamed with young ginger, scallion threads, and light soy.",
         descriptionKm:
-          "ត្រីតុកកែរស់ទាំងមូលចំហុយភ្លាមៗ ជាមួយខ្ញីខ្ចី ស្លឹកខ្ទឹម និង ទឹកស៊ីអ៊ីវពិសេសប្រចាំហាង។",
-        pricingType: "WEIGHT_BASED" as const,
-        weightUnit: "PER_KG" as const,
+          "ត្រីតុកកែចំហុយភ្លាមៗ ជាមួយខ្ញីខ្ចី ស្លឹកខ្ទឹម និង ទឹកស៊ីអ៊ីវពិសេសប្រចាំហាង។",
+        pricingType: "FIXED" as const,
+        weightUnit: null,
         priceDecimal: 28.0,
         marketPriceMin: null,
         marketPriceMax: null,
         variantsJson: null,
-        cookingStylesJson: [
-          { id: "steamed-soy", nameKm: "ចំហុយស៊ីអ៊ីវ", nameEn: "Steamed with Soy & Ginger", surcharge: 0 },
-          { id: "steamed-lime", nameKm: "ចំហុយក្រូចឆ្មាម្ទេស", nameEn: "Steamed Chili & Lime", surcharge: 1.5 },
-          { id: "crispy-tamarind", nameKm: "បំពងស្រួយទឹកអំពិលទុំ", nameEn: "Crispy Tamarind Glaze", surcharge: 2.0 },
-        ],
+        cookingStylesJson: null,
         imageUrl: null,
-        tags: ["Live Tank", "Fresh Catch", "Gluten-Free"],
+        tags: ["Signature"],
         isAvailable: true,
         sortOrder: 2,
       },
       {
-        categoryId: liveTankRef.id,
+        categoryId: signatureCatRef.id,
         name: "Blanched Blood Cockles",
         nameEn: "Blanched Blood Cockles",
-        nameKm: "ងាវស្រុះ",
+        nameKm: "ងាវស្រុះទឹកអំពិលទុំ",
         description:
-          "Quick-blanched coastal blood cockles served rare or medium with crushed roasted peanut tamarind dip.",
+          "Quick-blanched coastal blood cockles with roasted peanut tamarind dip.",
         descriptionEn:
-          "Quick-blanched coastal blood cockles served rare or medium with crushed roasted peanut tamarind dip.",
+          "Quick-blanched coastal blood cockles with roasted peanut tamarind dip.",
         descriptionKm:
           "ងាវស្រស់ស្រុះល្មម ញ៉ាំផ្ទាប់ជាមួយទឹកអំពិលទុំសណ្តែកដីលីង។",
         pricingType: "FIXED" as const,
@@ -333,7 +346,7 @@ async function main() {
         variantsJson: null,
         cookingStylesJson: null,
         imageUrl: null,
-        tags: ["Fresh Catch"],
+        tags: [],
         isAvailable: false,
         sortOrder: 3,
       },
@@ -343,11 +356,11 @@ async function main() {
         nameEn: "Koh Kong Raw Shrimp",
         nameKm: "ភ្លាបង្គាកោះកុង",
         description:
-          "Chilled sweet sea prawns marinated in fresh lime juice, bird's eye chili, raw garlic, and bitter melon slices.",
+          "Chilled sweet sea prawns marinated in fresh lime, chili, garlic, and herbs.",
         descriptionEn:
-          "Chilled sweet sea prawns marinated in fresh lime juice, bird's eye chili, raw garlic, and bitter melon slices.",
+          "Chilled sweet sea prawns marinated in fresh lime, chili, garlic, and herbs.",
         descriptionKm:
-          "បង្គាស្រស់ផ្អែមត្រជាក់ លាយទឹកត្រីកោះកុង ម្ទេសហឹរ ខ្ទឹមស និង ម្រះស្រួយ។",
+          "បង្គាស្រស់ត្រជាក់ លាយទឹកត្រីកោះកុង ម្ទេសហឹរ ខ្ទឹមស និង ម្រះស្រួយ។",
         pricingType: "FIXED" as const,
         weightUnit: null,
         priceDecimal: 9.5,
@@ -356,7 +369,7 @@ async function main() {
         variantsJson: null,
         cookingStylesJson: null,
         imageUrl: null,
-        tags: ["Fresh Catch", "Spicy", "Signature"],
+        tags: ["Signature"],
         isAvailable: true,
         sortOrder: 0,
       },
@@ -366,9 +379,9 @@ async function main() {
         nameEn: "Green Mango & Squid Salad",
         nameKm: "ញាំមឹកស្វាយខ្ចី",
         description:
-          "Tender poached coastal squid tossed with shredded green mango, shallots, mint, and toasted cashews.",
+          "Poached coastal squid tossed with green mango, shallots, mint, and cashews.",
         descriptionEn:
-          "Tender poached coastal squid tossed with shredded green mango, shallots, mint, and toasted cashews.",
+          "Poached coastal squid tossed with green mango, shallots, mint, and cashews.",
         descriptionKm:
           "មឹកស្រស់ស្រុះញាំជាមួយស្វាយខ្ចី ខ្ទឹមក្រហម ជីអង្កាម និង គ្រាប់ស្វាយចន្ទីលីង។",
         pricingType: "FIXED" as const,
@@ -379,7 +392,7 @@ async function main() {
         variantsJson: null,
         cookingStylesJson: null,
         imageUrl: null,
-        tags: ["Fresh Catch", "Spicy"],
+        tags: [],
         isAvailable: true,
         sortOrder: 1,
       },
@@ -389,20 +402,17 @@ async function main() {
         nameEn: "Seafood Fried Rice",
         nameKm: "បាយឆាគ្រឿងសមុទ្រ",
         description:
-          "Smoky jasmine rice wok-fried with sea prawns, squid rings, lump crab meat, spring onion, and farm egg.",
+          "Smoky jasmine rice wok-fried with prawns, squid, crab meat, and farm egg.",
         descriptionEn:
-          "Smoky jasmine rice wok-fried with sea prawns, squid rings, lump crab meat, spring onion, and farm egg.",
+          "Smoky jasmine rice wok-fried with prawns, squid, crab meat, and farm egg.",
         descriptionKm:
-          "បាយអង្ករផ្កាម្លិះឆាភ្លើងធំឈ្ងុយ ជាមួយបង្គា មឹក សាច់ក្តាម ស្លឹកខ្ទឹម និង ពងមាន់។",
+          "បាយអង្ករផ្កាម្លិះឆាឈ្ងុយ ជាមួយបង្គា មឹក សាច់ក្តាម ស្លឹកខ្ទឹម និង ពងមាន់។",
         pricingType: "FIXED" as const,
         weightUnit: null,
         priceDecimal: 6.5,
         marketPriceMin: null,
         marketPriceMax: null,
-        variantsJson: [
-          { label: "Small (1–2 pax)", labelKm: "ចានតូច (១-២ នាក់)", price: 6.5 },
-          { label: "Large (3–4 pax)", labelKm: "ចានធំ (៣-៤ នាក់)", price: 11.5 },
-        ],
+        variantsJson: null,
         cookingStylesJson: null,
         imageUrl: null,
         tags: ["Signature"],
@@ -415,9 +425,9 @@ async function main() {
         nameEn: "Claypot Crab Glass Noodles",
         nameKm: "មីសួឆ្នាំងដីក្តាម",
         description:
-          "Mung bean glass noodles slow-steamed in a hot claypot with white pepper, ginger root, celery, and sweet crab.",
+          "Glass noodles slow-steamed in a hot claypot with white pepper, ginger, and crab.",
         descriptionEn:
-          "Mung bean glass noodles slow-steamed in a hot claypot with white pepper, ginger root, celery, and sweet crab.",
+          "Glass noodles slow-steamed in a hot claypot with white pepper, ginger, and crab.",
         descriptionKm:
           "មីសួអប់ក្នុងឆ្នាំងដីក្តៅៗ ជាមួយសាច់ក្តាម ម្រេចស ខ្ញី និង គិនឆាយឈ្ងុយ។",
         pricingType: "FIXED" as const,
@@ -428,9 +438,32 @@ async function main() {
         variantsJson: null,
         cookingStylesJson: null,
         imageUrl: null,
-        tags: ["Signature"],
+        tags: [],
         isAvailable: true,
         sortOrder: 1,
+      },
+      {
+        categoryId: drinksRef.id,
+        name: "Cambodian Iced Milk Coffee",
+        nameEn: "Cambodian Iced Milk Coffee",
+        nameKm: "កាហ្វេទឹកដោះគោទឹកកក",
+        description:
+          "Dark roasted Mondulkiri coffee dripped slow over condensed milk and ice.",
+        descriptionEn:
+          "Dark roasted Mondulkiri coffee dripped slow over condensed milk and ice.",
+        descriptionKm:
+          "កាហ្វេលីងមណ្ឌលគិរីឆុងជាមួយទឹកដោះគោខាប់ និង ទឹកកក។",
+        pricingType: "FIXED" as const,
+        weightUnit: null,
+        priceDecimal: 2.5,
+        marketPriceMin: null,
+        marketPriceMax: null,
+        variantsJson: null,
+        cookingStylesJson: null,
+        imageUrl: "/images/kohi-latte.jpg",
+        tags: [],
+        isAvailable: true,
+        sortOrder: 0,
       },
       {
         categoryId: drinksRef.id,
@@ -448,30 +481,7 @@ async function main() {
         variantsJson: null,
         cookingStylesJson: null,
         imageUrl: null,
-        tags: ["Vegetarian", "Gluten-Free"],
-        isAvailable: true,
-        sortOrder: 0,
-      },
-      {
-        categoryId: drinksRef.id,
-        name: "Iced Honey Lime Tea",
-        nameEn: "Iced Honey Lime Tea",
-        nameKm: "តែក្រូចឆ្មាទឹកឃ្មុំ",
-        description:
-          "Cold-brewed jasmine tea shaken with Mondulkiri wild honey and fresh Cambodian lime.",
-        descriptionEn:
-          "Cold-brewed jasmine tea shaken with Mondulkiri wild honey and fresh Cambodian lime.",
-        descriptionKm:
-          "តែម្លិះត្រជាក់ក្រឡុកជាមួយទឹកឃ្មុំព្រៃមណ្ឌលគិរី និង ក្រូចឆ្មាស្រស់។",
-        pricingType: "FIXED" as const,
-        weightUnit: null,
-        priceDecimal: 2.25,
-        marketPriceMin: null,
-        marketPriceMax: null,
-        variantsJson: null,
-        cookingStylesJson: null,
-        imageUrl: null,
-        tags: ["Vegetarian"],
+        tags: [],
         isAvailable: true,
         sortOrder: 1,
       },
@@ -489,7 +499,7 @@ async function main() {
   }
 
   // ==========================================================================
-  // 3. Venue 2: Kep Bay Kitchen (Kep Coast — KHR Primary + Dual USD)
+  // 3. Venue 2: Kep Bay Kitchen (LISTING_ONLY mode, KHR Primary + Dual USD)
   // ==========================================================================
   const kepId = await upsertTenant({
     name: "Kep Bay Kitchen",
@@ -529,6 +539,10 @@ async function main() {
     role: "MENU_ADMIN",
     tenantId: kepId,
   });
+
+  if (shouldReset) {
+    await clearTenantMenu(kepId);
+  }
 
   const kepPresetCount = (await cookingStylesCol(kepId).count().get()).data().count;
   if (kepPresetCount === 0) {
@@ -597,26 +611,45 @@ async function main() {
         nameEn: "Kep Blue Swimmer Crab with Green Pepper",
         nameKm: "ក្តាមសេះឆាម្រេចខ្ចី",
         description:
-          "Morning-caught Kep blue swimmer crab flash-fried with freshly picked green peppercorns from nearby Kampot farms.",
+          "Morning-caught Kep blue swimmer crab flash-fried with green Kampot peppercorns.",
         descriptionEn:
-          "Morning-caught Kep blue swimmer crab flash-fried with freshly picked green peppercorns from nearby Kampot farms.",
+          "Morning-caught Kep blue swimmer crab flash-fried with green Kampot peppercorns.",
         descriptionKm:
           "ក្តាមសេះស្រស់ចាប់នៅពេលព្រឹក ឆាជាមួយម្រេចខ្ចីស្រស់ពីចម្ការកំពត។",
-        pricingType: "WEIGHT_BASED" as const,
-        weightUnit: "PER_500G" as const,
+        pricingType: "FIXED" as const,
+        weightUnit: null,
         priceDecimal: 65000,
         marketPriceMin: null,
         marketPriceMax: null,
         variantsJson: null,
-        cookingStylesJson: [
-          { id: "kep-pepper", nameKm: "ឆាម្រេចខ្ចីកំពត", nameEn: "Green Kampot Pepper", surcharge: 0 },
-          { id: "kep-steam", nameKm: "ចំហុយគល់ស្លឹកគ្រៃ", nameEn: "Steamed Lemongrass", surcharge: 0 },
-          { id: "kep-tamarind", nameKm: "ឆាអំពិលទុំ", nameEn: "Tamarind Glaze", surcharge: 6000 },
-        ],
-        imageUrl: null,
-        tags: ["Fresh Catch", "Signature"],
+        cookingStylesJson: null,
+        imageUrl: "/images/kampot-pepper-crab.jpg",
+        tags: ["Signature"],
         isAvailable: true,
         sortOrder: 0,
+      },
+      {
+        categoryId: crabShellRef.id,
+        name: "Charcoal-Grilled Tiger Prawns",
+        nameEn: "Charcoal-Grilled Tiger Prawns",
+        nameKm: "បង្គាខ្លាអាំងធ្យូង",
+        description:
+          "Sea-caught tiger prawns grilled over coconut husks with spicy Kampot lime dip.",
+        descriptionEn:
+          "Sea-caught tiger prawns grilled over coconut husks with spicy Kampot lime dip.",
+        descriptionKm:
+          "បង្គាខ្លាសមុទ្រអាំងធ្យូងត្រឡោកដូង ញ៉ាំជាមួយទឹកត្រីកោះកុងហឹរឆ្ងាញ់។",
+        pricingType: "FIXED" as const,
+        weightUnit: null,
+        priceDecimal: 88000,
+        marketPriceMin: null,
+        marketPriceMax: null,
+        variantsJson: null,
+        cookingStylesJson: null,
+        imageUrl: "/images/grilled-river-prawns.jpg",
+        tags: ["Signature"],
+        isAvailable: true,
+        sortOrder: 1,
       },
       {
         categoryId: crabShellRef.id,
@@ -624,46 +657,20 @@ async function main() {
         nameEn: "Charcoal-Grilled Baby Squid",
         nameKm: "មឹកអាំងទឹកត្រីកោះកុង",
         description:
-          "Whole tender baby squid brushed with fish sauce and grilled over coconut husks, served with spicy lime dip.",
+          "Whole tender baby squid brushed with fish sauce and grilled over charcoal.",
         descriptionEn:
-          "Whole tender baby squid brushed with fish sauce and grilled over coconut husks, served with spicy lime dip.",
+          "Whole tender baby squid brushed with fish sauce and grilled over charcoal.",
         descriptionKm:
-          "មឹកកូនស្រស់លាបទឹកត្រីអាំងធ្យូងត្រឡោកដូង ញ៉ាំជាមួយទឹកត្រីកោះកុងហឹរឆ្ងាញ់។",
-        pricingType: "WEIGHT_BASED" as const,
-        weightUnit: "PER_100G" as const,
-        priceDecimal: 12000,
+          "មឹកកូនស្រស់លាបទឹកត្រីអាំងធ្យូង ញ៉ាំជាមួយទឹកត្រីកោះកុងហឹរឆ្ងាញ់។",
+        pricingType: "FIXED" as const,
+        weightUnit: null,
+        priceDecimal: 28000,
         marketPriceMin: null,
         marketPriceMax: null,
         variantsJson: null,
         cookingStylesJson: null,
         imageUrl: null,
-        tags: ["Fresh Catch", "Spicy"],
-        isAvailable: true,
-        sortOrder: 1,
-      },
-      {
-        categoryId: crabShellRef.id,
-        name: "Live Coastal Tiger Prawns",
-        nameEn: "Live Coastal Tiger Prawns",
-        nameKm: "បង្គាខ្លារស់",
-        description:
-          "Sea-caught tiger prawns kept live in aerated sea water tanks; priced daily by boat landing size.",
-        descriptionEn:
-          "Sea-caught tiger prawns kept live in aerated sea water tanks; priced daily by boat landing size.",
-        descriptionKm:
-          "បង្គាខ្លាសមុទ្ររស់ក្នុងអាងទឹកប្រៃ តម្លៃប្រែប្រួលតាមទំហំ និង ថ្ងៃនេសាទ។",
-        pricingType: "MARKET_PRICE" as const,
-        weightUnit: "PER_KG" as const,
-        priceDecimal: 0,
-        marketPriceMin: 95000,
-        marketPriceMax: 125000,
-        variantsJson: null,
-        cookingStylesJson: [
-          { id: "prawn-grill", nameKm: "អាំងធ្យូង", nameEn: "Charcoal Grilled", surcharge: 0 },
-          { id: "prawn-salt-chili", nameKm: "លីងអំបិលម្ទេស", nameEn: "Salt & Chili Roast", surcharge: 5000 },
-        ],
-        imageUrl: null,
-        tags: ["Live Tank"],
+        tags: [],
         isAvailable: true,
         sortOrder: 2,
       },
@@ -686,7 +693,7 @@ async function main() {
         variantsJson: null,
         cookingStylesJson: null,
         imageUrl: null,
-        tags: ["Fresh Catch"],
+        tags: [],
         isAvailable: false,
         sortOrder: 3,
       },
@@ -696,9 +703,9 @@ async function main() {
         nameEn: "Coastal Fish Sour Herb Soup",
         nameKm: "សម្លម្ជូរគ្រឿងត្រីសមុទ្រ",
         description:
-          "Fragrant Khmer kroeung broth simmered with reef fish, young tamarind leaves, water lily stems, and sawtooth herb.",
+          "Fragrant Khmer kroeung broth simmered with reef fish, tamarind leaves, and herbs.",
         descriptionEn:
-          "Fragrant Khmer kroeung broth simmered with reef fish, young tamarind leaves, water lily stems, and sawtooth herb.",
+          "Fragrant Khmer kroeung broth simmered with reef fish, tamarind leaves, and herbs.",
         descriptionKm:
           "សម្លម្ជូរគ្រឿងត្រីសមុទ្រស្រស់ ដាក់ស្លឹកអំពិលខ្ចី ព្រលិត និង ជីរណាឈ្ងុយ។",
         pricingType: "FIXED" as const,
@@ -706,10 +713,7 @@ async function main() {
         priceDecimal: 38000,
         marketPriceMin: null,
         marketPriceMax: null,
-        variantsJson: [
-          { label: "Small Pot", labelKm: "ឆ្នាំងតូច", price: 38000 },
-          { label: "Family Pot", labelKm: "ឆ្នាំងធំ", price: 68000 },
-        ],
+        variantsJson: null,
         cookingStylesJson: null,
         imageUrl: null,
         tags: ["Signature"],
@@ -722,9 +726,9 @@ async function main() {
         nameEn: "Kep Crab Fried Rice",
         nameKm: "បាយឆាក្តាមកែប",
         description:
-          "Hand-picked sweet crab meat tossed with fragrant jasmine rice, egg, and fresh Kampot pepper.",
+          "Hand-picked sweet crab meat tossed with jasmine rice, egg, and Kampot pepper.",
         descriptionEn:
-          "Hand-picked sweet crab meat tossed with fragrant jasmine rice, egg, and fresh Kampot pepper.",
+          "Hand-picked sweet crab meat tossed with jasmine rice, egg, and Kampot pepper.",
         descriptionKm:
           "បាយឆាសាច់ក្តាមកែបផ្អែម ជាមួយពងមាន់ និង ម្រេចកំពតឈ្ងុយ។",
         pricingType: "FIXED" as const,
@@ -738,6 +742,29 @@ async function main() {
         tags: ["Signature"],
         isAvailable: true,
         sortOrder: 1,
+      },
+      {
+        categoryId: refreshRef.id,
+        name: "Cambodian Iced Milk Coffee",
+        nameEn: "Cambodian Iced Milk Coffee",
+        nameKm: "កាហ្វេទឹកដោះគោទឹកកក",
+        description:
+          "Dark roasted Mondulkiri coffee dripped slow over condensed milk and crushed ice.",
+        descriptionEn:
+          "Dark roasted Mondulkiri coffee dripped slow over condensed milk and crushed ice.",
+        descriptionKm:
+          "កាហ្វេលីងមណ្ឌលគិរីឆុងជាមួយទឹកដោះគោខាប់ និង ទឹកកកឈូស។",
+        pricingType: "FIXED" as const,
+        weightUnit: null,
+        priceDecimal: 8000,
+        marketPriceMin: null,
+        marketPriceMax: null,
+        variantsJson: null,
+        cookingStylesJson: null,
+        imageUrl: "/images/kohi-latte.jpg",
+        tags: [],
+        isAvailable: true,
+        sortOrder: 0,
       },
       {
         categoryId: refreshRef.id,
@@ -755,27 +782,7 @@ async function main() {
         variantsJson: null,
         cookingStylesJson: null,
         imageUrl: null,
-        tags: ["Vegetarian"],
-        isAvailable: true,
-        sortOrder: 0,
-      },
-      {
-        categoryId: refreshRef.id,
-        name: "Cambodian Iced Milk Coffee",
-        nameEn: "Cambodian Iced Milk Coffee",
-        nameKm: "កាហ្វេទឹកដោះគោទឹកកក",
-        description: "Dark roasted Mondulkiri coffee dripped slow over condensed milk and crushed ice.",
-        descriptionEn: "Dark roasted Mondulkiri coffee dripped slow over condensed milk and crushed ice.",
-        descriptionKm: "កាហ្វេលីងមណ្ឌលគិរីឆុងជាមួយទឹកដោះគោខាប់ និង ទឹកកកឈូស។",
-        pricingType: "FIXED" as const,
-        weightUnit: null,
-        priceDecimal: 8000,
-        marketPriceMin: null,
-        marketPriceMax: null,
-        variantsJson: null,
-        cookingStylesJson: null,
-        imageUrl: null,
-        tags: ["Vegetarian"],
+        tags: [],
         isAvailable: true,
         sortOrder: 1,
       },

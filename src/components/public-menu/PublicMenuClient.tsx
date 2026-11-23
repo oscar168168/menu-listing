@@ -73,12 +73,12 @@ function subscribeStorage(listener: () => void) {
 }
 
 function readStoredLocale(): Locale {
-  if (typeof window === "undefined") return "en";
+  if (typeof window === "undefined") return "km";
   try {
     const val = localStorage.getItem("menuos:locale");
-    return val === "km" ? "km" : "en";
+    return val === "en" ? "en" : "km";
   } catch {
-    return "en";
+    return "km";
   }
 }
 
@@ -104,11 +104,11 @@ export function PublicMenuClient({
     [categories]
   );
 
-  const [previewLocale, setPreviewLocale] = useState<Locale>("en");
+  const [previewLocale, setPreviewLocale] = useState<Locale>("km");
   const storedLocale = useSyncExternalStore(
     subscribeStorage,
     readStoredLocale,
-    () => "en" as Locale
+    () => "km" as Locale
   );
   const locale = isPreview ? previewLocale : storedLocale;
 
