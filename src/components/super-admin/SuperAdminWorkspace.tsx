@@ -8,6 +8,7 @@ import {
   ExternalLink,
   LogOut,
   PauseCircle,
+  Pencil,
   PlayCircle,
   Plus,
   Search,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { Toast, type ToastMessage } from "@/components/ui/Toast";
+import { slugify } from "@/lib/slug";
 import type {
   ScanAnalyticsRow,
   SessionUser,
@@ -64,8 +66,98 @@ export function SuperAdminWorkspace({
   const [provisionMounted, setProvisionMounted] = useState(false);
   const [confirmSuspendTenant, setConfirmSuspendTenant] =
     useState<SuperAdminTenantSummary | null>(null);
+  const [editingTenant, setEditingTenant] =
+    useState<SuperAdminTenantSummary | null>(null);
+  const [editSlug, setEditSlug] = useState("");
+  const [editNameEn, setEditNameEn] = useState("");
+  const [editNameKm, setEditNameKm] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
   const [busyTenantId, setBusyTenantId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+
+  const openEditTenantModal = (tenant: SuperAdminTenantSummary) => {
+    setEditingTenant(tenant);
+    setEditSlug(tenant.slug);
+    setEditNameEn(tenant.nameEn || tenant.name);
+    setEditNameKm(tenant.nameKm || "");
+    setEditError(null);
+  };
+
+  const handleSaveTenantEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTenant) return;
+
+    const normalizedSlug = slugify(editSlug);
+    if (!normalizedSlug || normalizedSlug.length < 2) {
+      setEditError(
+        "Slug must be at least 2 lowercase letters/numbers (e.g. pak-khlang-168)."
+      );
+      return;
+    }
+
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/super-admin/tenants/${editingTenant.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: normalizedSlug,
+          name: editNameEn.trim() || editNameKm.trim() || editingTenant.name,
+          nameEn: editNameEn.trim(),
+          nameKm: editNameKm.trim(),
+        }),
+      });
+      const json = (await res.json()) as {
+        error?: string;
+        tenant?: {
+          id: string;
+          slug: string;
+          name: string;
+          nameEn: string;
+          nameKm: string;
+        };
+      };
+      if (!res.ok || !json.tenant) {
+        throw new Error(json.error ?? "Failed to update venue");
+      }
+
+      const updated = json.tenant;
+      setData((prev) => ({
+        ...prev,
+        tenants: prev.tenants.map((t) =>
+          t.id === updated.id
+            ? {
+                ...t,
+                slug: updated.slug,
+                name: updated.name,
+                nameEn: updated.nameEn,
+                nameKm: updated.nameKm,
+              }
+            : t
+        ),
+        analytics: prev.analytics.map((a) =>
+          a.tenantId === updated.id
+            ? {
+                ...a,
+                slug: updated.slug,
+                tenantName: updated.name,
+              }
+            : a
+        ),
+      }));
+
+      setEditingTenant(null);
+      notify(`Updated "${updated.name}" (/m/${updated.slug})`);
+    } catch (err) {
+      setEditError(
+        err instanceof Error ? err.message : "Could not update venue"
+      );
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const notify = useCallback(
     (text: string, tone: "neutral" | "error" = "neutral") => {
@@ -408,11 +500,32 @@ export function SuperAdminWorkspace({
                             />
                             <div className="min-w-0">
                               <p className="truncate font-semibold text-zinc-950">
-                                {tenant.name}
+                                {tenant.nameKm ? (
+                                  <>
+                                    <span lang="km">{tenant.nameKm}</span>
+                                    {tenant.nameEn &&
+                                      tenant.nameEn !== tenant.nameKm && (
+                                        <span className="ml-1.5 font-normal text-zinc-500">
+                                          · {tenant.nameEn}
+                                        </span>
+                                      )}
+                                  </>
+                                ) : (
+                                  tenant.name
+                                )}
                               </p>
-                              <p className="font-mono text-[11px] text-zinc-500">
-                                /m/{tenant.slug}
-                              </p>
+                              <button
+                                type="button"
+                                onClick={() => openEditTenantModal(tenant)}
+                                title="Click to edit URL slug / subdomain path"
+                                className="group inline-flex items-center gap-1 font-mono text-[11px] text-zinc-500 hover:text-zinc-950"
+                              >
+                                <span>/m/{tenant.slug}</span>
+                                <Pencil
+                                  className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100"
+                                  strokeWidth={1.75}
+                                />
+                              </button>
                             </div>
                           </div>
                         </th>
@@ -487,6 +600,20 @@ export function SuperAdminWorkspace({
 
                         <td data-label="Actions" className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => openEditTenantModal(tenant)}
+                              title="Edit URL slug & venue name"
+                              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-40"
+                            >
+                              <Pencil
+                                className="h-3 w-3"
+                                strokeWidth={1.5}
+                              />
+                              Edit
+                            </button>
+
                             <Link
                               href={`/m/${tenant.slug}`}
                               target="_blank"
@@ -653,6 +780,124 @@ export function SuperAdminWorkspace({
           }}
         />
       )}
+
+      {/* Edit Venue & URL Slug Modal */}
+      <NativeDialog
+        open={Boolean(editingTenant)}
+        onClose={() => setEditingTenant(null)}
+        title="Edit Venue & URL Slug"
+        subtitle="Update public menu URL path (/m/slug) and bilingual venue names."
+        maxWidthClass="max-w-md"
+      >
+        <form
+          onSubmit={(e) => void handleSaveTenantEdit(e)}
+          className="p-5 space-y-4"
+        >
+          <div>
+            <label
+              htmlFor="edit-tenant-slug"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              URL Slug / Subdomain Path
+            </label>
+            <div className="mt-1 flex items-center rounded-lg border border-zinc-200 bg-white focus-within:border-zinc-950">
+              <span className="pl-3 pr-1 font-mono text-[12.5px] text-zinc-400">
+                /m/
+              </span>
+              <input
+                id="edit-tenant-slug"
+                type="text"
+                required
+                maxLength={48}
+                value={editSlug}
+                onChange={(e) => setEditSlug(e.target.value)}
+                placeholder="pak-khlang-168"
+                autoFocus
+                className="w-full bg-transparent py-2 pr-3 font-mono text-[13.5px] text-zinc-950 focus:outline-none"
+              />
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+              <span>Suggestions:</span>
+              {["pak-khlang-168", "somros-pak-khlang-168", slugify(editNameEn)]
+                .filter(
+                  (s, idx, arr) => s.length >= 2 && arr.indexOf(s) === idx
+                )
+                .map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setEditSlug(s)}
+                    className="rounded border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 font-mono text-[11px] text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100"
+                  >
+                    /m/{s}
+                  </button>
+                ))}
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="edit-tenant-name-km"
+              lang="km"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              Venue Name (Khmer ខ្មែរ)
+            </label>
+            <input
+              id="edit-tenant-name-km"
+              type="text"
+              lang="km"
+              maxLength={100}
+              value={editNameKm}
+              onChange={(e) => setEditNameKm(e.target.value)}
+              placeholder="សម្រស់ឆ្នេរប៉ាក់ខ្លង 168"
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[13.5px] text-zinc-950 focus:border-zinc-950 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="edit-tenant-name-en"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              Venue Name (English)
+            </label>
+            <input
+              id="edit-tenant-name-en"
+              type="text"
+              required={!editNameKm.trim()}
+              maxLength={100}
+              value={editNameEn}
+              onChange={(e) => setEditNameEn(e.target.value)}
+              placeholder="Somros Chhne Pak Khlang 168"
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[13.5px] text-zinc-950 focus:border-zinc-950 focus:outline-none"
+            />
+          </div>
+
+          {editError && (
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700">
+              {editError}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 border-t border-zinc-200 pt-3.5">
+            <button
+              type="button"
+              onClick={() => setEditingTenant(null)}
+              className="rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editSaving}
+              className="rounded-md bg-zinc-950 px-4 py-2 text-[13px] font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {editSaving ? "Saving..." : "Save changes"}
+            </button>
+          </div>
+        </form>
+      </NativeDialog>
 
       {/* Suspend Tenant Confirmation */}
       <NativeDialog

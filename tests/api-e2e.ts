@@ -371,7 +371,26 @@ async function run() {
   const presetCount = (await cookingStylesCol(provTenantId).count().get()).data().count;
   assert.ok(presetCount >= 5, "Provisioned Cambodian venue should receive preset cooking styles");
 
-  // Suspend -> public screen shows unavailable
+  // Edit venue slug & bilingual names via Super Admin PATCH
+  const renamedSlug = `${testSlug}-edited`;
+  const editSlugRes = await req(`/api/super-admin/tenants/${provTenantId}`, {
+    method: "PATCH",
+    jar: superJar,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      slug: renamedSlug,
+      nameEn: "Kampot River Grill 168",
+      nameKm: "កំពត រីវើ គ្រីល 168",
+    }),
+  });
+  assert.equal(editSlugRes.status, 200);
+  const editSlugJson = (await editSlugRes.json()) as {
+    tenant: { slug: string; nameEn: string; nameKm: string };
+  };
+  assert.equal(editSlugJson.tenant.slug, renamedSlug);
+  assert.equal(editSlugJson.tenant.nameKm, "កំពត រីវើ គ្រីល 168");
+
+  // Suspend -> public screen shows unavailable on the updated slug
   const suspendRes = await req(`/api/super-admin/tenants/${provTenantId}`, {
     method: "PATCH",
     jar: superJar,
@@ -379,7 +398,7 @@ async function run() {
     body: JSON.stringify({ status: "SUSPENDED" }),
   });
   assert.equal(suspendRes.status, 200);
-  const suspendedHtml = await (await req(`/m/${testSlug}`)).text();
+  const suspendedHtml = await (await req(`/m/${renamedSlug}`)).text();
   assert.ok(suspendedHtml.includes("Menu temporarily unavailable"));
 
   // Impersonate Kep Bay Kitchen

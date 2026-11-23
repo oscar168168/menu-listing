@@ -369,7 +369,20 @@ export const getCachedHomeVenues = unstable_cache(
     }
 
     return Promise.all(
-      activeDocs.map(async ({ id, data }) => {
+      activeDocs.map(async ({ id, data: initialData }) => {
+        let data = initialData;
+        const metaObj =
+          data.metaJson && typeof data.metaJson === "object"
+            ? (data.metaJson as Record<string, unknown>)
+            : {};
+        if (
+          (data.slug === "sora-seafood-grill" ||
+            data.slug === "kep-bay-kitchen") &&
+          metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
+        ) {
+          data = await syncTenantDefaultCatalog(id, data);
+        }
+
         const [catCount, itemCount] = await Promise.all([
           categoriesCol(id).count().get(),
           menuItemsCol(id).count().get(),
@@ -392,7 +405,7 @@ export const getCachedHomeVenues = unstable_cache(
       })
     );
   },
-  ["home-venues-v1"],
+  ["home-venues-v2"],
   {
     revalidate: 120,
     tags: ["home-venues"],
@@ -496,6 +509,10 @@ export async function getSuperAdminDashboardData(): Promise<{
         "vendorMode",
         "primaryColor",
         "currency",
+        "showDualCurrency",
+        "exchangeRate",
+        "khrRounding",
+        "metaJson",
         "createdAt"
       )
       .get(),
@@ -531,7 +548,21 @@ export async function getSuperAdminDashboardData(): Promise<{
     );
 
   const perTenantStats = await Promise.all(
-    tenantDocs.map(async ({ id, data }) => {
+    tenantDocs.map(async ({ id, data: initialData }) => {
+      let data = initialData;
+      const metaObj =
+        data.metaJson && typeof data.metaJson === "object"
+          ? (data.metaJson as Record<string, unknown>)
+          : {};
+      if (
+        (data.slug === "sora-seafood-grill" ||
+          data.slug === "kep-bay-kitchen") &&
+        metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
+      ) {
+        data = await syncTenantDefaultCatalog(id, data);
+        revalidatePublicMenu(data.slug);
+      }
+
       const [
         itemCountSnap,
         catCountSnap,

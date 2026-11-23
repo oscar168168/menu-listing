@@ -244,10 +244,32 @@ export const updateTenantStatusSchema = z
   .object({
     status: z.enum(["ACTIVE", "SUSPENDED"]).optional(),
     vendorMode: vendorModeSchema.optional(),
+    slug: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(2, "Slug must be at least 2 characters")
+      .max(48)
+      .regex(
+        SLUG_REGEX,
+        "Use lowercase letters, numbers, and single hyphens only"
+      )
+      .optional(),
+    name: z.string().trim().min(2).max(100).optional(),
+    nameKm: z.string().trim().max(100).optional(),
+    nameEn: z.string().trim().max(100).optional(),
+    currency: z.enum(["USD", "KHR"]).optional(),
   })
   .refine(
-    (d) => d.status !== undefined || d.vendorMode !== undefined,
-    "Provide status or vendorMode to update"
+    (d) =>
+      d.status !== undefined ||
+      d.vendorMode !== undefined ||
+      d.slug !== undefined ||
+      d.name !== undefined ||
+      d.nameKm !== undefined ||
+      d.nameEn !== undefined ||
+      d.currency !== undefined,
+    "Provide at least one field to update"
   );
 
 export const scanEventSchema = z.object({
