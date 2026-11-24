@@ -5,6 +5,7 @@ import {
   hexColorSchema,
   provisionTenantSchema,
   slugify,
+  updateThemeSchema,
 } from "../src/lib/validation";
 
 describe("Validation schemas", () => {
@@ -45,5 +46,34 @@ describe("Validation schemas", () => {
         ownerPassword: "password123",
       })
     );
+  });
+
+  it("accepts multi-number phones and encoded Facebook & Google Maps URLs in theme settings", () => {
+    const phone =
+      "093 765 166 / 071 886 0606 / 088 9252 222 / 096 6199 770";
+    const facebookUrl =
+      "https://www.facebook.com/p/%E1%9E%86%E1%9F%92%E1%9E%93%E1%9F%81%E1%9E%9A%E1%9E%94%E1%9F%89%E1%9E%B6%E1%9E%80%E1%9F%8B%E1%9E%81%E1%9F%92%E1%9E%9B%E1%9E%84-168-100069414237223/?locale=km_KH";
+    const googleMapsUrl =
+      "https://www.google.com/maps/place/Pak+Khlang+Beach+168/@11.5826078,102.9435186,17z/data=!4m6!3m5!1s0x3106650066e69f4f:0xf93485f77dc5f9fd!8m2!3d11.5826078!4d102.9435186";
+
+    const parsed = updateThemeSchema.parse({
+      nameEn: "Somros Chhne Pak Khlang 168",
+      nameKm: "សម្រស់ឆ្នេរប៉ាក់ខ្លង 168",
+      primaryColor: "#18181B",
+      vendorMode: "LISTING_ONLY",
+      currency: "KHR",
+      showDualCurrency: true,
+      exchangeRate: 4100,
+      khrRounding: 100,
+      meta: {
+        phone,
+        facebookUrl,
+        googleMapsUrl,
+      },
+    });
+
+    assert.equal(parsed.meta.phone, phone);
+    assert.equal(parsed.meta.facebookUrl, facebookUrl);
+    assert.equal(parsed.meta.googleMapsUrl, googleMapsUrl);
   });
 });

@@ -117,7 +117,7 @@ export const createMenuItemSchema = z
     imageUrl: z
       .string()
       .trim()
-      .max(500)
+      .max(2000)
       .nullable()
       .optional()
       .transform((v) => (v && v.length > 0 ? v : null)),
@@ -151,7 +151,7 @@ export const updateMenuItemSchema = z.object({
   imageUrl: z
     .string()
     .trim()
-    .max(500)
+    .max(2000)
     .nullable()
     .optional()
     .transform((v) => {
@@ -180,7 +180,7 @@ export const updateThemeSchema = z
     logoUrl: z
       .string()
       .trim()
-      .max(500)
+      .max(2000)
       .nullable()
       .optional()
       .transform((v) => {
@@ -190,7 +190,7 @@ export const updateThemeSchema = z
     coverUrl: z
       .string()
       .trim()
-      .max(500)
+      .max(2000)
       .nullable()
       .optional()
       .transform((v) => {
@@ -198,20 +198,20 @@ export const updateThemeSchema = z
         return v && v.length > 0 ? v : null;
       }),
     meta: z.object({
-      tagline: z.string().trim().max(160).optional().default(""),
-      taglineKm: z.string().trim().max(160).optional().default(""),
-      taglineEn: z.string().trim().max(160).optional().default(""),
-      openingHours: z.string().trim().max(160).optional().default(""),
-      address: z.string().trim().max(240).optional().default(""),
-      phone: z.string().trim().max(40).optional().default(""),
-      telegramUrl: z.string().trim().max(200).optional().default(""),
-      facebookUrl: z.string().trim().max(200).optional().default(""),
-      googleMapsUrl: z.string().trim().max(300).optional().default(""),
-      wifiName: z.string().trim().max(64).optional().default(""),
-      wifiPassword: z.string().trim().max(64).optional().default(""),
-      footerNote: z.string().trim().max(280).optional().default(""),
-      footerNoteKm: z.string().trim().max(280).optional().default(""),
-      serviceNote: z.string().trim().max(200).optional().default(""),
+      tagline: z.string().trim().max(240).optional().default(""),
+      taglineKm: z.string().trim().max(240).optional().default(""),
+      taglineEn: z.string().trim().max(240).optional().default(""),
+      openingHours: z.string().trim().max(200).optional().default(""),
+      address: z.string().trim().max(400).optional().default(""),
+      phone: z.string().trim().max(160).optional().default(""),
+      telegramUrl: z.string().trim().max(500).optional().default(""),
+      facebookUrl: z.string().trim().max(1000).optional().default(""),
+      googleMapsUrl: z.string().trim().max(1000).optional().default(""),
+      wifiName: z.string().trim().max(120).optional().default(""),
+      wifiPassword: z.string().trim().max(120).optional().default(""),
+      footerNote: z.string().trim().max(500).optional().default(""),
+      footerNoteKm: z.string().trim().max(500).optional().default(""),
+      serviceNote: z.string().trim().max(300).optional().default(""),
     }),
   })
   .refine(

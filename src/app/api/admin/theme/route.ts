@@ -13,8 +13,10 @@ export async function PATCH(request: NextRequest) {
   const body: unknown = await request.json();
   const parsed = updateThemeSchema.safeParse(body);
   if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const prefix = issue?.path?.length ? `${issue.path.join(".")}: ` : "";
     return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Invalid theme settings" },
+      { error: `${prefix}${issue?.message ?? "Invalid theme settings"}` },
       { status: 400 }
     );
   }
