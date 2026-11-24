@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ExternalLink,
   LogOut,
+  MoreHorizontal,
   PauseCircle,
   Pencil,
   PlayCircle,
@@ -74,7 +75,59 @@ export function SuperAdminWorkspace({
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [busyTenantId, setBusyTenantId] = useState<string | null>(null);
+  const [openMenuState, setOpenMenuState] = useState<{
+    tenantId: string;
+    top: number;
+    right: number;
+  } | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+
+  useEffect(() => {
+    if (!openMenuState) return;
+    const close = () => setOpenMenuState(null);
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-row-actions-menu]")) return;
+      close();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [openMenuState]);
+
+  const activeMenuTenant = useMemo(
+    () =>
+      openMenuState
+        ? (data.tenants.find((t) => t.id === openMenuState.tenantId) ?? null)
+        : null,
+    [data.tenants, openMenuState]
+  );
+
+  const toggleRowActionsMenu = (
+    tenantId: string,
+    buttonEl: HTMLButtonElement
+  ) => {
+    if (openMenuState?.tenantId === tenantId) {
+      setOpenMenuState(null);
+      return;
+    }
+    const rect = buttonEl.getBoundingClientRect();
+    setOpenMenuState({
+      tenantId,
+      top: rect.bottom + 6,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  };
 
   const openEditTenantModal = (tenant: SuperAdminTenantSummary) => {
     setEditingTenant(tenant);
@@ -616,79 +669,28 @@ export function SuperAdminWorkspace({
 
                         <td
                           data-label="Actions"
-                          className="whitespace-nowrap px-4 py-3"
+                          className="whitespace-nowrap px-4 py-3 text-right"
                         >
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div
+                            data-row-actions-menu
+                            className="inline-flex justify-end"
+                          >
                             <button
                               type="button"
                               disabled={isBusy}
-                              onClick={() => openEditTenantModal(tenant)}
-                              title="Edit URL slug & venue name"
-                              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-40"
+                              aria-label={`More actions for ${tenant.name}`}
+                              aria-haspopup="menu"
+                              aria-expanded={openMenuState?.tenantId === tenant.id}
+                              onClick={(e) =>
+                                toggleRowActionsMenu(tenant.id, e.currentTarget)
+                              }
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-40"
                             >
-                              <Pencil
-                                className="h-3 w-3"
-                                strokeWidth={1.5}
+                              <MoreHorizontal
+                                className="h-4 w-4"
+                                strokeWidth={1.75}
                               />
-                              Edit
                             </button>
-
-                            <Link
-                              href={`/m/${tenant.slug}`}
-                              target="_blank"
-                              title="Inspect live mobile menu"
-                              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
-                            >
-                              Live
-                              <ExternalLink
-                                className="h-3 w-3"
-                                strokeWidth={1.5}
-                              />
-                            </Link>
-
-                            <button
-                              type="button"
-                              disabled={isBusy}
-                              onClick={() => void handleImpersonate(tenant)}
-                              title="Impersonate Menu Admin"
-                              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-40"
-                            >
-                              <Settings2
-                                className="h-3 w-3"
-                                strokeWidth={1.5}
-                              />
-                              Manage
-                            </button>
-
-                            {tenant.status === "ACTIVE" ? (
-                              <button
-                                type="button"
-                                disabled={isBusy}
-                                onClick={() => setConfirmSuspendTenant(tenant)}
-                                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
-                              >
-                                <PauseCircle
-                                  className="h-3.5 w-3.5"
-                                  strokeWidth={1.5}
-                                />
-                                Suspend
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={isBusy}
-                                onClick={() =>
-                                  void updateTenantStatus(tenant, "ACTIVE")
-                                }
-                                className="inline-flex items-center gap-1 rounded-md border border-zinc-950 bg-zinc-950 px-2.5 py-1 text-[12px] font-medium text-white hover:bg-zinc-800 disabled:opacity-40"
-                              >
-                                <PlayCircle
-                                  className="h-3.5 w-3.5"
-                                  strokeWidth={1.5}
-                                />
-                                Activate
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -961,6 +963,92 @@ export function SuperAdminWorkspace({
           </div>
         </div>
       </NativeDialog>
+
+      {/* Floating Row Actions Menu */}
+      {openMenuState && activeMenuTenant && (
+        <div
+          role="menu"
+          aria-label={`Actions for ${activeMenuTenant.name}`}
+          data-row-actions-menu
+          style={{
+            position: "fixed",
+            top: openMenuState.top,
+            right: openMenuState.right,
+          }}
+          className="z-50 min-w-[190px] rounded-lg border border-zinc-200 bg-white p-1.5 shadow-lg"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              const target = activeMenuTenant;
+              setOpenMenuState(null);
+              openEditTenantModal(target);
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+          >
+            <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+            <span>Edit venue &amp; slug</span>
+          </button>
+
+          <Link
+            href={`/m/${activeMenuTenant.slug}`}
+            target="_blank"
+            role="menuitem"
+            onClick={() => setOpenMenuState(null)}
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+          >
+            <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} />
+            <span>Open live menu</span>
+          </Link>
+
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              const target = activeMenuTenant;
+              setOpenMenuState(null);
+              void handleImpersonate(target);
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+          >
+            <Settings2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+            <span>Manage menu</span>
+          </button>
+
+          <div className="my-1 border-t border-zinc-100" role="separator" />
+
+          {activeMenuTenant.status === "ACTIVE" ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                const target = activeMenuTenant;
+                setOpenMenuState(null);
+                setConfirmSuspendTenant(target);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <PauseCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span>Suspend venue</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                const target = activeMenuTenant;
+                setOpenMenuState(null);
+                void updateTenantStatus(target, "ACTIVE");
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+            >
+              <PlayCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span>Activate venue</span>
+            </button>
+          )}
+        </div>
+      )}
 
       <Toast message={toast} onDismiss={() => setToast(null)} />
     </div>
