@@ -22,6 +22,7 @@ import {
 } from "@/lib/currency";
 import {
   DEMO_CATALOG_VERSION,
+  isPakKhlangVenue,
   syncTenantDefaultCatalog,
 } from "@/lib/default-catalog";
 import type {
@@ -229,8 +230,7 @@ function loadCachedPublicMenuByNormalizedSlug(
           ? (tenant.metaJson as Record<string, unknown>)
           : {};
       if (
-        (tenant.slug === "sora-seafood-grill" ||
-          tenant.slug === "kep-bay-kitchen") &&
+        (isPakKhlangVenue(tenant) || tenant.slug === "kep-bay-kitchen") &&
         metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
       ) {
         tenant = await syncTenantDefaultCatalog(tenantId, tenant);
@@ -288,7 +288,7 @@ function loadCachedPublicMenuByNormalizedSlug(
         cookingStylePresets: [],
       };
     },
-    ["public-menu-v8", normalizedSlug],
+    ["public-menu-v9", normalizedSlug],
     {
       revalidate: 300,
       tags: [getPublicMenuTag(normalizedSlug)],
@@ -376,8 +376,7 @@ export const getCachedHomeVenues = unstable_cache(
             ? (data.metaJson as Record<string, unknown>)
             : {};
         if (
-          (data.slug === "sora-seafood-grill" ||
-            data.slug === "kep-bay-kitchen") &&
+          (isPakKhlangVenue(data) || data.slug === "kep-bay-kitchen") &&
           metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
         ) {
           data = await syncTenantDefaultCatalog(id, data);
@@ -405,7 +404,7 @@ export const getCachedHomeVenues = unstable_cache(
       })
     );
   },
-  ["home-venues-v2"],
+  ["home-venues-v3"],
   {
     revalidate: 120,
     tags: ["home-venues"],
@@ -428,8 +427,7 @@ export async function getAdminTenantMenu(
       ? (tenant.metaJson as Record<string, unknown>)
       : {};
   if (
-    (tenant.slug === "sora-seafood-grill" ||
-      tenant.slug === "kep-bay-kitchen") &&
+    (isPakKhlangVenue(tenant) || tenant.slug === "kep-bay-kitchen") &&
     metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
   ) {
     tenant = await syncTenantDefaultCatalog(tenantId, tenant);
@@ -555,8 +553,7 @@ export async function getSuperAdminDashboardData(): Promise<{
           ? (data.metaJson as Record<string, unknown>)
           : {};
       if (
-        (data.slug === "sora-seafood-grill" ||
-          data.slug === "kep-bay-kitchen") &&
+        (isPakKhlangVenue(data) || data.slug === "kep-bay-kitchen") &&
         metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
       ) {
         data = await syncTenantDefaultCatalog(id, data);

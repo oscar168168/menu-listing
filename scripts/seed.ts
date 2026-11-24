@@ -60,6 +60,7 @@ async function upsertTenant(input: {
   name: string;
   nameEn: string;
   nameKm: string;
+  coverUrl?: string | null;
   vendorMode: "CART" | "LISTING_ONLY";
   currency: "USD" | "KHR";
   showDualCurrency: boolean;
@@ -71,11 +72,13 @@ async function upsertTenant(input: {
   const existing = await findTenantBySlug(input.slug);
   const now = new Date();
   if (existing) {
+    const nextCoverUrl = input.coverUrl ?? existing.data.coverUrl ?? null;
     const updatedData: FirestoreTenantDoc = {
       ...existing.data,
       name: input.name,
       nameEn: input.nameEn,
       nameKm: input.nameKm,
+      coverUrl: nextCoverUrl,
       vendorMode: input.vendorMode,
       currency: input.currency,
       showDualCurrency: input.showDualCurrency,
@@ -88,6 +91,7 @@ async function upsertTenant(input: {
       name: input.name,
       nameEn: input.nameEn,
       nameKm: input.nameKm,
+      coverUrl: nextCoverUrl,
       vendorMode: input.vendorMode,
       currency: input.currency,
       showDualCurrency: input.showDualCurrency,
@@ -108,7 +112,7 @@ async function upsertTenant(input: {
     status: "ACTIVE",
     vendorMode: input.vendorMode,
     logoUrl: null,
-    coverUrl: null,
+    coverUrl: input.coverUrl ?? null,
     currency: input.currency,
     showDualCurrency: input.showDualCurrency,
     exchangeRate: input.exchangeRate,
@@ -148,6 +152,7 @@ async function main() {
     name: PAK_KHLANG_168_PROFILE.name,
     nameEn: PAK_KHLANG_168_PROFILE.nameEn,
     nameKm: PAK_KHLANG_168_PROFILE.nameKm,
+    coverUrl: PAK_KHLANG_168_PROFILE.coverUrl,
     slug: "sora-seafood-grill",
     vendorMode: "CART",
     currency: "KHR",
