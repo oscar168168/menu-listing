@@ -32,12 +32,9 @@ export const PAK_KHLANG_168_PROFILE = {
   coverUrl:
     "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9RyHhAD-RW_nZu1uw2S8DtV0qfMEamrKOdXj976lqGaE47VpD5dRRbwQFf1NUEORU32pFjscJis_PZxvm6mJKyIJDz0RkyuKljNg8SrOpwA2JQn1-Vyry-diM0_ZIXWXSPTt2bs=w800-h500-n-k-no",
   metaJson: {
-    tagline:
-      "Pak Khlang Beachfront Restaurant — Made-to-order food & drinks, Koh Kong",
-    taglineEn:
-      "Pak Khlang Beachfront Restaurant — Made-to-order food & drinks, Koh Kong",
-    taglineKm:
-      "អាហារដ្ឋានឆ្នេរសមុទ្រប៉ាក់ខ្លង ១៦៨ — មានលក់ម្ហូបកម្មង់ និងភេសជ្ជៈគ្រប់មុខ",
+    tagline: "",
+    taglineEn: "",
+    taglineKm: "",
     address:
       "HWMV+2C, ឃុំប៉ាក់ខ្លង ស្រុកមណ្ឌលសីមា ខេត្តកោះកុង (Pak Khlang, Mondol Seima, Koh Kong)",
     phone: "093 765 166 / 071 886 0606 / 088 9252 222 / 096 6199 770",
@@ -976,20 +973,27 @@ export async function syncTenantDefaultCatalog(
     );
   });
 
+  const existingMeta =
+    tenant.metaJson &&
+    typeof tenant.metaJson === "object" &&
+    !Array.isArray(tenant.metaJson)
+      ? (tenant.metaJson as Record<string, unknown>)
+      : {};
+
   const nextMeta = {
-    ...(tenant.metaJson && typeof tenant.metaJson === "object"
-      ? tenant.metaJson
-      : {}),
     ...(isSora ? PAK_KHLANG_168_PROFILE.metaJson : {}),
+    ...existingMeta,
     demoCatalogVersion: DEMO_CATALOG_VERSION,
   };
 
   const tenantUpdates = {
     ...(isSora
       ? {
-          name: PAK_KHLANG_168_PROFILE.name,
-          nameEn: PAK_KHLANG_168_PROFILE.nameEn,
-          nameKm: PAK_KHLANG_168_PROFILE.nameKm,
+          name: tenant.nameKm ? tenant.name : PAK_KHLANG_168_PROFILE.name,
+          nameEn: tenant.nameKm
+            ? tenant.nameEn ?? tenant.name
+            : PAK_KHLANG_168_PROFILE.nameEn,
+          nameKm: tenant.nameKm ? tenant.nameKm : PAK_KHLANG_168_PROFILE.nameKm,
           coverUrl: tenant.coverUrl || PAK_KHLANG_168_PROFILE.coverUrl,
         }
       : {}),

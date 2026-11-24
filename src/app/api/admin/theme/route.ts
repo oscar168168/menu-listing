@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DEMO_CATALOG_VERSION } from "@/lib/default-catalog";
 import { tenantDoc } from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
 import { updateThemeSchema } from "@/lib/validation";
@@ -31,6 +32,12 @@ export async function PATCH(request: NextRequest) {
   const nameEn = parsed.data.nameEn || parsed.data.name || parsed.data.nameKm;
   const nameKm = parsed.data.nameKm || "";
   const canonicalName = nameEn || nameKm;
+  const existingMeta =
+    existing.metaJson &&
+    typeof existing.metaJson === "object" &&
+    !Array.isArray(existing.metaJson)
+      ? (existing.metaJson as Record<string, unknown>)
+      : {};
 
   const updateData = {
     name: canonicalName,
@@ -49,11 +56,16 @@ export async function PATCH(request: NextRequest) {
       ? { coverUrl: parsed.data.coverUrl }
       : {}),
     metaJson: {
+      ...existingMeta,
       ...parsed.data.meta,
       tagline:
         parsed.data.meta.taglineEn ||
         parsed.data.meta.tagline ||
         parsed.data.meta.taglineKm,
+      demoCatalogVersion:
+        (typeof existingMeta.demoCatalogVersion === "string" &&
+          existingMeta.demoCatalogVersion) ||
+        DEMO_CATALOG_VERSION,
     },
     updatedAt: new Date(),
   };
