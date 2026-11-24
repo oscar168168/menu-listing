@@ -28,11 +28,7 @@ export default async function HomePage() {
     try {
       activeTenants = await getCachedHomeVenues();
     } catch (err) {
-      if (process.env.NEXT_PHASE === "phase-production-build") {
-        console.warn("HomePage build-time Firestore warning:", err);
-      } else {
-        throw err;
-      }
+      console.warn("HomePage Firestore load warning:", err);
     }
   }
 
