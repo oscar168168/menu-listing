@@ -447,28 +447,37 @@ export function SuperAdminWorkspace({
               </caption>
               <thead className="border-b border-zinc-200 bg-[#FAFAFA] text-[11px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
                 <tr>
-                  <th scope="col" className="px-4 py-2.5">
+                  <th scope="col" className="whitespace-nowrap px-4 py-2.5">
                     Venue
                   </th>
-                  <th scope="col" className="px-4 py-2.5">
+                  <th scope="col" className="whitespace-nowrap px-4 py-2.5">
                     Owner
                   </th>
-                  <th scope="col" className="px-4 py-2.5">
+                  <th scope="col" className="whitespace-nowrap px-4 py-2.5">
                     Status
                   </th>
-                  <th scope="col" className="px-4 py-2.5">
+                  <th scope="col" className="whitespace-nowrap px-4 py-2.5">
                     Mode
                   </th>
-                  <th scope="col" className="px-4 py-2.5 text-right">
+                  <th
+                    scope="col"
+                    className="whitespace-nowrap px-4 py-2.5 text-right"
+                  >
                     Items
                   </th>
-                  <th scope="col" className="px-4 py-2.5 text-right">
+                  <th
+                    scope="col"
+                    className="whitespace-nowrap px-4 py-2.5 text-right"
+                  >
                     QR Scans
                   </th>
-                  <th scope="col" className="px-4 py-2.5">
+                  <th scope="col" className="whitespace-nowrap px-4 py-2.5">
                     Created
                   </th>
-                  <th scope="col" className="px-4 py-2.5 text-right">
+                  <th
+                    scope="col"
+                    className="whitespace-nowrap px-4 py-2.5 text-right"
+                  >
                     Actions
                   </th>
                 </tr>
@@ -498,48 +507,52 @@ export function SuperAdminWorkspace({
                               style={{ backgroundColor: tenant.primaryColor }}
                               aria-hidden="true"
                             />
-                            <div className="min-w-0">
-                              <p className="truncate font-semibold text-zinc-950">
+                            <div className="min-w-0 max-w-[240px] lg:max-w-[280px]">
+                              <p className="truncate text-[13.5px] font-semibold text-zinc-950">
                                 {tenant.nameKm ? (
-                                  <>
-                                    <span lang="km">{tenant.nameKm}</span>
-                                    {tenant.nameEn &&
-                                      tenant.nameEn !== tenant.nameKm && (
-                                        <span className="ml-1.5 font-normal text-zinc-500">
-                                          · {tenant.nameEn}
-                                        </span>
-                                      )}
-                                  </>
+                                  <span lang="km">{tenant.nameKm}</span>
                                 ) : (
                                   tenant.name
                                 )}
                               </p>
-                              <button
-                                type="button"
-                                onClick={() => openEditTenantModal(tenant)}
-                                title="Click to edit URL slug / subdomain path"
-                                className="group inline-flex items-center gap-1 font-mono text-[11px] text-zinc-500 hover:text-zinc-950"
-                              >
-                                <span>/m/{tenant.slug}</span>
-                                <Pencil
-                                  className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100"
-                                  strokeWidth={1.75}
-                                />
-                              </button>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                {tenant.nameKm &&
+                                  tenant.nameEn &&
+                                  tenant.nameEn !== tenant.nameKm && (
+                                    <span className="truncate text-[11.5px] text-zinc-500">
+                                      {tenant.nameEn}
+                                    </span>
+                                  )}
+                                <button
+                                  type="button"
+                                  onClick={() => openEditTenantModal(tenant)}
+                                  title="Click to edit URL slug / subdomain path"
+                                  className="group inline-flex shrink-0 items-center gap-1 font-mono text-[11px] text-zinc-500 hover:text-zinc-950"
+                                >
+                                  <span>/m/{tenant.slug}</span>
+                                  <Pencil
+                                    className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100"
+                                    strokeWidth={1.75}
+                                  />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </th>
 
                         <td
                           data-label="Owner"
-                          className="px-4 py-3 text-zinc-600"
+                          className="whitespace-nowrap px-4 py-3 text-zinc-600"
                         >
                           {tenant.ownerEmail ?? (
                             <span className="text-zinc-400">Unassigned</span>
                           )}
                         </td>
 
-                        <td data-label="Status" className="px-4 py-3">
+                        <td
+                          data-label="Status"
+                          className="whitespace-nowrap px-4 py-3"
+                        >
                           {tenant.status === "ACTIVE" ? (
                             <span className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-900">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
@@ -553,7 +566,10 @@ export function SuperAdminWorkspace({
                           )}
                         </td>
 
-                        <td data-label="Mode" className="px-4 py-3">
+                        <td
+                          data-label="Mode"
+                          className="whitespace-nowrap px-4 py-3"
+                        >
                           <button
                             type="button"
                             disabled={isBusy}
@@ -566,7 +582,7 @@ export function SuperAdminWorkspace({
                               )
                             }
                             title="Click to switch storefront mode"
-                            className="inline-flex items-center rounded-md border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 text-[11px] font-medium text-zinc-700 hover:border-zinc-400 hover:bg-white disabled:opacity-40"
+                            className="inline-flex items-center whitespace-nowrap rounded-md border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 text-[11px] font-medium text-zinc-700 hover:border-zinc-400 hover:bg-white disabled:opacity-40"
                           >
                             {tenant.vendorMode === "CART"
                               ? "Add to Cart"
@@ -576,14 +592,14 @@ export function SuperAdminWorkspace({
 
                         <td
                           data-label="Items"
-                          className="px-4 py-3 text-right tabular-nums text-zinc-800"
+                          className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-zinc-800"
                         >
                           {tenant.itemCount}
                         </td>
 
                         <td
                           data-label="QR Scans"
-                          className="px-4 py-3 text-right tabular-nums text-zinc-800"
+                          className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-zinc-800"
                         >
                           <span className="font-medium">{tenant.scanCount}</span>
                           <span className="ml-1 text-[11px] text-zinc-400">
@@ -593,12 +609,15 @@ export function SuperAdminWorkspace({
 
                         <td
                           data-label="Created"
-                          className="px-4 py-3 tabular-nums text-zinc-500"
+                          className="whitespace-nowrap px-4 py-3 tabular-nums text-zinc-500"
                         >
                           {formatDate(tenant.createdAt)}
                         </td>
 
-                        <td data-label="Actions" className="px-4 py-3">
+                        <td
+                          data-label="Actions"
+                          className="whitespace-nowrap px-4 py-3"
+                        >
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
@@ -701,7 +720,7 @@ export function SuperAdminWorkspace({
               return (
                 <div
                   key={row.tenantId}
-                  className="grid grid-cols-1 gap-3 px-4 py-3.5 md:grid-cols-[220px_1fr_240px] md:items-center"
+                  className="grid grid-cols-1 gap-3 px-4 py-3.5 md:grid-cols-[260px_1fr_240px] md:items-center"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span
