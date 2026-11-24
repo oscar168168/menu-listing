@@ -138,6 +138,8 @@ export interface SuperAdminTenantSummary {
   primaryColor: string;
   currency: string;
   ownerEmail: string | null;
+  ownerUsername?: string | null;
+  ownerPhone?: string | null;
   ownerName: string | null;
   itemCount: number;
   categoryCount: number;
@@ -149,6 +151,8 @@ export interface SuperAdminTenantSummary {
 export interface ScanAnalyticsRow {
   tenantId: string;
   tenantName: string;
+  tenantNameKm?: string;
+  tenantNameEn?: string;
   slug: string;
   primaryColor: string;
   totalScans: number;
@@ -159,6 +163,8 @@ export interface ScanAnalyticsRow {
 export interface SessionUser {
   id: string;
   email: string;
+  username?: string;
+  phone?: string;
   name: string;
   role: UserRole;
   tenantId: string | null;

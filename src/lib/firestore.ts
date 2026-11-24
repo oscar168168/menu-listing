@@ -25,6 +25,8 @@ import type {
 
 export interface FirestoreUserDoc {
   email: string;
+  username?: string;
+  phone?: string;
   name: string;
   passwordHash: string;
   role: UserRole;
@@ -298,17 +300,88 @@ export async function findTenantBySlug(slug: string): Promise<{
   return { id: doc.id, data: doc.data() };
 }
 
+export function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("855") && digits.length >= 11) {
+    return `0${digits.slice(3)}`;
+  }
+  return digits;
+}
+
 export async function findUserByEmail(email: string): Promise<{
   id: string;
   data: FirestoreUserDoc;
 } | null> {
-  const snap = await usersCol()
-    .where("email", "==", email.toLowerCase())
-    .limit(1)
-    .get();
-  const doc = snap.docs[0];
-  if (!doc) return null;
-  return { id: doc.id, data: doc.data() };
+  return findUserByIdentifier(email);
+}
+
+const LEGACY_IDENTIFIER_ALIASES: Record<string, string> = {
+  admin: "admin@menuos.app",
+  "012888999": "admin@menuos.app",
+  sora: "owner@soraseafood.com",
+  "093765166": "owner@soraseafood.com",
+  kepbay: "chef@kepbaykitchen.com",
+  "012784220": "chef@kepbaykitchen.com",
+};
+
+export async function findUserByIdentifier(identifier: string): Promise<{
+  id: string;
+  data: FirestoreUserDoc;
+} | null> {
+  const trimmed = identifier.trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  const phoneNorm = normalizePhone(trimmed);
+  const aliasEmail =
+    LEGACY_IDENTIFIER_ALIASES[lower] ||
+    (phoneNorm ? LEGACY_IDENTIFIER_ALIASES[phoneNorm] : undefined);
+
+  // 1. Direct query on email, username, or phone
+  const col = usersCol();
+  const queries = [
+    col.where("email", "==", lower).limit(1).get(),
+    col.where("username", "==", lower).limit(1).get(),
+  ];
+  if (aliasEmail) {
+    queries.push(col.where("email", "==", aliasEmail).limit(1).get());
+  }
+  if (phoneNorm.length >= 6) {
+    queries.push(col.where("phone", "==", phoneNorm).limit(1).get());
+    queries.push(col.where("email", "==", phoneNorm).limit(1).get());
+    queries.push(col.where("username", "==", phoneNorm).limit(1).get());
+  }
+
+  const snaps = await Promise.all(queries);
+  for (const snap of snaps) {
+    const doc = snap.docs[0];
+    if (doc) return { id: doc.id, data: doc.data() };
+  }
+
+  // 2. Fallback scan across users collection (supports email local-part or formatted phone numbers)
+  const allSnap = await col.limit(200).get();
+  for (const doc of allSnap.docs) {
+    const data = doc.data();
+    const docEmail = (data.email || "").toLowerCase();
+    const docUsername = (data.username || "").toLowerCase();
+    const docPhone = normalizePhone(data.phone || "");
+    const emailPrefix = docEmail.includes("@") ? docEmail.split("@")[0] : "";
+
+    if (
+      docEmail === lower ||
+      docUsername === lower ||
+      (aliasEmail && docEmail === aliasEmail) ||
+      (emailPrefix && emailPrefix === lower) ||
+      (phoneNorm.length >= 6 &&
+        (docPhone === phoneNorm ||
+          normalizePhone(docEmail) === phoneNorm ||
+          normalizePhone(docUsername) === phoneNorm))
+    ) {
+      return { id: doc.id, data };
+    }
+  }
+
+  return null;
 }
 
 /**

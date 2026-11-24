@@ -41,22 +41,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Category not found" }, { status: 404 });
   }
 
+  const nextNameKm =
+    parsed.data.nameKm !== undefined
+      ? parsed.data.nameKm
+      : existing.nameKm ?? "";
   const nextNameEn =
     parsed.data.nameEn !== undefined
       ? parsed.data.nameEn
       : parsed.data.name !== undefined
         ? parsed.data.name
         : existing.nameEn ?? existing.name;
-  const nextNameKm =
-    parsed.data.nameKm !== undefined
-      ? parsed.data.nameKm
-      : existing.nameKm ?? "";
-  const canonicalName = nextNameEn || nextNameKm || existing.name;
+  const canonicalName = nextNameKm || nextNameEn || existing.name;
 
   const updateData = {
     name: canonicalName,
-    nameEn: nextNameEn || null,
-    nameKm: nextNameKm || null,
+    nameKm: nextNameKm || canonicalName,
+    nameEn: nextNameEn || canonicalName,
     ...(parsed.data.isVisible !== undefined
       ? { isVisible: parsed.data.isVisible }
       : {}),

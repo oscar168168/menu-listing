@@ -28,16 +28,17 @@ function ProvisionTenantForm({
   onClose,
   onProvisioned,
 }: Omit<ProvisionTenantModalProps, "open">) {
-  const [name, setName] = useState("");
   const [nameKm, setNameKm] = useState("");
+  const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
+  const [taglineKm, setTaglineKm] = useState("");
   const [tagline, setTagline] = useState("");
   const [currency, setCurrency] = useState("KHR");
   const [vendorMode, setVendorMode] = useState<VendorMode>("CART");
   const [primaryColor, setPrimaryColor] = useState("#1E293B");
   const [ownerName, setOwnerName] = useState("");
-  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerLogin, setOwnerLogin] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,15 +65,18 @@ function ProvisionTenantForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
           nameKm,
+          name: name || nameKm,
           slug,
-          tagline,
+          taglineKm,
+          tagline: tagline || taglineKm,
           currency,
           vendorMode,
           primaryColor,
           ownerName,
-          ownerEmail,
+          ownerUsername: ownerLogin,
+          ownerPhone: ownerLogin,
+          ownerEmail: ownerLogin,
           ownerPassword,
         }),
       });
@@ -99,27 +103,31 @@ function ProvisionTenantForm({
   return (
     <form onSubmit={(e) => void handleSubmit(e)} className="p-5 space-y-5">
       <div className="space-y-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500">
-          1. Venue Identity
+        <p
+          lang="km"
+          className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500"
+        >
+          1. ព័ត៌មានហាង · Venue Identity (Khmer Priority)
         </p>
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
             <label
-              htmlFor="prov-name"
+              htmlFor="prov-name-km"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Venue name (English)
+              ឈ្មោះហាង (ខ្មែរ) · Venue name (Khmer)
             </label>
             <input
-              id="prov-name"
+              id="prov-name-km"
               type="text"
-              required
-              minLength={2}
+              lang="km"
+              required={!name.trim()}
               maxLength={80}
-              value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="e.g. Koh Kong Grill"
+              value={nameKm}
+              onChange={(e) => setNameKm(e.target.value)}
+              placeholder="ឧ. គ្រឿងសមុទ្រកោះកុង"
               autoFocus
               className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none"
             />
@@ -127,20 +135,19 @@ function ProvisionTenantForm({
 
           <div>
             <label
-              htmlFor="prov-name-km"
-              lang="km"
+              htmlFor="prov-name"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Venue name (Khmer / ខ្មែរ)
+              Venue name (English · optional)
             </label>
             <input
-              id="prov-name-km"
+              id="prov-name"
               type="text"
-              lang="km"
+              required={!nameKm.trim()}
               maxLength={80}
-              value={nameKm}
-              onChange={(e) => setNameKm(e.target.value)}
-              placeholder="ឧ. គ្រឿងសមុទ្រកោះកុង"
+              value={name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="e.g. Koh Kong Grill"
               className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none"
             />
           </div>
@@ -148,9 +155,10 @@ function ProvisionTenantForm({
           <div className="sm:col-span-2">
             <label
               htmlFor="prov-slug"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Public menu slug
+              តំណភ្ជាប់ម៉ឺនុយ · Public menu slug
             </label>
             <div className="mt-1.5 flex items-center rounded-md border border-zinc-200 bg-[#FAFAFA] focus-within:border-zinc-950">
               <span className="px-3 font-mono text-[13px] text-zinc-500">
@@ -165,7 +173,7 @@ function ProvisionTenantForm({
                   setSlugTouched(true);
                   setSlug(e.target.value.toLowerCase());
                 }}
-                placeholder="atelier-ramen"
+                placeholder="koh-kong-grill"
                 className="w-full rounded-r-md border-l border-zinc-200 bg-white px-3 py-2 font-mono text-[13px] text-zinc-950 placeholder:text-zinc-400 focus:outline-none"
               />
             </div>
@@ -174,9 +182,10 @@ function ProvisionTenantForm({
           <div>
             <label
               htmlFor="prov-currency"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Currency
+              រូបិយប័ណ្ណ · Currency
             </label>
             <div className="mt-1.5">
               <NativeSelect
@@ -195,9 +204,10 @@ function ProvisionTenantForm({
           <div>
             <label
               htmlFor="prov-color"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Primary accent ({contrast.selectedContrast.toFixed(1)}:1{" "}
+              ពណ៌ហាង · Primary accent ({contrast.selectedContrast.toFixed(1)}:1{" "}
               {contrast.rating})
             </label>
             <div className="mt-1.5 flex items-center gap-2">
@@ -228,8 +238,11 @@ function ProvisionTenantForm({
           </div>
 
           <div className="sm:col-span-2">
-            <span className="block text-[12px] font-medium text-zinc-700">
-              Vendor storefront mode
+            <span
+              lang="km"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              ទម្រង់ម៉ឺនុយ · Vendor storefront mode
             </span>
             <div className="mt-1.5 grid grid-cols-2 gap-2">
               <button
@@ -241,7 +254,7 @@ function ProvisionTenantForm({
                     : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100"
                 }`}
               >
-                Add to Cart Mode
+                <span lang="km">មានកន្ត្រកកម្ម៉ង់ · Add to Cart</span>
               </button>
               <button
                 type="button"
@@ -252,17 +265,37 @@ function ProvisionTenantForm({
                     : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100"
                 }`}
               >
-                Product Listing Only
+                <span lang="km">បង្ហាញតែមុខម្ហូប · Listing Only</span>
               </button>
             </div>
           </div>
 
-          <div className="sm:col-span-2">
+          <div>
+            <label
+              htmlFor="prov-tagline-km"
+              lang="km"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              ពាក្យស្លោក (ខ្មែរ) · Tagline (Khmer)
+            </label>
+            <input
+              id="prov-tagline-km"
+              type="text"
+              lang="km"
+              maxLength={120}
+              value={taglineKm}
+              onChange={(e) => setTaglineKm(e.target.value)}
+              placeholder="ឧ. គ្រឿងសមុទ្រស្រស់ៗប្រចាំថ្ងៃ"
+              className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none"
+            />
+          </div>
+
+          <div>
             <label
               htmlFor="prov-tagline"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Short tagline (optional)
+              Tagline (English · optional)
             </label>
             <input
               id="prov-tagline"
@@ -270,7 +303,7 @@ function ProvisionTenantForm({
               maxLength={120}
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
-              placeholder="Hand-pulled noodles & seasonal sake"
+              placeholder="Daily fresh coastal seafood"
               className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none"
             />
           </div>
@@ -278,17 +311,21 @@ function ProvisionTenantForm({
       </div>
 
       <div className="space-y-3.5 border-t border-zinc-200 pt-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500">
-          2. Menu Admin Account
+        <p
+          lang="km"
+          className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500"
+        >
+          2. គណនីម្ចាស់ហាង · Menu Admin Account (Username or Phone · No OTP)
         </p>
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div>
             <label
               htmlFor="prov-owner-name"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Owner name
+              ឈ្មោះម្ចាស់ហាង · Owner name
             </label>
             <input
               id="prov-owner-name"
@@ -296,25 +333,29 @@ function ProvisionTenantForm({
               required
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
-              placeholder="Sora Takahashi"
+              placeholder="ឧ. តារា សុខ / Dara Sok"
               className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none"
             />
           </div>
 
           <div>
             <label
-              htmlFor="prov-owner-email"
+              htmlFor="prov-owner-login"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Owner email
+              ឈ្មោះគណនី ឬ លេខទូរស័ព្ទ · Username or Phone
             </label>
             <input
-              id="prov-owner-email"
-              type="email"
+              id="prov-owner-login"
+              type="text"
               required
-              value={ownerEmail}
-              onChange={(e) => setOwnerEmail(e.target.value)}
-              placeholder="owner@atelierramen.com"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={ownerLogin}
+              onChange={(e) => setOwnerLogin(e.target.value)}
+              placeholder="e.g. kohkong168 or 012 345 678"
               className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none"
             />
           </div>
@@ -322,18 +363,19 @@ function ProvisionTenantForm({
           <div className="sm:col-span-2">
             <label
               htmlFor="prov-owner-pass"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Initial password
+              ពាក្យសម្ងាត់ · Initial password (no OTP required)
             </label>
             <input
               id="prov-owner-pass"
               type="password"
               required
-              minLength={8}
+              minLength={6}
               value={ownerPassword}
               onChange={(e) => setOwnerPassword(e.target.value)}
-              placeholder="Minimum 8 characters"
+              placeholder="Minimum 6 characters"
               className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none"
             />
           </div>

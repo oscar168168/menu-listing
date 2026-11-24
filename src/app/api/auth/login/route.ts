@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserByEmail } from "@/lib/firestore";
+import { findUserByIdentifier } from "@/lib/firestore";
 import {
   clearSessionCookies,
   setSessionCookie,
@@ -18,20 +18,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const found = await findUserByEmail(parsed.data.email);
+    const found = await findUserByIdentifier(parsed.data.identifier);
     if (
       !found ||
       !(await verifyPasswordAsync(parsed.data.password, found.data.passwordHash))
     ) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
+        { error: "Invalid username, phone number, or password" },
         { status: 401 }
       );
     }
 
     const user = {
       id: found.id,
-      email: found.data.email,
+      email:
+        found.data.username ||
+        found.data.phone ||
+        found.data.email ||
+        parsed.data.identifier,
+      username: found.data.username,
+      phone: found.data.phone,
       name: found.data.name,
       role: found.data.role,
       tenantId: found.data.tenantId ?? null,

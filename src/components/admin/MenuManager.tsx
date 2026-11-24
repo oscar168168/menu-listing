@@ -87,8 +87,9 @@ export function MenuManager({
     return cats.flatMap((cat) =>
       cat.items.map((item) => ({
         ...item,
-        categoryName: cat.nameEn || cat.name,
+        categoryName: cat.nameKm || cat.nameEn || cat.name,
         categoryNameKm: cat.nameKm,
+        categoryNameEn: cat.nameEn,
       }))
     );
   }, [categories, selectedCategoryId]);
@@ -162,16 +163,23 @@ export function MenuManager({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-baseline gap-2.5">
-            <h1 className="text-[20px] font-semibold tracking-[-0.02em] text-zinc-950">
+            <h1
+              lang="km"
+              className="text-[20px] font-semibold tracking-[-0.02em] text-zinc-950"
+            >
               {selectedCategory
-                ? selectedCategory.nameEn || selectedCategory.name
-                : "All Dishes"}
+                ? selectedCategory.nameKm ||
+                  selectedCategory.nameEn ||
+                  selectedCategory.name
+                : "មុខម្ហូបទាំងអស់ · All Dishes"}
             </h1>
-            {selectedCategory?.nameKm && (
-              <span lang="km" className="text-[14px] text-zinc-500">
-                {selectedCategory.nameKm}
-              </span>
-            )}
+            {selectedCategory?.nameKm &&
+              selectedCategory?.nameEn &&
+              selectedCategory.nameEn !== selectedCategory.nameKm && (
+                <span className="text-[14px] text-zinc-500">
+                  {selectedCategory.nameEn}
+                </span>
+              )}
           </div>
           <p className="mt-0.5 text-[12px] text-zinc-500">
             Showing{" "}
@@ -181,7 +189,9 @@ export function MenuManager({
             of{" "}
             <span className="tabular-nums">{categoryScopedItems.length}</span>{" "}
             items
-            {selectedCategory ? ` in ${selectedCategory.nameEn}` : " across all categories"}
+            {selectedCategory
+              ? ` in ${selectedCategory.nameKm || selectedCategory.nameEn}`
+              : " across all categories"}
           </p>
         </div>
 
@@ -406,22 +416,22 @@ export function MenuManager({
                         )}
                         <div className="min-w-0 flex-1">
                           <h3
+                            lang="km"
                             className={`line-clamp-1 text-[14px] font-semibold ${
                               item.isAvailable
                                 ? "text-zinc-950"
                                 : "text-zinc-500"
                             }`}
                           >
-                            {item.nameEn || item.nameKm}
+                            {item.nameKm || item.nameEn}
                           </h3>
-                          {item.nameKm && (
-                            <p
-                              lang="km"
-                              className="truncate text-[12px] text-zinc-500"
-                            >
-                              {item.nameKm}
-                            </p>
-                          )}
+                          {item.nameKm &&
+                            item.nameEn &&
+                            item.nameEn !== item.nameKm && (
+                              <p className="truncate text-[12px] text-zinc-500">
+                                {item.nameEn}
+                              </p>
+                            )}
                         </div>
                       </div>
 
@@ -532,8 +542,11 @@ export function MenuManager({
                                 key={style.id}
                                 className="flex items-center justify-between gap-2"
                               >
-                                <span className="truncate text-zinc-600">
-                                  {style.nameEn || style.nameKm}
+                                <span
+                                  lang="km"
+                                  className="truncate text-zinc-600"
+                                >
+                                  {style.nameKm || style.nameEn}
                                 </span>
                                 <span className="shrink-0 tabular-nums text-[11px] text-zinc-500">
                                   {style.surcharge > 0
@@ -691,22 +704,22 @@ export function MenuManager({
                           )}
                           <div className="min-w-0">
                             <p
+                              lang="km"
                               className={`truncate font-semibold ${
                                 item.isAvailable
                                   ? "text-zinc-950"
                                   : "text-zinc-400"
                               }`}
                             >
-                              {item.nameEn || item.nameKm}
+                              {item.nameKm || item.nameEn}
                             </p>
-                            {item.nameKm && (
-                              <p
-                                lang="km"
-                                className="truncate text-[11px] text-zinc-500"
-                              >
-                                {item.nameKm}
-                              </p>
-                            )}
+                            {item.nameKm &&
+                              item.nameEn &&
+                              item.nameEn !== item.nameKm && (
+                                <p className="truncate text-[11px] text-zinc-500">
+                                  {item.nameEn}
+                                </p>
+                              )}
                           </div>
                         </div>
                       </td>

@@ -183,7 +183,7 @@ export function AdminWorkspace({
     nameKm: string;
     isVisible: boolean;
   }) => {
-    const canonical = payload.nameEn || payload.nameKm;
+    const canonical = payload.nameKm || payload.nameEn;
     if (editingCategory) {
       const res = await fetch(`/api/admin/categories/${editingCategory.id}`, {
         method: "PATCH",
@@ -199,8 +199,8 @@ export function AdminWorkspace({
             ? {
                 ...cat,
                 name: canonical,
+                nameKm: payload.nameKm || canonical,
                 nameEn: payload.nameEn || canonical,
-                nameKm: payload.nameKm,
                 isVisible: payload.isVisible,
               }
             : cat
@@ -246,8 +246,8 @@ export function AdminWorkspace({
       if (!res.ok) throw new Error("Failed");
       notify(
         nextVisible
-          ? `"${category.nameEn}" is now visible`
-          : `"${category.nameEn}" hidden from menu`
+          ? `"${category.nameKm || category.nameEn}" is now visible`
+          : `"${category.nameKm || category.nameEn}" hidden from menu`
       );
     } catch {
       setCategories(previous);
@@ -311,7 +311,7 @@ export function AdminWorkspace({
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
-      notify(`Deleted category "${target.nameEn}"`);
+      notify(`Deleted category "${target.nameKm || target.nameEn}"`);
     } catch {
       setCategories(previous);
       notify("Could not delete category", "error");
@@ -353,7 +353,7 @@ export function AdminWorkspace({
           return { ...cat, items: withoutOld };
         })
       );
-      notify(`Saved "${updatedItem.nameEn || updatedItem.nameKm}"`);
+      notify(`Saved "${updatedItem.nameKm || updatedItem.nameEn}"`);
     } else {
       const res = await fetch("/api/admin/items", {
         method: "POST",
@@ -376,7 +376,7 @@ export function AdminWorkspace({
             : cat
         )
       );
-      notify(`Added "${createdItem.nameEn || createdItem.nameKm}"`);
+      notify(`Added "${createdItem.nameKm || createdItem.nameEn}"`);
     }
   };
 
@@ -407,8 +407,8 @@ export function AdminWorkspace({
       if (!res.ok) throw new Error("Toggle failed");
       notify(
         nextAvailable
-          ? `"${item.nameEn}" marked In Stock (មាន)`
-          : `"${item.nameEn}" marked Sold Out (អស់)`
+          ? `"${item.nameKm || item.nameEn}" marked In Stock (មាន)`
+          : `"${item.nameKm || item.nameEn}" marked Sold Out (អស់)`
       );
     } catch {
       setCategories(previous);
@@ -435,7 +435,7 @@ export function AdminWorkspace({
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
-      notify(`Removed "${target.nameEn}"`);
+      notify(`Removed "${target.nameKm || target.nameEn}"`);
     } catch {
       setCategories(previous);
       notify("Could not delete dish", "error");
@@ -506,8 +506,8 @@ export function AdminWorkspace({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span>
               Super Admin inspection mode — managing{" "}
-              <strong className="font-semibold text-white">
-                {tenant.nameEn}
+              <strong lang="km" className="font-semibold text-white">
+                {tenant.nameKm || tenant.nameEn || tenant.name}
               </strong>{" "}
               (<code className="font-mono text-zinc-400">/m/{tenant.slug}</code>)
             </span>
@@ -535,10 +535,10 @@ export function AdminWorkspace({
             <Link
               href={`/m/${tenant.slug}`}
               target="_blank"
-              title={`${tenant.nameEn} — Open live menu`}
+              title={`${tenant.nameKm || tenant.nameEn} — Open live menu`}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-[#FAFAFA] text-[12px] font-bold text-zinc-950"
             >
-              {(tenant.nameEn || tenant.name).slice(0, 1).toUpperCase()}
+              {(tenant.nameKm || tenant.nameEn || tenant.name).slice(0, 1).toUpperCase()}
             </Link>
 
             {/* Quick Add Dish Accent Button */}
@@ -702,8 +702,11 @@ export function AdminWorkspace({
                         style={{ backgroundColor: tenant.primaryColor }}
                         aria-hidden="true"
                       />
-                      <span className="truncate max-w-[140px] sm:max-w-none">
-                        {tenant.nameEn}
+                      <span
+                        lang="km"
+                        className="truncate max-w-[140px] sm:max-w-none"
+                      >
+                        {tenant.nameKm || tenant.nameEn || tenant.name}
                       </span>
                     </button>
                   </li>
@@ -734,9 +737,12 @@ export function AdminWorkspace({
                         href={`#cat-${selectedCategory.id}`}
                         onClick={(e) => e.preventDefault()}
                         aria-current="page"
+                        lang="km"
                         className="font-semibold text-zinc-950 truncate max-w-[160px]"
                       >
-                        {selectedCategory.nameEn || selectedCategory.name}
+                        {selectedCategory.nameKm ||
+                          selectedCategory.nameEn ||
+                          selectedCategory.name}
                       </a>
                     </li>
                   )}
@@ -975,8 +981,8 @@ export function AdminWorkspace({
         <div className="p-5">
           <p className="text-[14px] text-zinc-700">
             Delete{" "}
-            <span className="font-semibold text-zinc-950">
-              {deletingCategory?.nameEn}
+            <span lang="km" className="font-semibold text-zinc-950">
+              {deletingCategory?.nameKm || deletingCategory?.nameEn}
             </span>
             {deletingCategory && deletingCategory.items.length > 0
               ? ` and its ${deletingCategory.items.length} dish(es)`
@@ -1013,8 +1019,8 @@ export function AdminWorkspace({
         <div className="p-5">
           <p className="text-[14px] text-zinc-700">
             Permanently remove{" "}
-            <span className="font-semibold text-zinc-950">
-              {deletingItem?.nameEn}
+            <span lang="km" className="font-semibold text-zinc-950">
+              {deletingItem?.nameKm || deletingItem?.nameEn}
             </span>{" "}
             from your menu?
           </p>

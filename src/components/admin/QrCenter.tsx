@@ -318,11 +318,19 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                     className="mx-auto mb-2.5 h-8 w-8 rounded border border-zinc-200 object-contain p-0.5"
                   />
                 )}
-                <p className="truncate text-[16px] font-semibold tracking-[-0.02em] text-zinc-950">
-                  {tenant.name}
+                <p
+                  lang="km"
+                  className="truncate text-[16px] font-semibold tracking-[-0.02em] text-zinc-950"
+                >
+                  {tenant.nameKm || tenant.name}
                 </p>
-                <p className="mt-0.5 truncate text-[11px] text-zinc-500">
-                  {tenant.meta.tagline || "Digital Menu"}
+                <p
+                  lang="km"
+                  className="mt-0.5 truncate text-[11px] text-zinc-500"
+                >
+                  {tenant.meta.taglineKm ||
+                    tenant.meta.tagline ||
+                    "ម៉ឺនុយឌីជីថល · Digital Menu"}
                 </p>
 
                 <div className="mt-3">

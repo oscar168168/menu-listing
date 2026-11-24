@@ -80,8 +80,9 @@ export function QuickMarketPanel({
     return scopedCats.flatMap((cat) =>
       cat.items.map((item) => ({
         ...item,
-        categoryName: cat.nameEn || cat.name,
+        categoryName: cat.nameKm || cat.nameEn || cat.name,
         categoryNameKm: cat.nameKm,
+        categoryNameEn: cat.nameEn,
       }))
     );
   }, [categories, selectedCategoryId]);
@@ -233,8 +234,8 @@ export function QuickMarketPanel({
     }));
     onNotify(
       nextType === "MARKET_PRICE"
-        ? `"${item.nameEn}" switched to Market Price (តាមតម្លៃទីផ្សារ)`
-        : `"${item.nameEn}" switched to listed rate`
+        ? `"${item.nameKm || item.nameEn}" switched to Market Price (តាមតម្លៃទីផ្សារ)`
+        : `"${item.nameKm || item.nameEn}" switched to listed rate`
     );
   };
 
@@ -447,8 +448,8 @@ export function QuickMarketPanel({
                         );
                         onNotify(
                           checked
-                            ? `"${item.nameEn}" marked In Stock (មាន)`
-                            : `"${item.nameEn}" marked Sold Out (អស់)`
+                            ? `"${item.nameKm || item.nameEn}" marked In Stock (មាន)`
+                            : `"${item.nameKm || item.nameEn}" marked Sold Out (អស់)`
                         );
                       }}
                       label={`Toggle stock for ${item.nameEn}`}

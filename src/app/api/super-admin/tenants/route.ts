@@ -3,8 +3,9 @@ import {
   categoriesCol,
   cookingStylesCol,
   findTenantBySlug,
-  findUserByEmail,
+  findUserByIdentifier,
   getDb,
+  normalizePhone,
   tenantsCol,
   usersCol,
 } from "@/lib/firestore";
@@ -48,9 +49,32 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const [existingSlug, existingEmail, passwordHash] = await Promise.all([
+  const rawIdentifier = (
+    parsed.data.ownerUsername ||
+    parsed.data.ownerPhone ||
+    parsed.data.ownerEmail
+  ).trim();
+  const normalizedPhone = normalizePhone(parsed.data.ownerPhone || rawIdentifier);
+  const isPhoneIdentifier =
+    normalizedPhone.length >= 6 &&
+    /^[+\d\s\-()]+$/.test(parsed.data.ownerPhone || rawIdentifier);
+  const ownerUsername = (
+    parsed.data.ownerUsername ||
+    (!isPhoneIdentifier ? rawIdentifier : "")
+  )
+    .trim()
+    .toLowerCase();
+  const ownerPhone =
+    parsed.data.ownerPhone.trim() || (isPhoneIdentifier ? normalizedPhone : "");
+  const ownerAccountKey = (
+    ownerUsername ||
+    ownerPhone ||
+    parsed.data.ownerEmail.trim().toLowerCase()
+  ).trim();
+
+  const [existingSlug, existingUser, passwordHash] = await Promise.all([
     findTenantBySlug(parsed.data.slug),
-    findUserByEmail(parsed.data.ownerEmail),
+    findUserByIdentifier(ownerAccountKey),
     hashPasswordAsync(parsed.data.ownerPassword),
   ]);
 
@@ -61,9 +85,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (existingEmail) {
+  if (existingUser) {
     return NextResponse.json(
-      { error: `An account with ${parsed.data.ownerEmail} already exists.` },
+      { error: `An account with "${ownerAccountKey}" already exists.` },
       { status: 409 }
     );
   }
@@ -72,11 +96,18 @@ export async function POST(request: NextRequest) {
   const batch = db.batch();
   const now = new Date();
 
+  const cleanNameKm = parsed.data.nameKm.trim();
+  const cleanNameEn = parsed.data.name.trim();
+  const canonicalName = cleanNameKm || cleanNameEn;
+  const cleanTaglineKm = parsed.data.taglineKm.trim();
+  const cleanTaglineEn = parsed.data.tagline.trim();
+  const canonicalTagline = cleanTaglineKm || cleanTaglineEn;
+
   const newTenantRef = tenantsCol().doc();
   batch.set(newTenantRef, {
-    name: parsed.data.name,
-    nameEn: parsed.data.name,
-    nameKm: parsed.data.nameKm || null,
+    name: canonicalName,
+    nameKm: cleanNameKm || canonicalName,
+    nameEn: cleanNameEn || canonicalName,
     slug: parsed.data.slug,
     status: "ACTIVE",
     vendorMode: parsed.data.vendorMode,
@@ -87,9 +118,19 @@ export async function POST(request: NextRequest) {
     exchangeRate: parsed.data.exchangeRate,
     khrRounding: 100,
     primaryColor: parsed.data.primaryColor,
-    metaJson: parsed.data.tagline
-      ? { tagline: parsed.data.tagline, taglineEn: parsed.data.tagline }
-      : {},
+    metaJson:
+      canonicalTagline || ownerPhone
+        ? {
+            ...(canonicalTagline
+              ? {
+                  tagline: canonicalTagline,
+                  taglineKm: cleanTaglineKm || canonicalTagline,
+                  taglineEn: cleanTaglineEn || canonicalTagline,
+                }
+              : {}),
+            ...(ownerPhone ? { phone: ownerPhone } : {}),
+          }
+        : {},
     createdAt: now,
     updatedAt: now,
   });
@@ -97,7 +138,9 @@ export async function POST(request: NextRequest) {
   const newOwnerRef = usersCol().doc();
   batch.set(newOwnerRef, {
     name: parsed.data.ownerName,
-    email: parsed.data.ownerEmail,
+    email: parsed.data.ownerEmail.trim().toLowerCase() || ownerAccountKey,
+    ...(ownerUsername ? { username: ownerUsername } : {}),
+    ...(ownerPhone ? { phone: normalizePhone(ownerPhone) || ownerPhone } : {}),
     passwordHash,
     role: "MENU_ADMIN",
     tenantId: newTenantRef.id,
@@ -109,7 +152,7 @@ export async function POST(request: NextRequest) {
     const catRef = categoriesCol(newTenantRef.id).doc();
     batch.set(catRef, {
       tenantId: newTenantRef.id,
-      name: cat.nameEn,
+      name: cat.nameKm,
       nameEn: cat.nameEn,
       nameKm: cat.nameKm,
       sortOrder: idx,
@@ -140,15 +183,17 @@ export async function POST(request: NextRequest) {
 
   const summary: SuperAdminTenantSummary = {
     id: newTenantRef.id,
-    name: parsed.data.name,
-    nameKm: parsed.data.nameKm || "",
-    nameEn: parsed.data.name,
+    name: canonicalName,
+    nameKm: cleanNameKm || canonicalName,
+    nameEn: cleanNameEn || canonicalName,
     slug: parsed.data.slug,
     status: "ACTIVE",
     vendorMode: parsed.data.vendorMode,
     primaryColor: parsed.data.primaryColor,
     currency: parsed.data.currency,
-    ownerEmail: parsed.data.ownerEmail,
+    ownerEmail: ownerAccountKey,
+    ownerUsername: ownerUsername || null,
+    ownerPhone: ownerPhone || null,
     ownerName: parsed.data.ownerName,
     itemCount: 0,
     categoryCount: DEFAULT_MENU_CATEGORIES.length,
@@ -159,7 +204,9 @@ export async function POST(request: NextRequest) {
 
   const analyticsRow: ScanAnalyticsRow = {
     tenantId: newTenantRef.id,
-    tenantName: parsed.data.name,
+    tenantName: canonicalName,
+    tenantNameKm: cleanNameKm || canonicalName,
+    tenantNameEn: cleanNameEn || canonicalName,
     slug: parsed.data.slug,
     primaryColor: parsed.data.primaryColor,
     totalScans: 0,

@@ -47,23 +47,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const nextStatus = parsed.data.status ?? existing.status;
   const nextVendorMode = parsed.data.vendorMode ?? existing.vendorMode;
   const nextCurrency = parsed.data.currency ?? existing.currency;
+  const nextNameKm =
+    parsed.data.nameKm !== undefined
+      ? parsed.data.nameKm
+      : existing.nameKm ?? "";
   const nextNameEn =
     parsed.data.nameEn !== undefined
       ? parsed.data.nameEn
       : parsed.data.name !== undefined
         ? parsed.data.name
         : existing.nameEn ?? existing.name;
-  const nextNameKm =
-    parsed.data.nameKm !== undefined
-      ? parsed.data.nameKm
-      : existing.nameKm ?? "";
-  const nextName = nextNameEn || nextNameKm || existing.name;
+  const nextName = nextNameKm || nextNameEn || existing.name;
 
   await ref.update({
     slug: nextSlug,
     name: nextName,
-    nameEn: nextNameEn || null,
-    nameKm: nextNameKm || null,
+    nameKm: nextNameKm || nextName,
+    nameEn: nextNameEn || nextName,
     status: nextStatus,
     vendorMode: nextVendorMode,
     currency: nextCurrency,
@@ -80,8 +80,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       id: snap.id,
       slug: nextSlug,
       name: nextName,
+      nameKm: nextNameKm || nextName,
       nameEn: nextNameEn || nextName,
-      nameKm: nextNameKm || "",
       status: nextStatus,
       vendorMode: nextVendorMode,
       currency: nextCurrency,

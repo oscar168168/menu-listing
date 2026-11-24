@@ -49,39 +49,39 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
   }
 
+  const nextNameKm =
+    parsed.data.nameKm !== undefined
+      ? parsed.data.nameKm
+      : existing.nameKm ?? "";
   const nextNameEn =
     parsed.data.nameEn !== undefined
       ? parsed.data.nameEn
       : parsed.data.name !== undefined
         ? parsed.data.name
         : existing.nameEn ?? existing.name;
-  const nextNameKm =
-    parsed.data.nameKm !== undefined
-      ? parsed.data.nameKm
-      : existing.nameKm ?? "";
-  const canonicalName = nextNameEn || nextNameKm || existing.name;
+  const canonicalName = nextNameKm || nextNameEn || existing.name;
 
+  const nextDescKm =
+    parsed.data.descriptionKm !== undefined
+      ? parsed.data.descriptionKm
+      : existing.descriptionKm ?? "";
   const nextDescEn =
     parsed.data.descriptionEn !== undefined
       ? parsed.data.descriptionEn
       : parsed.data.description !== undefined
         ? parsed.data.description
         : existing.descriptionEn ?? existing.description;
-  const nextDescKm =
-    parsed.data.descriptionKm !== undefined
-      ? parsed.data.descriptionKm
-      : existing.descriptionKm ?? "";
 
   const updateData = {
     ...(parsed.data.categoryId !== undefined
       ? { categoryId: parsed.data.categoryId }
       : {}),
     name: canonicalName,
-    nameEn: nextNameEn || null,
-    nameKm: nextNameKm || null,
-    description: nextDescEn || nextDescKm,
-    descriptionEn: nextDescEn || null,
+    nameKm: nextNameKm || canonicalName,
+    nameEn: nextNameEn || canonicalName,
+    description: nextDescKm || nextDescEn,
     descriptionKm: nextDescKm || null,
+    descriptionEn: nextDescEn || null,
     ...(parsed.data.pricingType !== undefined
       ? { pricingType: parsed.data.pricingType }
       : {}),

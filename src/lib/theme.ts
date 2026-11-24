@@ -209,8 +209,11 @@ export function parseTenantMeta(raw: unknown): TenantMeta {
       : undefined;
 
   return {
-    tagline: pickString("tagline") ?? pickString("taglineEn"),
-    taglineKm: pickString("taglineKm"),
+    tagline:
+      pickString("taglineKm") ??
+      pickString("tagline") ??
+      pickString("taglineEn"),
+    taglineKm: pickString("taglineKm") ?? pickString("tagline"),
     taglineEn: pickString("taglineEn") ?? pickString("tagline"),
     openingHours: pickString("openingHours"),
     address: pickString("address"),

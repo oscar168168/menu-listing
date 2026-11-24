@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   createMenuItemSchema,
   hexColorSchema,
+  loginSchema,
   provisionTenantSchema,
   slugify,
   updateThemeSchema,
@@ -12,6 +13,20 @@ describe("Validation schemas", () => {
   it("slugifies accented and spaced venue names cleanly", () => {
     assert.equal(slugify("Kōhī & Bakehouse"), "kohi-bakehouse");
     assert.equal(slugify("  Osteria  Sole!! "), "osteria-sole");
+  });
+
+  it("validates username or phone login without OTP", () => {
+    const byUsername = loginSchema.parse({
+      identifier: "sora",
+      password: "Menu123!",
+    });
+    assert.equal(byUsername.identifier, "sora");
+
+    const byPhone = loginSchema.parse({
+      phone: "093 765 166",
+      password: "Menu123!",
+    });
+    assert.equal(byPhone.identifier, "093 765 166");
   });
 
   it("normalizes valid hex colors and rejects invalid ones", () => {

@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
   if (format === "card") {
     const meta = parseTenantMeta(tenant.metaJson);
     const cardSvg = await generatePrintableTableCardSvg({
-      venueName: tenant.name,
-      tagline: meta.tagline,
+      venueName: tenant.nameKm || tenant.name,
+      tagline: meta.taglineKm || meta.tagline,
       url: targetUrl,
       primaryColor: tenant.primaryColor,
       tableCode,

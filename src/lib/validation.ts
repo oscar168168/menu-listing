@@ -53,10 +53,25 @@ export const cookingStyleOptionSchema = z.object({
   "Cooking style requires Khmer or English name"
 );
 
-export const loginSchema = z.object({
-  email: z.string().trim().email("Enter a valid email address").toLowerCase(),
-  password: z.string().min(6, "Password must be at least 6 characters").max(128),
-});
+export const loginSchema = z
+  .object({
+    identifier: z.string().trim().optional().default(""),
+    username: z.string().trim().optional().default(""),
+    phone: z.string().trim().optional().default(""),
+    email: z.string().trim().optional().default(""),
+    password: z
+      .string()
+      .min(6, "Password must be at least 6 characters")
+      .max(128),
+  })
+  .transform((d) => ({
+    identifier: (d.identifier || d.username || d.phone || d.email).trim(),
+    password: d.password,
+  }))
+  .refine(
+    (d) => d.identifier.length >= 2,
+    "Enter your username or phone number"
+  );
 
 export const createCategorySchema = z
   .object({
@@ -219,26 +234,39 @@ export const updateThemeSchema = z
     "Venue name is required"
   );
 
-export const provisionTenantSchema = z.object({
-  name: z.string().trim().min(2, "Venue name must be at least 2 characters").max(100),
-  nameKm: z.string().trim().max(100).optional().default(""),
-  slug: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .min(2, "Slug must be at least 2 characters")
-    .max(48)
-    .regex(SLUG_REGEX, "Use lowercase letters, numbers, and single hyphens only"),
-  primaryColor: hexColorSchema.default("#1E293B"),
-  vendorMode: vendorModeSchema.optional().default("CART"),
-  currency: z.enum(["USD", "KHR"]).default("USD"),
-  showDualCurrency: z.boolean().optional().default(true),
-  exchangeRate: z.coerce.number().int().min(1000).max(10000).optional().default(4100),
-  tagline: z.string().trim().max(160).optional().default(""),
-  ownerName: z.string().trim().min(2, "Owner name is required").max(80),
-  ownerEmail: z.string().trim().email("Valid email is required").toLowerCase(),
-  ownerPassword: z.string().min(8, "Password must be at least 8 characters").max(128),
-});
+export const provisionTenantSchema = z
+  .object({
+    name: z.string().trim().max(100).optional().default(""),
+    nameKm: z.string().trim().max(100).optional().default(""),
+    slug: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(2, "Slug must be at least 2 characters")
+      .max(48)
+      .regex(SLUG_REGEX, "Use lowercase letters, numbers, and single hyphens only"),
+    primaryColor: hexColorSchema.default("#1E293B"),
+    vendorMode: vendorModeSchema.optional().default("CART"),
+    currency: z.enum(["USD", "KHR"]).default("KHR"),
+    showDualCurrency: z.boolean().optional().default(true),
+    exchangeRate: z.coerce.number().int().min(1000).max(10000).optional().default(4100),
+    tagline: z.string().trim().max(160).optional().default(""),
+    taglineKm: z.string().trim().max(160).optional().default(""),
+    ownerName: z.string().trim().min(2, "Owner name is required").max(80),
+    ownerEmail: z.string().trim().max(120).optional().default(""),
+    ownerUsername: z.string().trim().max(120).optional().default(""),
+    ownerPhone: z.string().trim().max(120).optional().default(""),
+    ownerPassword: z.string().min(6, "Password must be at least 6 characters").max(128),
+  })
+  .refine(
+    (d) => (d.nameKm || d.name).trim().length >= 2,
+    "Venue name (Khmer or English) must be at least 2 characters"
+  )
+  .refine(
+    (d) =>
+      (d.ownerUsername || d.ownerPhone || d.ownerEmail).trim().length >= 3,
+    "Owner username or phone number is required"
+  );
 
 export const updateTenantStatusSchema = z
   .object({

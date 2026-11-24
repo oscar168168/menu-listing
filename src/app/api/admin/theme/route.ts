@@ -29,9 +29,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
-  const nameEn = parsed.data.nameEn || parsed.data.name || parsed.data.nameKm;
   const nameKm = parsed.data.nameKm || "";
-  const canonicalName = nameEn || nameKm;
+  const nameEn = parsed.data.nameEn || parsed.data.name || parsed.data.nameKm;
+  const canonicalName = nameKm || nameEn;
   const existingMeta =
     existing.metaJson &&
     typeof existing.metaJson === "object" &&
@@ -41,8 +41,8 @@ export async function PATCH(request: NextRequest) {
 
   const updateData = {
     name: canonicalName,
-    nameEn: nameEn || null,
-    nameKm: nameKm || null,
+    nameKm: nameKm || canonicalName,
+    nameEn: nameEn || canonicalName,
     primaryColor: parsed.data.primaryColor,
     vendorMode: parsed.data.vendorMode,
     currency: parsed.data.currency,
@@ -59,9 +59,9 @@ export async function PATCH(request: NextRequest) {
       ...existingMeta,
       ...parsed.data.meta,
       tagline:
-        parsed.data.meta.taglineEn ||
+        parsed.data.meta.taglineKm ||
         parsed.data.meta.tagline ||
-        parsed.data.meta.taglineKm,
+        parsed.data.meta.taglineEn,
       demoCatalogVersion:
         (typeof existingMeta.demoCatalogVersion === "string" &&
           existingMeta.demoCatalogVersion) ||

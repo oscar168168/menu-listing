@@ -102,12 +102,13 @@ export function serializeTenant(
   id: string,
   tenant: Omit<FirestoreTenantDoc, "updatedAt"> & { updatedAt?: unknown }
 ): SerializedTenant {
-  const nameEn = tenant.nameEn?.trim() || tenant.name;
   const nameKm = tenant.nameKm?.trim() || "";
+  const nameEn = tenant.nameEn?.trim() || tenant.name;
+  const canonicalName = nameKm || nameEn;
   return {
     id,
-    name: tenant.name,
-    nameKm,
+    name: canonicalName,
+    nameKm: nameKm || canonicalName,
     nameEn,
     slug: tenant.slug,
     status: tenant.status,
@@ -516,13 +517,19 @@ export async function getSuperAdminDashboardData(): Promise<{
       .get(),
     usersCol()
       .where("role", "==", "MENU_ADMIN")
-      .select("email", "name", "tenantId", "createdAt")
+      .select("email", "username", "phone", "name", "tenantId", "createdAt")
       .get(),
   ]);
 
   const ownerByTenant = new Map<
     string,
-    { email: string; name: string; createdAt: number }
+    {
+      email: string;
+      username?: string;
+      phone?: string;
+      name: string;
+      createdAt: number;
+    }
   >();
   for (const userDoc of adminsSnap.docs) {
     const u = userDoc.data();
@@ -532,6 +539,8 @@ export async function getSuperAdminDashboardData(): Promise<{
     if (!prev || createdMs < prev.createdAt) {
       ownerByTenant.set(u.tenantId, {
         email: u.email,
+        username: u.username,
+        phone: u.phone,
         name: u.name,
         createdAt: createdMs,
       });
@@ -595,17 +604,26 @@ export async function getSuperAdminDashboardData(): Promise<{
         .slice(0, 4);
 
       const owner = ownerByTenant.get(id);
+      const cleanNameKm = data.nameKm?.trim() ?? "";
+      const cleanNameEn = data.nameEn?.trim() || data.name;
+      const canonicalName = cleanNameKm || cleanNameEn;
+      const ownerLoginLabel =
+        owner?.username && owner?.phone
+          ? `${owner.username} · ${owner.phone}`
+          : owner?.username || owner?.phone || owner?.email || null;
       const summary: SuperAdminTenantSummary = {
         id,
-        name: data.name,
-        nameKm: data.nameKm?.trim() ?? "",
-        nameEn: data.nameEn?.trim() || data.name,
+        name: canonicalName,
+        nameKm: cleanNameKm,
+        nameEn: cleanNameEn,
         slug: data.slug,
         status: data.status,
         vendorMode: data.vendorMode ?? "CART",
         primaryColor: sanitizeHex(data.primaryColor),
         currency: normalizePrimaryCurrency(data.currency),
-        ownerEmail: owner?.email ?? null,
+        ownerEmail: ownerLoginLabel,
+        ownerUsername: owner?.username ?? null,
+        ownerPhone: owner?.phone ?? null,
         ownerName: owner?.name ?? null,
         itemCount: itemCountSnap.data().count,
         categoryCount: catCountSnap.data().count,
@@ -616,7 +634,9 @@ export async function getSuperAdminDashboardData(): Promise<{
 
       const analyticsRow: ScanAnalyticsRow = {
         tenantId: id,
-        tenantName: data.name,
+        tenantName: canonicalName,
+        tenantNameKm: cleanNameKm,
+        tenantNameEn: cleanNameEn,
         slug: data.slug,
         primaryColor: summary.primaryColor,
         totalScans: summary.scanCount,

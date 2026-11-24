@@ -157,9 +157,9 @@ export function SuperAdminWorkspace({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slug: normalizedSlug,
-          name: editNameEn.trim() || editNameKm.trim() || editingTenant.name,
-          nameEn: editNameEn.trim(),
+          name: editNameKm.trim() || editNameEn.trim() || editingTenant.name,
           nameKm: editNameKm.trim(),
+          nameEn: editNameEn.trim(),
         }),
       });
       const json = (await res.json()) as {
@@ -177,6 +177,7 @@ export function SuperAdminWorkspace({
       }
 
       const updated = json.tenant;
+      const primaryDisplay = updated.nameKm || updated.nameEn || updated.name;
       setData((prev) => ({
         ...prev,
         tenants: prev.tenants.map((t) =>
@@ -184,7 +185,7 @@ export function SuperAdminWorkspace({
             ? {
                 ...t,
                 slug: updated.slug,
-                name: updated.name,
+                name: primaryDisplay,
                 nameEn: updated.nameEn,
                 nameKm: updated.nameKm,
               }
@@ -195,14 +196,16 @@ export function SuperAdminWorkspace({
             ? {
                 ...a,
                 slug: updated.slug,
-                tenantName: updated.name,
+                tenantName: primaryDisplay,
+                tenantNameKm: updated.nameKm,
+                tenantNameEn: updated.nameEn,
               }
             : a
         ),
       }));
 
       setEditingTenant(null);
-      notify(`Updated "${updated.name}" (/m/${updated.slug})`);
+      notify(`Updated "${primaryDisplay}" (/m/${updated.slug})`);
     } catch (err) {
       setEditError(
         err instanceof Error ? err.message : "Could not update venue"
@@ -227,8 +230,12 @@ export function SuperAdminWorkspace({
       const matchesQuery =
         q.length === 0 ||
         tenant.name.toLowerCase().includes(q) ||
+        tenant.nameKm.toLowerCase().includes(q) ||
+        tenant.nameEn.toLowerCase().includes(q) ||
         tenant.slug.toLowerCase().includes(q) ||
-        (tenant.ownerEmail?.toLowerCase().includes(q) ?? false);
+        (tenant.ownerEmail?.toLowerCase().includes(q) ?? false) ||
+        (tenant.ownerUsername?.toLowerCase().includes(q) ?? false) ||
+        (tenant.ownerPhone?.toLowerCase().includes(q) ?? false);
       return matchesStatus && matchesQuery;
     });
   }, [data.tenants, searchQuery, statusFilter]);
@@ -501,10 +508,10 @@ export function SuperAdminWorkspace({
               <thead className="border-b border-zinc-200 bg-[#FAFAFA] text-[11px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
                 <tr>
                   <th scope="col" className="whitespace-nowrap px-4 py-2.5">
-                    Venue
+                    Venue (ហាង)
                   </th>
                   <th scope="col" className="whitespace-nowrap px-4 py-2.5">
-                    Owner
+                    Login (Username / Phone)
                   </th>
                   <th scope="col" className="whitespace-nowrap px-4 py-2.5">
                     Status
@@ -731,8 +738,11 @@ export function SuperAdminWorkspace({
                       aria-hidden="true"
                     />
                     <div className="min-w-0">
-                      <p className="truncate text-[13px] font-semibold text-zinc-950">
-                        {row.tenantName}
+                      <p
+                        lang="km"
+                        className="truncate text-[13px] font-semibold text-zinc-950"
+                      >
+                        {row.tenantNameKm || row.tenantName}
                       </p>
                       <p className="font-mono text-[11px] text-zinc-400">
                         /m/{row.slug}
@@ -862,12 +872,13 @@ export function SuperAdminWorkspace({
               lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Venue Name (Khmer ខ្មែរ)
+              ឈ្មោះហាង (ខ្មែរ) · Venue Name (Khmer)
             </label>
             <input
               id="edit-tenant-name-km"
               type="text"
               lang="km"
+              required={!editNameEn.trim()}
               maxLength={100}
               value={editNameKm}
               onChange={(e) => setEditNameKm(e.target.value)}
@@ -881,7 +892,7 @@ export function SuperAdminWorkspace({
               htmlFor="edit-tenant-name-en"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Venue Name (English)
+              Venue Name (English · optional)
             </label>
             <input
               id="edit-tenant-name-en"

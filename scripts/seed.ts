@@ -13,8 +13,9 @@ import {
 import {
   cookingStylesCol,
   findTenantBySlug,
-  findUserByEmail,
+  findUserByIdentifier,
   getDb,
+  normalizePhone,
   scanEventsCol,
   tenantsCol,
   usersCol,
@@ -25,26 +26,42 @@ const shouldReset = process.argv.includes("--reset");
 
 async function upsertUser(input: {
   email: string;
+  username: string;
+  phone: string;
   name: string;
   password: string;
   role: "SUPER_ADMIN" | "MENU_ADMIN";
   tenantId: string | null;
 }) {
-  const existing = await findUserByEmail(input.email);
+  const existing =
+    (await findUserByIdentifier(input.username)) ||
+    (await findUserByIdentifier(input.phone)) ||
+    (await findUserByIdentifier(input.email));
   const now = new Date();
+  const normalizedPhone = normalizePhone(input.phone);
   if (existing) {
     await usersCol().doc(existing.id).update({
+      email: input.email.toLowerCase(),
+      username: input.username.toLowerCase(),
+      phone: normalizedPhone,
       name: input.name,
       role: input.role,
       tenantId: input.tenantId,
       updatedAt: now,
     });
-    return { id: existing.id, email: input.email };
+    return {
+      id: existing.id,
+      email: input.email,
+      username: input.username,
+      phone: normalizedPhone,
+    };
   }
 
   const ref = usersCol().doc();
   await ref.set({
     email: input.email.toLowerCase(),
+    username: input.username.toLowerCase(),
+    phone: normalizedPhone,
     name: input.name,
     passwordHash: hashPassword(input.password),
     role: input.role,
@@ -52,7 +69,12 @@ async function upsertUser(input: {
     createdAt: now,
     updatedAt: now,
   });
-  return { id: ref.id, email: input.email.toLowerCase() };
+  return {
+    id: ref.id,
+    email: input.email.toLowerCase(),
+    username: input.username.toLowerCase(),
+    phone: normalizedPhone,
+  };
 }
 
 async function upsertTenant(input: {
@@ -138,18 +160,22 @@ async function main() {
   // 1. Super Admin
   const superAdmin = await upsertUser({
     email: "admin@menuos.app",
+    username: "admin",
+    phone: "012888999",
     name: "Platform Admin",
     password: "Admin123!",
     role: "SUPER_ADMIN",
     tenantId: null,
   });
-  console.log(`✓ Super Admin ready: ${superAdmin.email}`);
+  console.log(
+    `✓ Super Admin ready: ${superAdmin.username} / ${superAdmin.phone}`
+  );
 
   // ==========================================================================
   // 2. Venue 1: សម្រស់ឆ្នេរប៉ាក់ខ្លង 168 / Somros Chhne Pak Khlang 168
   // ==========================================================================
   const sora = await upsertTenant({
-    name: PAK_KHLANG_168_PROFILE.name,
+    name: PAK_KHLANG_168_PROFILE.nameKm,
     nameEn: PAK_KHLANG_168_PROFILE.nameEn,
     nameKm: PAK_KHLANG_168_PROFILE.nameKm,
     coverUrl: PAK_KHLANG_168_PROFILE.coverUrl,
@@ -165,6 +191,8 @@ async function main() {
 
   await upsertUser({
     email: "owner@soraseafood.com",
+    username: "sora",
+    phone: "093765166",
     name: "Dara Sok",
     password: "Menu123!",
     role: "MENU_ADMIN",
@@ -225,7 +253,7 @@ async function main() {
   // 3. Venue 2: Kep Bay Kitchen (LISTING_ONLY mode, KHR Primary + Dual USD)
   // ==========================================================================
   const kep = await upsertTenant({
-    name: "Kep Bay Kitchen",
+    name: "ផ្ទះបាយឆ្នេរកែប",
     nameEn: "Kep Bay Kitchen",
     nameKm: "ផ្ទះបាយឆ្នេរកែប",
     slug: "kep-bay-kitchen",
@@ -236,12 +264,12 @@ async function main() {
     khrRounding: 100,
     primaryColor: "#B45309",
     metaJson: {
-      tagline: "Daily boat-to-table coastal seafood by Kep Crab Market",
+      tagline: "គ្រឿងសមុទ្រស្រស់ៗពីទូកនេសាទ ក្បែរផ្សារក្តាមខេត្តកែប",
       taglineEn: "Daily boat-to-table coastal seafood by Kep Crab Market",
       taglineKm: "គ្រឿងសមុទ្រស្រស់ៗពីទូកនេសាទ ក្បែរផ្សារក្តាមខេត្តកែប",
       openingHours: "Daily 09:30 – 21:30",
       address: "Crab Market Waterfront, Road 33A, Kep",
-      phone: "+855 12 784 220",
+      phone: "012 784 220",
       telegramUrl: "https://t.me/kepbaykitchen",
       facebookUrl: "https://facebook.com/kepbaykitchen",
       googleMapsUrl: "https://maps.google.com/?q=Kep+Crab+Market+Cambodia",
@@ -257,6 +285,8 @@ async function main() {
 
   await upsertUser({
     email: "chef@kepbaykitchen.com",
+    username: "kepbay",
+    phone: "012784220",
     name: "Sopheak Meas",
     password: "Menu123!",
     role: "MENU_ADMIN",
@@ -341,12 +371,12 @@ async function main() {
   console.log(
     "✓ Cloud Firestore seed complete (7 default categories + 25,000៛ / 35,000៛ / 40,000៛ KHR items):"
   );
-  console.log("  Super Admin: admin@menuos.app / Admin123!");
+  console.log("  Super Admin: admin or 012888999 / Admin123!");
   console.log(
-    "  Venue 1 (/m/sora-seafood-grill, KHR+USD): owner@soraseafood.com / Menu123!"
+    "  Venue 1 (/m/sora-seafood-grill, KHR+USD): sora or 093765166 / Menu123!"
   );
   console.log(
-    "  Venue 2 (/m/kep-bay-kitchen, KHR+USD): chef@kepbaykitchen.com / Menu123!"
+    "  Venue 2 (/m/kep-bay-kitchen, KHR+USD): kepbay or 012784220 / Menu123!"
   );
 }
 

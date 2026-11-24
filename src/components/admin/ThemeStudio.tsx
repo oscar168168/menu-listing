@@ -139,9 +139,9 @@ export function ThemeStudio({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: tenant.nameEn || tenant.name,
+          name: tenant.nameKm || tenant.nameEn || tenant.name,
           nameKm: tenant.nameKm,
-          nameEn: tenant.nameEn || tenant.name,
+          nameEn: tenant.nameEn || tenant.nameKm || tenant.name,
           primaryColor: tenant.primaryColor,
           vendorMode: tenant.vendorMode,
           currency: tenant.currency,
@@ -151,7 +151,11 @@ export function ThemeStudio({
           logoUrl: tenant.logoUrl,
           coverUrl: tenant.coverUrl,
           meta: {
-            tagline: tenant.meta.taglineEn ?? tenant.meta.tagline ?? "",
+            tagline:
+              tenant.meta.taglineKm ??
+              tenant.meta.tagline ??
+              tenant.meta.taglineEn ??
+              "",
             taglineKm: tenant.meta.taglineKm ?? "",
             taglineEn: tenant.meta.taglineEn ?? tenant.meta.tagline ?? "",
             openingHours: tenant.meta.openingHours ?? "",
@@ -193,44 +197,80 @@ export function ThemeStudio({
       {/* Main Essentials Card */}
       <section className="rounded-xl border border-zinc-200 bg-white">
         <div className="border-b border-zinc-200 px-5 py-4">
-          <h1 className="text-[16px] font-semibold tracking-[-0.02em] text-zinc-950">
-            Storefront Settings
+          <h1
+            lang="km"
+            className="text-[16px] font-semibold tracking-[-0.02em] text-zinc-950"
+          >
+            ការកំណត់ហាង · Storefront Settings
           </h1>
           <p className="text-[12px] text-zinc-500">
-            Venue name, storefront mode, currency, and brand accent color.
+            Khmer venue name, storefront mode, currency, and brand accent color.
           </p>
         </div>
 
         <div className="space-y-5 p-5">
-          {/* 1. Venue Name */}
-          <div>
-            <label
-              htmlFor="settings-venue-name"
-              className="block text-[12px] font-medium text-zinc-700"
-            >
-              Venue name
-            </label>
-            <input
-              id="settings-venue-name"
-              type="text"
-              required
-              maxLength={100}
-              value={tenant.nameEn}
-              onChange={(e) =>
-                onDraftChange({
-                  ...tenant,
-                  name: e.target.value,
-                  nameEn: e.target.value,
-                })
-              }
-              className="mt-1.5 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 focus:border-brand focus:outline-none"
-            />
+          {/* 1. Venue Name (Khmer Primary + English Optional) */}
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="settings-venue-name-km"
+                lang="km"
+                className="block text-[12px] font-medium text-zinc-700"
+              >
+                ឈ្មោះហាង (ខ្មែរ) · Venue name (Khmer)
+              </label>
+              <input
+                id="settings-venue-name-km"
+                type="text"
+                lang="km"
+                required={!tenant.nameEn.trim()}
+                maxLength={100}
+                value={tenant.nameKm || tenant.name}
+                onChange={(e) =>
+                  onDraftChange({
+                    ...tenant,
+                    name: e.target.value || tenant.nameEn,
+                    nameKm: e.target.value,
+                  })
+                }
+                placeholder="ឧ. សម្រស់ឆ្នេរប៉ាក់ខ្លង 168"
+                className="mt-1.5 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 focus:border-brand focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="settings-venue-name-en"
+                className="block text-[12px] font-medium text-zinc-700"
+              >
+                Venue name (English · optional)
+              </label>
+              <input
+                id="settings-venue-name-en"
+                type="text"
+                required={!tenant.nameKm.trim()}
+                maxLength={100}
+                value={tenant.nameEn}
+                onChange={(e) =>
+                  onDraftChange({
+                    ...tenant,
+                    name: tenant.nameKm || e.target.value,
+                    nameEn: e.target.value,
+                  })
+                }
+                placeholder="e.g. Somros Chhne Pak Khlang 168"
+                className="mt-1.5 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 focus:border-brand focus:outline-none"
+              />
+            </div>
           </div>
 
           {/* 2. Vendor Mode (Add to Cart vs Listing Only) */}
           <div>
-            <span className="block text-[12px] font-medium text-zinc-700">
-              Menu mode
+            <span
+              lang="km"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              ទម្រង់ម៉ឺនុយ · Menu mode
             </span>
             <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <button
@@ -253,8 +293,11 @@ export function ThemeStudio({
                   <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-zinc-950">
-                    Add to Cart
+                  <p
+                    lang="km"
+                    className="text-[13px] font-semibold text-zinc-950"
+                  >
+                    មានកន្ត្រកកម្ម៉ង់ · Add to Cart
                   </p>
                   <p className="text-[11.5px] text-zinc-500">
                     Cart bag, + buttons &amp; Show-to-Staff
@@ -282,8 +325,11 @@ export function ThemeStudio({
                   <LayoutGrid className="h-4 w-4" strokeWidth={1.5} />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-zinc-950">
-                    Listing Only
+                  <p
+                    lang="km"
+                    className="text-[13px] font-semibold text-zinc-950"
+                  >
+                    បង្ហាញតែមុខម្ហូប · Listing Only
                   </p>
                   <p className="text-[11.5px] text-zinc-500">
                     Pure photo menu with no cart UI
@@ -299,9 +345,10 @@ export function ThemeStudio({
               <div>
                 <label
                   htmlFor="settings-currency"
+                  lang="km"
                   className="block text-[12px] font-medium text-zinc-700"
                 >
-                  Primary currency
+                  រូបិយប័ណ្ណគោល · Primary currency
                 </label>
                 <div className="mt-1.5">
                   <NativeSelect
@@ -312,8 +359,8 @@ export function ThemeStudio({
                     }
                     fullWidth
                     options={[
-                      { value: "USD", label: "USD ($) — US Dollar" },
-                      { value: "KHR", label: "KHR (៛) — Cambodian Riel" },
+                      { value: "KHR", label: "KHR (៛) — ប្រាក់រៀល · Cambodian Riel" },
+                      { value: "USD", label: "USD ($) — ប្រាក់ដុល្លារ · US Dollar" },
                     ]}
                   />
                 </div>
@@ -321,8 +368,11 @@ export function ThemeStudio({
 
               <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-[#FAFAFA] px-3 py-2">
                 <div>
-                  <p className="text-[13px] font-medium text-zinc-900">
-                    Dual currency
+                  <p
+                    lang="km"
+                    className="text-[13px] font-medium text-zinc-900"
+                  >
+                    បង្ហាញពីររូបិយប័ណ្ណ · Dual currency
                   </p>
                   <p className="text-[11px] tabular-nums text-zinc-500">
                     {sampleConversion.primary}
@@ -560,12 +610,12 @@ export function ThemeStudio({
         </div>
       </details>
 
-      {/* Collapsed Optional Disclosure 2: Khmer, Contact Links, Wi-Fi & Notes */}
-      <details className="ui-details rounded-xl border border-zinc-200 bg-white">
+      {/* Vendor Info Card: Khmer Priority Tagline, Contacts, Wi-Fi & Notes */}
+      <details open className="ui-details rounded-xl border border-zinc-200 bg-white">
         <summary className="flex items-center justify-between px-5 py-3.5 text-[13.5px] font-medium text-zinc-900 hover:bg-[#FAFAFA] rounded-xl">
-          <span>
-            Khmer Name, Contacts, Wi-Fi &amp; Notes{" "}
-            <span className="font-normal text-zinc-400">(optional)</span>
+          <span lang="km">
+            ព័ត៌មានហាង ទំនាក់ទំនង និង Wi-Fi · Vendor Info, Contacts &amp; Notes{" "}
+            <span className="font-normal text-zinc-400">(Khmer Priority)</span>
           </span>
           <ChevronDown
             className="ui-details-chevron h-4 w-4 text-zinc-400 transition-transform"
@@ -576,34 +626,28 @@ export function ThemeStudio({
         <div className="grid grid-cols-1 gap-3.5 border-t border-zinc-200 p-5 sm:grid-cols-2">
           <div>
             <label
-              htmlFor="opt-name-km"
+              htmlFor="opt-tagline-km"
               lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Khmer venue name
+              ពាក្យស្លោក (ខ្មែរ) · Tagline (Khmer)
             </label>
             <input
-              id="opt-name-km"
+              id="opt-tagline-km"
               type="text"
               lang="km"
-              value={tenant.nameKm}
-              onChange={(e) => updateField("nameKm", e.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="opt-hours"
-              className="block text-[12px] font-medium text-zinc-700"
-            >
-              Opening hours
-            </label>
-            <input
-              id="opt-hours"
-              type="text"
-              value={tenant.meta.openingHours ?? ""}
-              onChange={(e) => updateMeta("openingHours", e.target.value)}
-              placeholder="Daily 11:00 – 23:00"
+              value={tenant.meta.taglineKm ?? tenant.meta.tagline ?? ""}
+              onChange={(e) =>
+                onDraftChange({
+                  ...tenant,
+                  meta: {
+                    ...tenant.meta,
+                    tagline: e.target.value || tenant.meta.taglineEn,
+                    taglineKm: e.target.value,
+                  },
+                })
+              }
+              placeholder="ឧ. គ្រឿងសមុទ្រស្រស់ៗប្រចាំថ្ងៃ"
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
             />
           </div>
@@ -612,64 +656,86 @@ export function ThemeStudio({
               htmlFor="opt-tagline-en"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Tagline (EN)
+              Tagline (English · optional)
             </label>
             <input
               id="opt-tagline-en"
               type="text"
-              value={tenant.meta.taglineEn ?? tenant.meta.tagline ?? ""}
+              value={tenant.meta.taglineEn ?? ""}
               onChange={(e) =>
                 onDraftChange({
                   ...tenant,
                   meta: {
                     ...tenant.meta,
-                    tagline: e.target.value,
+                    tagline: tenant.meta.taglineKm || e.target.value,
                     taglineEn: e.target.value,
                   },
                 })
               }
-              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="opt-tagline-km"
-              lang="km"
-              className="block text-[12px] font-medium text-zinc-700"
-            >
-              Tagline (Khmer)
-            </label>
-            <input
-              id="opt-tagline-km"
-              type="text"
-              lang="km"
-              value={tenant.meta.taglineKm ?? ""}
-              onChange={(e) => updateMeta("taglineKm", e.target.value)}
+              placeholder="Daily boat-to-table seafood"
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
             />
           </div>
           <div>
             <label
               htmlFor="opt-phone"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Phone
+              លេខទូរស័ព្ទ · Phone
             </label>
             <input
               id="opt-phone"
               type="tel"
               value={tenant.meta.phone ?? ""}
               onChange={(e) => updateMeta("phone", e.target.value)}
-              placeholder="+855 23 998 412"
+              placeholder="093 765 166 / 071 886 0606"
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px] tabular-nums"
             />
           </div>
           <div>
             <label
-              htmlFor="opt-telegram"
+              htmlFor="opt-hours"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Telegram
+              ម៉ោងបើកដំណើរការ · Opening hours
+            </label>
+            <input
+              id="opt-hours"
+              type="text"
+              lang="km"
+              value={tenant.meta.openingHours ?? ""}
+              onChange={(e) => updateMeta("openingHours", e.target.value)}
+              placeholder="រៀងរាល់ថ្ងៃ 11:00 – 23:00"
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label
+              htmlFor="opt-address"
+              lang="km"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              ទីតាំងហាង · Address
+            </label>
+            <input
+              id="opt-address"
+              type="text"
+              lang="km"
+              value={tenant.meta.address ?? ""}
+              onChange={(e) => updateMeta("address", e.target.value)}
+              placeholder="ឃុំប៉ាក់ខ្លង ស្រុកមណ្ឌលសីមា ខេត្តកោះកុង"
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="opt-telegram"
+              lang="km"
+              className="block text-[12px] font-medium text-zinc-700"
+            >
+              តេឡេក្រាម · Telegram
             </label>
             <input
               id="opt-telegram"
@@ -683,9 +749,10 @@ export function ThemeStudio({
           <div>
             <label
               htmlFor="opt-facebook"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Facebook Page
+              ហ្វេសប៊ុក · Facebook Page
             </label>
             <input
               id="opt-facebook"
@@ -695,12 +762,13 @@ export function ThemeStudio({
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
             />
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label
               htmlFor="opt-maps"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Google Maps URL
+              ផែនទី Google Maps · Google Maps URL
             </label>
             <input
               id="opt-maps"
@@ -710,27 +778,13 @@ export function ThemeStudio({
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
             />
           </div>
-          <div className="sm:col-span-2">
-            <label
-              htmlFor="opt-address"
-              className="block text-[12px] font-medium text-zinc-700"
-            >
-              Address
-            </label>
-            <input
-              id="opt-address"
-              type="text"
-              value={tenant.meta.address ?? ""}
-              onChange={(e) => updateMeta("address", e.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
-            />
-          </div>
           <div>
             <label
               htmlFor="opt-wifi"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Wi-Fi network
+              ឈ្មោះ Wi-Fi · Wi-Fi network
             </label>
             <input
               id="opt-wifi"
@@ -743,9 +797,10 @@ export function ThemeStudio({
           <div>
             <label
               htmlFor="opt-wifi-pass"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Wi-Fi password
+              លេខសម្ងាត់ Wi-Fi · Wi-Fi password
             </label>
             <input
               id="opt-wifi-pass"
@@ -755,19 +810,21 @@ export function ThemeStudio({
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 font-mono text-[12.5px]"
             />
           </div>
-          <div className="sm:col-span-2">
+          <div>
             <label
-              htmlFor="opt-service"
+              htmlFor="opt-footer-km"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Service / VAT disclaimer
+              កំណត់ចំណាំខាងក្រោម (ខ្មែរ) · Footer note (Khmer)
             </label>
-            <input
-              id="opt-service"
-              type="text"
-              value={tenant.meta.serviceNote ?? ""}
-              onChange={(e) => updateMeta("serviceNote", e.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
+            <textarea
+              id="opt-footer-km"
+              lang="km"
+              rows={2}
+              value={tenant.meta.footerNoteKm ?? ""}
+              onChange={(e) => updateMeta("footerNoteKm", e.target.value)}
+              className="mt-1 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12.5px]"
             />
           </div>
           <div>
@@ -775,7 +832,7 @@ export function ThemeStudio({
               htmlFor="opt-footer-en"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Footer note (EN)
+              Footer note (English · optional)
             </label>
             <textarea
               id="opt-footer-en"
@@ -785,21 +842,21 @@ export function ThemeStudio({
               className="mt-1 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12.5px]"
             />
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label
-              htmlFor="opt-footer-km"
+              htmlFor="opt-service"
               lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Footer note (Khmer)
+              ចំណាំសេវាកម្ម / ពន្ធ · Service / VAT note
             </label>
-            <textarea
-              id="opt-footer-km"
+            <input
+              id="opt-service"
+              type="text"
               lang="km"
-              rows={2}
-              value={tenant.meta.footerNoteKm ?? ""}
-              onChange={(e) => updateMeta("footerNoteKm", e.target.value)}
-              className="mt-1 w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12.5px]"
+              value={tenant.meta.serviceNote ?? ""}
+              onChange={(e) => updateMeta("serviceNote", e.target.value)}
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
             />
           </div>
         </div>

@@ -163,14 +163,14 @@ async function run() {
   await Promise.all(e2eScans.docs.map((d) => d.ref.delete()));
   console.log("✓ Non-blocking QR scan analytics ping persisted");
 
-  // 4. Sign in as Sora Menu Admin & verify multi-tenant isolation against Kep Bay Kitchen
+  // 4. Sign in as Sora Menu Admin using username or phone (no OTP) & verify multi-tenant isolation against Kep Bay Kitchen
   const soraJar = new CookieJar();
   const loginSora = await req("/api/auth/login", {
     method: "POST",
     jar: soraJar,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      email: "owner@soraseafood.com",
+      identifier: "sora",
       password: "Menu123!",
     }),
   });
@@ -326,14 +326,14 @@ async function run() {
     jar: superJar,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      email: "admin@menuos.app",
+      identifier: "admin",
       password: "Admin123!",
     }),
   });
   assert.equal(loginSuper.status, 200);
 
   const testSlug = `e2e-kampot-${Date.now().toString().slice(-4)}`;
-  const testEmail = `${testSlug}@example.com`;
+  const testEmail = `012${Date.now().toString().slice(-6)}`;
   const provRes = await req("/api/super-admin/tenants", {
     method: "POST",
     jar: superJar,
@@ -345,7 +345,8 @@ async function run() {
       currency: "KHR",
       primaryColor: "#14532D",
       ownerName: "Vannak",
-      ownerEmail: testEmail,
+      ownerUsername: testSlug,
+      ownerPhone: testEmail,
       ownerPassword: "TestPassword123!",
     }),
   });

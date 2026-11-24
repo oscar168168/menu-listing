@@ -167,6 +167,7 @@ export function CategorySidebar({
                       className="min-w-0 flex-1 text-left"
                     >
                       <span
+                        lang="km"
                         className={`block truncate text-[13px] ${
                           !cat.isVisible
                             ? "text-zinc-400 line-through"
@@ -175,16 +176,15 @@ export function CategorySidebar({
                               : "font-medium text-zinc-700 group-hover:text-zinc-950"
                         }`}
                       >
-                        {cat.nameEn || cat.name}
+                        {cat.nameKm || cat.nameEn || cat.name}
                       </span>
-                      {cat.nameKm && (
-                        <span
-                          lang="km"
-                          className="block truncate text-[11px] text-zinc-500"
-                        >
-                          {cat.nameKm}
-                        </span>
-                      )}
+                      {cat.nameKm &&
+                        cat.nameEn &&
+                        cat.nameEn !== cat.nameKm && (
+                          <span className="block truncate text-[11px] text-zinc-500">
+                            {cat.nameEn}
+                          </span>
+                        )}
                     </button>
 
                     <span

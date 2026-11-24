@@ -91,10 +91,11 @@ function ItemEditorForm({
   onClose,
   onSave,
 }: Omit<ItemEditorModalProps, "open">) {
-  // --- Core 5 Simple Fields ---
-  const [nameEn, setNameEn] = useState(
-    editingItem?.nameEn ?? editingItem?.name ?? ""
+  // --- Core 5 Simple Fields (Khmer Priority) ---
+  const [nameKm, setNameKm] = useState(
+    editingItem?.nameKm || editingItem?.name || ""
   );
+  const [nameEn, setNameEn] = useState(editingItem?.nameEn ?? "");
   const [categoryId, setCategoryId] = useState(
     editingItem?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? ""
   );
@@ -116,12 +117,11 @@ function ItemEditorForm({
   );
 
   // --- Optional Advanced Fields (collapsed inside <details>) ---
-  const [nameKm, setNameKm] = useState(editingItem?.nameKm ?? "");
-  const [descriptionEn, setDescriptionEn] = useState(
-    editingItem?.descriptionEn ?? editingItem?.description ?? ""
-  );
   const [descriptionKm, setDescriptionKm] = useState(
     editingItem?.descriptionKm ?? ""
+  );
+  const [descriptionEn, setDescriptionEn] = useState(
+    editingItem?.descriptionEn ?? editingItem?.description ?? ""
   );
   const [pricingType, setPricingType] = useState<PricingType>(
     editingItem?.pricingType ?? "FIXED"
@@ -348,10 +348,12 @@ function ItemEditorForm({
     setSubmitting(true);
     setError(null);
     try {
+      const cleanKm = nameKm.trim();
+      const cleanEn = nameEn.trim();
       await onSave({
         categoryId,
-        nameKm: nameKm.trim(),
-        nameEn: nameEn.trim(),
+        nameKm: cleanKm || cleanEn,
+        nameEn: cleanEn || cleanKm,
         descriptionKm: descriptionKm.trim(),
         descriptionEn: descriptionEn.trim(),
         pricingType,
@@ -384,8 +386,8 @@ function ItemEditorForm({
   };
 
   const advancedCount =
-    (nameKm.trim() ? 1 : 0) +
-    (descriptionEn.trim() || descriptionKm.trim() ? 1 : 0) +
+    (nameEn.trim() ? 1 : 0) +
+    (descriptionKm.trim() || descriptionEn.trim() ? 1 : 0) +
     (pricingType !== "FIXED" ? 1 : 0) +
     cookingStyles.length +
     variants.length +
@@ -460,18 +462,20 @@ function ItemEditorForm({
           <div>
             <label
               htmlFor="dish-name-main"
+              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Dish name
+              ឈ្មោះមុខម្ហូប (ខ្មែរ) · Dish name (Khmer)
             </label>
             <input
               id="dish-name-main"
               type="text"
-              required={!nameKm.trim()}
+              lang="km"
+              required={!nameEn.trim()}
               maxLength={120}
-              value={nameEn}
-              onChange={(e) => setNameEn(e.target.value)}
-              placeholder="e.g. ក្តាមឆាម្រេចកំពត / Kampot Pepper Crab"
+              value={nameKm}
+              onChange={(e) => setNameKm(e.target.value)}
+              placeholder="ឧ. ក្តាមឆាម្រេចកំពត / Kampot Pepper Crab"
               autoFocus
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-brand focus:outline-none"
             />
@@ -644,43 +648,23 @@ function ItemEditorForm({
         </summary>
 
         <div className="space-y-4 border-t border-zinc-200 p-3.5">
-          {/* Khmer Name & Descriptions */}
+          {/* English Name & Descriptions (Khmer Priority) */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label
-                htmlFor="dish-name-km"
-                lang="km"
+                htmlFor="dish-name-en"
                 className="block text-[12px] font-medium text-zinc-700"
               >
-                Khmer name (ខ្មែរ)
+                English name (optional)
               </label>
               <input
-                id="dish-name-km"
+                id="dish-name-en"
                 type="text"
-                lang="km"
                 maxLength={120}
-                value={nameKm}
-                onChange={(e) => setNameKm(e.target.value)}
-                placeholder="ឧ. ក្តាមឆាម្រេចកំពត"
+                value={nameEn}
+                onChange={(e) => setNameEn(e.target.value)}
+                placeholder="e.g. Kampot Pepper Crab"
                 className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px] text-zinc-950 focus:border-brand focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="dish-desc-en"
-                className="block text-[12px] font-medium text-zinc-700"
-              >
-                Description (English)
-              </label>
-              <textarea
-                id="dish-desc-en"
-                rows={2}
-                maxLength={500}
-                value={descriptionEn}
-                onChange={(e) => setDescriptionEn(e.target.value)}
-                placeholder="Ingredients or serving note..."
-                className="mt-1 w-full resize-none rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] text-zinc-950 focus:border-brand focus:outline-none"
               />
             </div>
 
@@ -690,7 +674,7 @@ function ItemEditorForm({
                 lang="km"
                 className="block text-[12px] font-medium text-zinc-700"
               >
-                Description (Khmer)
+                ពិពណ៌នា (ខ្មែរ) · Description (Khmer)
               </label>
               <textarea
                 id="dish-desc-km"
@@ -700,6 +684,24 @@ function ItemEditorForm({
                 value={descriptionKm}
                 onChange={(e) => setDescriptionKm(e.target.value)}
                 placeholder="ព័ត៌មានបន្ថែម..."
+                className="mt-1 w-full resize-none rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] text-zinc-950 focus:border-brand focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="dish-desc-en"
+                className="block text-[12px] font-medium text-zinc-700"
+              >
+                Description (English · optional)
+              </label>
+              <textarea
+                id="dish-desc-en"
+                rows={2}
+                maxLength={500}
+                value={descriptionEn}
+                onChange={(e) => setDescriptionEn(e.target.value)}
+                placeholder="Ingredients or serving note..."
                 className="mt-1 w-full resize-none rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] text-zinc-950 focus:border-brand focus:outline-none"
               />
             </div>
@@ -849,7 +851,7 @@ function ItemEditorForm({
                     className="inline-flex items-center gap-1 rounded border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 text-[11px] text-zinc-700 hover:bg-white"
                   >
                     <Plus className="h-2.5 w-2.5 text-zinc-400" strokeWidth={1.75} />
-                    {preset.nameEn || preset.nameKm}
+                    <span lang="km">{preset.nameKm || preset.nameEn}</span>
                   </button>
                 ))}
               </div>

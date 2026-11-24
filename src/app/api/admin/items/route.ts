@@ -42,11 +42,11 @@ export async function POST(request: NextRequest) {
     return typeof val === "number" && val > max ? val : max;
   }, -1);
 
-  const nameEn = parsed.data.nameEn || parsed.data.name || "";
   const nameKm = parsed.data.nameKm || "";
-  const canonicalName = nameEn || nameKm;
-  const descriptionEn = parsed.data.descriptionEn || parsed.data.description || "";
+  const nameEn = parsed.data.nameEn || parsed.data.name || "";
+  const canonicalName = nameKm || nameEn;
   const descriptionKm = parsed.data.descriptionKm || "";
+  const descriptionEn = parsed.data.descriptionEn || parsed.data.description || "";
   const now = new Date();
 
   const itemRef = menuItemsCol(ctx.tenantId).doc();
@@ -54,11 +54,11 @@ export async function POST(request: NextRequest) {
     tenantId: ctx.tenantId,
     categoryId: catSnap.id,
     name: canonicalName,
-    nameEn: nameEn || null,
-    nameKm: nameKm || null,
-    description: descriptionEn || descriptionKm,
-    descriptionEn: descriptionEn || null,
+    nameKm: nameKm || canonicalName,
+    nameEn: nameEn || canonicalName,
+    description: descriptionKm || descriptionEn,
     descriptionKm: descriptionKm || null,
+    descriptionEn: descriptionEn || null,
     pricingType: parsed.data.pricingType,
     weightUnit:
       parsed.data.pricingType === "FIXED" ? null : parsed.data.weightUnit,

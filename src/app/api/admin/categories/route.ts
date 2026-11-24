@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
     return typeof val === "number" && val > max ? val : max;
   }, -1);
 
-  const nameEn = parsed.data.nameEn || parsed.data.name || parsed.data.nameKm;
   const nameKm = parsed.data.nameKm || "";
-  const canonicalName = nameEn || nameKm;
+  const nameEn = parsed.data.nameEn || parsed.data.name || parsed.data.nameKm;
+  const canonicalName = nameKm || nameEn;
   const now = new Date();
   const sortOrder = maxSortOrder + 1;
 
@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
   const docData = {
     tenantId: ctx.tenantId,
     name: canonicalName,
-    nameEn: nameEn || null,
-    nameKm: nameKm || null,
+    nameKm: nameKm || canonicalName,
+    nameEn: nameEn || canonicalName,
     isVisible: parsed.data.isVisible,
     sortOrder,
     createdAt: now,
