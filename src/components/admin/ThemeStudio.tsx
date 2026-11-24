@@ -7,7 +7,6 @@ import {
   LayoutGrid,
   ShoppingBag,
   Upload,
-  X,
 } from "lucide-react";
 import { NativeSwitch } from "@/components/ui/NativeSwitch";
 import { NativeSelect } from "@/components/ui/NativeSelect";
@@ -471,93 +470,93 @@ export function ThemeStudio({
         </summary>
 
         <div className="grid grid-cols-1 gap-4 border-t border-zinc-200 p-5 sm:grid-cols-2">
-          <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-[#FAFAFA] p-3">
-            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-white text-[11px] text-zinc-400">
-              {tenant.logoUrl ? (
-                <>
-                  <img
-                    src={tenant.logoUrl}
-                    alt="Venue logo"
-                    className="h-full w-full object-contain p-1"
-                  />
+          {(
+            [
+              {
+                field: "logo" as const,
+                title: "Venue logo",
+                placeholder: "Logo",
+                activeLabel: "Logo active",
+                url: tenant.logoUrl,
+                accept: "image/png,image/jpeg,image/webp,image/svg+xml",
+                inputRef: logoInputRef,
+                imgClassName: "h-full w-full object-contain p-1",
+              },
+              {
+                field: "cover" as const,
+                title: "Cover strip",
+                placeholder: "Cover",
+                activeLabel: "Cover active",
+                url: tenant.coverUrl,
+                accept: "image/png,image/jpeg,image/webp",
+                inputRef: coverInputRef,
+                imgClassName: "h-full w-full object-cover",
+              },
+            ] as const
+          ).map((item) => (
+            <div
+              key={item.field}
+              className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-[#FAFAFA] p-3"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-white text-[11px] text-zinc-400">
+                  {item.url ? (
+                    <img
+                      src={item.url}
+                      alt={item.title}
+                      className={item.imgClassName}
+                    />
+                  ) : (
+                    <span>{item.placeholder}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-medium text-zinc-800">
+                    {item.title}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    {item.url ? item.activeLabel : "None uploaded"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {item.url && (
                   <button
                     type="button"
-                    onClick={() => updateField("logoUrl", null)}
-                    aria-label="Remove logo"
-                    className="absolute right-0.5 top-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600"
+                    onClick={() =>
+                      updateField(
+                        item.field === "logo" ? "logoUrl" : "coverUrl",
+                        null
+                      )
+                    }
+                    className="rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-[11px] text-zinc-600 hover:text-red-600"
                   >
-                    <X className="h-2.5 w-2.5" strokeWidth={1.75} />
+                    Remove
                   </button>
-                </>
-              ) : (
-                <span>Logo</span>
-              )}
-            </div>
-            <div>
-              <input
-                ref={logoInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void handleImageUpload("logo", file);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                disabled={uploadingField === "logo"}
-                onClick={() => logoInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-100"
-              >
-                <Upload className="h-3.5 w-3.5" strokeWidth={1.5} />
-                {uploadingField === "logo" ? "Uploading..." : "Upload logo"}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-[#FAFAFA] p-3">
-            <div className="min-w-0">
-              <p className="text-[12px] font-medium text-zinc-800">
-                Cover strip
-              </p>
-              <p className="text-[11px] text-zinc-500">
-                {tenant.coverUrl ? "Cover active" : "None uploaded"}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {tenant.coverUrl && (
+                )}
+                <input
+                  ref={item.inputRef}
+                  type="file"
+                  accept={item.accept}
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleImageUpload(item.field, file);
+                    e.target.value = "";
+                  }}
+                />
                 <button
                   type="button"
-                  onClick={() => updateField("coverUrl", null)}
-                  className="rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-[11px] text-zinc-600 hover:text-red-600"
+                  disabled={uploadingField === item.field}
+                  onClick={() => item.inputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-100"
                 >
-                  Remove
+                  <Upload className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  {uploadingField === item.field ? "..." : "Upload"}
                 </button>
-              )}
-              <input
-                ref={coverInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void handleImageUpload("cover", file);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                disabled={uploadingField === "cover"}
-                onClick={() => coverInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-100"
-              >
-                <Upload className="h-3.5 w-3.5" strokeWidth={1.5} />
-                {uploadingField === "cover" ? "..." : "Upload"}
-              </button>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </details>
 
