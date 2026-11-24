@@ -123,7 +123,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 40000,
     imageUrl:
-      "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9T_d-fdwu-nBt1aqVhh2ZsFIjkfqZWKL4GWC4GAnJ9_824Z-AD_PhODHp4xoLdkdFzVylj1RD3SD6_c2yEcD17gbxTuBKsOMbhholXUw3cakh6OLfFuJwr86GReNB7WTQyEvCa2tDe_gUJd=w390-h390-n-k-no",
+      "https://popmenucloud.com/cdn-cgi/image/width%3D1200%2Cheight%3D1200%2Cfit%3Dscale-down%2Cformat%3Dauto%2Cquality%3D60/yiuvfbac/5c1f77f3-6392-42ca-8d81-681d1cf8d45e.webp",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 2,
@@ -161,7 +161,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 25000,
     imageUrl:
-      "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Oysters_on_the_half_shell%2C_raw.jpg/330px-Oysters_on_the_half_shell%2C_raw.jpg",
+      "https://m1.quebecormedia.com/emp/emp/005ce5d3-9363-41f7-8ab2-b7c6c5dd46dd_ORIGINAL.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 4,
@@ -373,7 +373,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 35000,
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/f/f6/SpicyRawShrimpSalad.jpg",
+      "https://oursamui.com/wp-content/uploads/2026/03/Goong-Chae-Nam-Pla.jpeg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 3,
@@ -451,7 +451,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 35000,
     imageUrl:
-      "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/DFC_4127_Skewered_grilled_squid_perfectly_charred_and_ready_from_a_bustling_street_food_stall.jpg/330px-DFC_4127_Skewered_grilled_squid_perfectly_charred_and_ready_from_a_bustling_street_food_stall.jpg",
+      "https://grantourismotravels.com/wp-content/uploads/2020/08/Squid-Green-Peppercorns-Recipe-Cambodia-Kampot-Pepper-Stir-Fry-Copyright-2020-Terence-Carter-Grantourismo.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 2,
@@ -528,7 +528,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 6000,
     imageUrl:
-      "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Angkor_and_Cambodia_beer.JPG/250px-Angkor_and_Cambodia_beer.JPG",
+      "https://camhappymart.com/storage/app/public/product/1607842621OoykFGxp.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 0,
