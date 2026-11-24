@@ -37,6 +37,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
   const [tableCode, setTableCode] = useState("");
   const [singleDataUrl, setSingleDataUrl] = useState<string>("");
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [downloadingCardPng, setDownloadingCardPng] = useState(false);
 
   // Batch generator state
   const [batchFrom, setBatchFrom] = useState(1);
@@ -92,6 +93,63 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
       setTimeout(() => setCopiedUrl(false), 1800);
     } catch {
       onNotify("Unable to copy URL", "error");
+    }
+  };
+
+  const handleDownloadCardPng = async () => {
+    setDownloadingCardPng(true);
+    try {
+      const res = await fetch(buildDownloadHref("card", tableCode));
+      if (!res.ok) throw new Error("Failed to generate table card");
+      const svgText = await res.text();
+      const svgBlob = new Blob([svgText], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      try {
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const el = new window.Image();
+          el.onload = () => resolve(el);
+          el.onerror = () => reject(new Error("Could not render table card"));
+          el.src = svgUrl;
+        });
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 1200;
+        canvas.height = 1680;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas unsupported");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const pngBlob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, "image/png")
+        );
+        if (!pngBlob) throw new Error("Could not encode PNG");
+
+        const cleanTable = tableCode.trim().replace(/[^a-zA-Z0-9_-]/g, "");
+        const suffix = cleanTable
+          ? `${tenant.slug}-table-${cleanTable}`
+          : tenant.slug;
+
+        const pngUrl = URL.createObjectURL(pngBlob);
+        const link = document.createElement("a");
+        link.href = pngUrl;
+        link.download = `table-card-${suffix}.png`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(pngUrl);
+      } finally {
+        URL.revokeObjectURL(svgUrl);
+      }
+    } catch (err) {
+      onNotify(
+        err instanceof Error ? err.message : "Unable to export table card PNG",
+        "error"
+      );
+    } finally {
+      setDownloadingCardPng(false);
     }
   };
 
@@ -312,6 +370,17 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                 <Download className="h-3.5 w-3.5" strokeWidth={1.5} />
                 Download Table Card (SVG)
               </a>
+              <button
+                type="button"
+                disabled={downloadingCardPng}
+                onClick={() => void handleDownloadCardPng()}
+                className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-[12px] font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                <ImageIcon className="h-3.5 w-3.5" strokeWidth={1.5} />
+                {downloadingCardPng
+                  ? "Exporting PNG..."
+                  : "Download Table Card (PNG)"}
+              </button>
             </div>
           </div>
         </div>
