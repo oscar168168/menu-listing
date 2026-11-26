@@ -8,7 +8,6 @@ import {
   ShoppingBag,
   Upload,
 } from "lucide-react";
-import { NativeSwitch } from "@/components/ui/NativeSwitch";
 import { NativeSelect } from "@/components/ui/NativeSelect";
 import { compressImageForUpload } from "@/lib/image-resize";
 import { PORTAL_COPY } from "@/lib/portal-i18n";
@@ -17,7 +16,6 @@ import {
   CURATED_THEME_PRESETS,
   normalizeHex,
 } from "@/lib/theme";
-import { formatDualPrice } from "@/lib/currency";
 import type {
   KhrRounding,
   Locale,
@@ -56,22 +54,6 @@ export function ThemeStudio({
   const contrast = useMemo(
     () => computeThemeContrast(tenant.primaryColor),
     [tenant.primaryColor]
-  );
-
-  const sampleConversion = useMemo(
-    () =>
-      formatDualPrice(tenant.currency === "USD" ? 12.5 : 51500, {
-        primaryCurrency: tenant.currency,
-        showDualCurrency: tenant.showDualCurrency,
-        exchangeRate: tenant.exchangeRate,
-        khrRounding: tenant.khrRounding,
-      }),
-    [
-      tenant.currency,
-      tenant.showDualCurrency,
-      tenant.exchangeRate,
-      tenant.khrRounding,
-    ]
   );
 
   const updateField = <K extends keyof SerializedTenant>(
@@ -352,30 +334,9 @@ export function ThemeStudio({
                   />
                 </div>
               </div>
-
-              <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-[#FAFAFA] px-3 py-2">
-                <div>
-                  <p className="text-[13px] font-medium text-zinc-900">
-                    {t.dualCurrencyTitle}
-                  </p>
-                  <p className="text-[11px] tabular-nums text-zinc-500">
-                    {sampleConversion.primary}
-                    {sampleConversion.secondary
-                      ? ` / ${sampleConversion.secondary}`
-                      : ""}
-                  </p>
-                </div>
-                <NativeSwitch
-                  checked={tenant.showDualCurrency}
-                  onChange={(val) => updateField("showDualCurrency", val)}
-                  label={t.dualCurrencyTitle}
-                  srOnlyLabel
-                />
-              </div>
             </div>
 
-            {tenant.showDualCurrency && (
-              <div className="grid grid-cols-2 gap-3 rounded-lg border border-zinc-200 bg-[#FAFAFA] p-3">
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-zinc-200 bg-[#FAFAFA] p-3">
                 <div>
                   <label
                     htmlFor="settings-rate"
@@ -418,7 +379,6 @@ export function ThemeStudio({
                   </div>
                 </div>
               </div>
-            )}
           </div>
 
           {/* 4. Primary Color */}

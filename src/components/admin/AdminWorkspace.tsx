@@ -1026,6 +1026,8 @@ export function AdminWorkspace({
           categories={categories}
           cookingStylePresets={cookingStylePresets}
           currency={tenant.currency}
+          exchangeRate={tenant.exchangeRate}
+          khrRounding={tenant.khrRounding}
           onClose={() => setItemModalOpen(false)}
           onSave={handleSaveItem}
         />

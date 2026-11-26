@@ -12,17 +12,18 @@ import {
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { NativeSwitch } from "@/components/ui/NativeSwitch";
 import { NativeSelect } from "@/components/ui/NativeSelect";
+import { convertKhrToUsd, convertUsdToKhr } from "@/lib/currency";
 import { compressImageForUpload } from "@/lib/image-resize";
 import {
   localizeTag,
   PRESET_SEAFOOD_TAGS,
   resolveLocalized,
-  WEIGHT_UNIT_LABELS,
 } from "@/lib/i18n";
 import { PORTAL_COPY } from "@/lib/portal-i18n";
 import type {
   CookingStyleOption,
   ItemVariant,
+  KhrRounding,
   Locale,
   PricingType,
   PrimaryCurrency,
@@ -58,17 +59,11 @@ interface ItemEditorModalProps {
   categories: SerializedCategory[];
   cookingStylePresets: SerializedCookingStylePreset[];
   currency: PrimaryCurrency;
+  exchangeRate?: number;
+  khrRounding?: KhrRounding;
   onClose: () => void;
   onSave: (payload: ItemFormPayload) => Promise<void>;
 }
-
-const WEIGHT_UNIT_OPTIONS: WeightUnit[] = [
-  "PER_100G",
-  "PER_500G",
-  "PER_KG",
-  "PER_PIECE",
-  "PER_PORTION",
-];
 
 const KHR_PRICE_SUGGESTIONS = [
   15000, 20000, 25000, 30000, 35000, 40000, 50000, 60000,
@@ -93,6 +88,8 @@ function ItemEditorForm({
   categories,
   cookingStylePresets,
   currency,
+  exchangeRate = 4100,
+  khrRounding = 100,
   onClose,
   onSave,
 }: Omit<ItemEditorModalProps, "open">) {
@@ -114,6 +111,38 @@ function ItemEditorForm({
         : editingItem.price.toFixed(2)
       : ""
   );
+  const [khrPriceInput, setKhrPriceInput] = useState(
+    editingItem
+      ? currency === "KHR"
+        ? String(Math.round(editingItem.price))
+        : String(convertUsdToKhr(editingItem.price, exchangeRate, khrRounding))
+      : ""
+  );
+  const [usdPriceInput, setUsdPriceInput] = useState(
+    editingItem
+      ? currency === "USD"
+        ? editingItem.price.toFixed(2)
+        : convertKhrToUsd(editingItem.price, exchangeRate).toFixed(2)
+      : ""
+  );
+
+  const updateLinkedPrice = (editedCurrency: "KHR" | "USD", rawValue: string) => {
+    const parsed = Number(rawValue);
+    const valid = rawValue.trim() !== "" && !Number.isNaN(parsed) && parsed >= 0;
+    if (editedCurrency === "KHR") {
+      setKhrPriceInput(rawValue);
+      const convertedUsd = valid ? convertKhrToUsd(parsed, exchangeRate).toFixed(2) : "";
+      setUsdPriceInput(convertedUsd);
+      setPrice(currency === "KHR" ? rawValue : convertedUsd);
+    } else {
+      setUsdPriceInput(rawValue);
+      const convertedKhr = valid
+        ? String(convertUsdToKhr(parsed, exchangeRate, khrRounding))
+        : "";
+      setKhrPriceInput(convertedKhr);
+      setPrice(currency === "USD" ? rawValue : convertedKhr);
+    }
+  };
   const [isSignature, setIsSignature] = useState(
     editingItem?.tags.includes("Signature") ?? false
   );
@@ -124,28 +153,18 @@ function ItemEditorForm({
     editingItem?.imageUrl ?? null
   );
 
-  // --- Optional Advanced Fields (collapsed inside <details>) ---
+  // --- Pricing Model: Per Plate (Fixed) vs Per Kg only (no Market Price) ---
   const [descriptionKm, setDescriptionKm] = useState(
     editingItem?.descriptionKm ?? ""
   );
   const [descriptionEn, setDescriptionEn] = useState(
     editingItem?.descriptionEn ?? editingItem?.description ?? ""
   );
-  const [pricingType, setPricingType] = useState<PricingType>(
-    editingItem?.pricingType ?? "FIXED"
-  );
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>(
-    editingItem?.weightUnit ?? "PER_KG"
-  );
-  const [marketMin, setMarketMin] = useState(
-    editingItem?.marketPriceMin != null
-      ? String(editingItem.marketPriceMin)
-      : ""
-  );
-  const [marketMax, setMarketMax] = useState(
-    editingItem?.marketPriceMax != null
-      ? String(editingItem.marketPriceMax)
-      : ""
+  const [pricingType, setPricingType] = useState<"FIXED" | "WEIGHT_BASED">(
+    editingItem?.pricingType === "WEIGHT_BASED" ||
+      editingItem?.pricingType === "MARKET_PRICE"
+      ? "WEIGHT_BASED"
+      : "FIXED"
   );
   const [variants, setVariants] = useState<
     Array<{ label: string; labelKm: string; price: string }>
@@ -300,12 +319,8 @@ function ItemEditorForm({
       return;
     }
 
-    const numericPrice =
-      pricingType === "MARKET_PRICE" ? 0 : Number(price || 0);
-    if (
-      pricingType !== "MARKET_PRICE" &&
-      (Number.isNaN(numericPrice) || numericPrice < 0)
-    ) {
+    const numericPrice = Number(price || 0);
+    if (Number.isNaN(numericPrice) || numericPrice < 0) {
       setError(t.invalidPriceErr);
       return;
     }
@@ -345,9 +360,6 @@ function ItemEditorForm({
       });
     }
 
-    const parsedMin = marketMin.trim() ? Number(marketMin) : null;
-    const parsedMax = marketMax.trim() ? Number(marketMax) : null;
-
     const mergedTags = [
       ...(isSignature ? ["Signature"] : []),
       ...extraTags.filter((tag) => tag !== "Signature"),
@@ -365,20 +377,10 @@ function ItemEditorForm({
         descriptionKm: descriptionKm.trim(),
         descriptionEn: descriptionEn.trim(),
         pricingType,
-        weightUnit: pricingType === "FIXED" ? null : weightUnit,
+        weightUnit: pricingType === "WEIGHT_BASED" ? "PER_KG" : null,
         price: numericPrice,
-        marketPriceMin:
-          pricingType === "MARKET_PRICE" &&
-          parsedMin !== null &&
-          !Number.isNaN(parsedMin)
-            ? parsedMin
-            : null,
-        marketPriceMax:
-          pricingType === "MARKET_PRICE" &&
-          parsedMax !== null &&
-          !Number.isNaN(parsedMax)
-            ? parsedMax
-            : null,
+        marketPriceMin: null,
+        marketPriceMax: null,
         variants: parsedVariants,
         cookingStyles: parsedStyles,
         imageUrl,
@@ -504,40 +506,86 @@ function ItemEditorForm({
         </div>
       </div>
 
-      {/* 2. Price & Category Side-by-Side + Quick Price Chips */}
-      <div className="space-y-2">
+      {/* 2. Pricing Unit (Plate vs Per Kg), Price & Category + Quick Price Chips */}
+      <div className="space-y-2.5">
+        <div>
+          <span className="block text-[12px] font-medium text-zinc-700">
+            {t.pricingModeLabel}
+          </span>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            {(
+              [
+                { id: "FIXED", label: t.pricingUnitPerPlate },
+                { id: "WEIGHT_BASED", label: t.pricingUnitPerKg },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setPricingType(opt.id)}
+                aria-pressed={pricingType === opt.id}
+                className={`rounded-lg border px-3 py-2 text-[12.5px] font-medium transition-colors ${
+                  pricingType === opt.id
+                    ? "border-brand bg-brand"
+                    : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label
-              htmlFor="dish-price-main"
+              htmlFor="dish-price-khr"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              {pricingType === "MARKET_PRICE"
-                ? t.priceMarketLabel
+              {pricingType === "WEIGHT_BASED"
+                ? t.pricePerKgLabel(currency)
                 : t.priceLabel(currency)}
             </label>
-            <div className="mt-1 flex items-center rounded-lg border border-zinc-200 bg-white focus-within:border-brand">
-              <span className="pl-3 pr-1 text-[13px] font-medium text-zinc-500">
-                {currency === "KHR" ? "៛" : "$"}
-              </span>
-              <input
-                id="dish-price-main"
-                type="number"
-                step={currency === "KHR" ? "100" : "0.01"}
-                min="0"
-                disabled={pricingType === "MARKET_PRICE"}
-                required={pricingType !== "MARKET_PRICE"}
-                value={pricingType === "MARKET_PRICE" ? "" : price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder={
-                  pricingType === "MARKET_PRICE"
-                    ? c.marketPrice
-                    : currency === "KHR"
-                      ? "25000"
-                      : "6.50"
-                }
-                className="w-full bg-transparent py-2 pr-3 text-[14px] tabular-nums text-zinc-950 placeholder:text-zinc-400 focus:outline-none disabled:bg-zinc-50 disabled:text-zinc-400"
-              />
+            <div className="mt-1 grid grid-cols-2 gap-1.5">
+              <div className="flex items-center rounded-lg border border-zinc-200 bg-white focus-within:border-brand">
+                <span className="pl-2.5 pr-1 text-[13px] font-medium text-zinc-500">
+                  ៛
+                </span>
+                <input
+                  id="dish-price-khr"
+                  type="number"
+                  inputMode="numeric"
+                  step="500"
+                  min="0"
+                  required={currency === "KHR"}
+                  value={khrPriceInput}
+                  onChange={(e) => updateLinkedPrice("KHR", e.target.value)}
+                  placeholder="25000"
+                  className="w-full min-w-0 bg-transparent py-2 pr-2 text-right text-[14px] tabular-nums text-zinc-950 placeholder:text-zinc-400 focus:outline-none"
+                />
+              </div>
+              <div className="flex items-center rounded-lg border border-zinc-200 bg-white focus-within:border-brand">
+                <span className="pl-2.5 pr-1 text-[13px] font-medium text-zinc-500">
+                  $
+                </span>
+                <input
+                  id="dish-price-usd"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.25"
+                  min="0"
+                  required={currency === "USD"}
+                  value={usdPriceInput}
+                  onChange={(e) => updateLinkedPrice("USD", e.target.value)}
+                  placeholder="6.10"
+                  className="w-full min-w-0 bg-transparent py-2 pr-2 text-right text-[14px] tabular-nums text-zinc-950 placeholder:text-zinc-400 focus:outline-none"
+                />
+                {pricingType === "WEIGHT_BASED" && (
+                  <span className="shrink-0 border-l border-zinc-100 bg-[#FAFAFA] px-2 py-2 text-[11px] font-medium text-zinc-500">
+                    {locale === "km" ? "/ គីឡូ" : "/ kg"}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -569,37 +617,35 @@ function ItemEditorForm({
         </div>
 
         {/* 1-Tap Quick Price Suggestion Chips */}
-        {pricingType !== "MARKET_PRICE" && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-            <span className="mr-0.5 text-[11px] font-medium text-zinc-400">
-              {t.quickPriceLabel}
-            </span>
-            {priceSuggestions.map((suggested) => {
-              const rawVal =
-                currency === "KHR" ? String(suggested) : suggested.toFixed(2);
-              const isSelected =
-                price.trim() !== "" && Number(price) === suggested;
-              const chipLabel =
-                currency === "KHR"
-                  ? `${suggested.toLocaleString("en-US")} ៛`
-                  : `$${rawVal}`;
-              return (
-                <button
-                  key={suggested}
-                  type="button"
-                  onClick={() => setPrice(rawVal)}
-                  className={`rounded-md border px-2 py-0.5 text-[11.5px] font-medium tabular-nums transition-colors ${
-                    isSelected
-                      ? "border-brand bg-brand"
-                      : "border-zinc-200 bg-[#FAFAFA] text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-950"
-                  }`}
-                >
-                  {chipLabel}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <span className="mr-0.5 text-[11px] font-medium text-zinc-400">
+            {t.quickPriceLabel}
+          </span>
+          {priceSuggestions.map((suggested) => {
+            const rawVal =
+              currency === "KHR" ? String(suggested) : suggested.toFixed(2);
+            const isSelected =
+              price.trim() !== "" && Number(price) === suggested;
+            const chipLabel =
+              currency === "KHR"
+                ? `${suggested.toLocaleString("en-US")} ៛`
+                : `$${rawVal}`;
+            return (
+              <button
+                key={suggested}
+                type="button"
+                onClick={() => updateLinkedPrice(currency, rawVal)}
+                className={`rounded-md border px-2 py-0.5 text-[11.5px] font-medium tabular-nums transition-colors ${
+                  isSelected
+                    ? "border-brand bg-brand"
+                    : "border-zinc-200 bg-[#FAFAFA] text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-950"
+                }`}
+              >
+                {chipLabel}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* 3. Two Simple 1-Tap Toggles */}
@@ -714,84 +760,6 @@ function ItemEditorForm({
                 className="mt-1 w-full resize-none rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] text-zinc-950 focus:border-brand focus:outline-none"
               />
             </div>
-          </div>
-
-          {/* Pricing Model */}
-          <div className="space-y-2.5 border-t border-zinc-100 pt-3">
-            <span className="block text-[12px] font-medium text-zinc-700">
-              {t.pricingModeLabel}
-            </span>
-            <div className="grid grid-cols-3 gap-1.5">
-              {(
-                [
-                  { id: "FIXED", label: t.pricingFixed },
-                  { id: "WEIGHT_BASED", label: t.pricingByWeight },
-                  { id: "MARKET_PRICE", label: c.marketPrice },
-                ] as const
-              ).map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setPricingType(opt.id)}
-                  className={`rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
-                    pricingType === opt.id
-                      ? "border-brand bg-brand"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-
-            {pricingType === "WEIGHT_BASED" && (
-              <NativeSelect
-                ariaLabel={t.pricingByWeight}
-                value={weightUnit}
-                onChange={(v) => setWeightUnit(v as WeightUnit)}
-                fullWidth
-                options={WEIGHT_UNIT_OPTIONS.map((unit) => ({
-                  value: unit,
-                  label: WEIGHT_UNIT_LABELS[unit][locale],
-                }))}
-              />
-            )}
-
-            {pricingType === "MARKET_PRICE" && (
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  step={currency === "KHR" ? "500" : "0.5"}
-                  value={marketMin}
-                  onChange={(e) => setMarketMin(e.target.value)}
-                  placeholder={t.estMinPlaceholder}
-                  className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] tabular-nums focus:border-brand focus:outline-none"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  step={currency === "KHR" ? "500" : "0.5"}
-                  value={marketMax}
-                  onChange={(e) => setMarketMax(e.target.value)}
-                  placeholder={t.estMaxPlaceholder}
-                  className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] tabular-nums focus:border-brand focus:outline-none"
-                />
-                <NativeSelect
-                  ariaLabel={t.pricingByWeight}
-                  value={weightUnit}
-                  onChange={(v) => setWeightUnit(v as WeightUnit)}
-                  fullWidth
-                  options={WEIGHT_UNIT_OPTIONS.map((unit) => ({
-                    value: unit,
-                    label:
-                      locale === "km"
-                        ? WEIGHT_UNIT_LABELS[unit].shortKm
-                        : WEIGHT_UNIT_LABELS[unit].shortEn,
-                  }))}
-                />
-              </div>
-            )}
           </div>
 
           {/* Extra Tags */}

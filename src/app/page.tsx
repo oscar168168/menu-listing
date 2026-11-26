@@ -158,7 +158,6 @@ export default async function HomePage() {
                           }}
                         >
                           {tenant.currency}
-                          {tenant.showDualCurrency ? " + Dual" : ""}
                         </span>
                         <span className="rounded border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 text-[10px] font-medium text-zinc-600">
                           {tenant.vendorMode === "CART"

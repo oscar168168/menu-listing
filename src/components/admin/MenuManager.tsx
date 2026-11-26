@@ -15,12 +15,10 @@ import { NativeSwitch } from "@/components/ui/NativeSwitch";
 import { NativeSelect } from "@/components/ui/NativeSelect";
 import {
   formatDualPrice,
-  formatMarketRange,
   formatSurcharge,
   type DualCurrencyConfig,
 } from "@/lib/currency";
 import {
-  formatWeightUnit,
   localizeTag,
   PRESET_SEAFOOD_TAGS,
   resolveLocalized,
@@ -50,7 +48,7 @@ interface MenuManagerProps {
   ) => void;
 }
 
-type StatusTab = "ALL" | "ACTIVE" | "SOLD_OUT" | "MARKET_PRICE";
+type StatusTab = "ALL" | "ACTIVE" | "SOLD_OUT";
 type ViewMode = "grid" | "table";
 
 export function MenuManager({
@@ -118,17 +116,14 @@ export function MenuManager({
   const counts = useMemo(() => {
     let active = 0;
     let soldOut = 0;
-    let market = 0;
     for (const item of categoryScopedItems) {
       if (item.isAvailable) active++;
       else soldOut++;
-      if (item.pricingType === "MARKET_PRICE") market++;
     }
     return {
       all: categoryScopedItems.length,
       active,
       soldOut,
-      market,
     };
   }, [categoryScopedItems]);
 
@@ -145,9 +140,6 @@ export function MenuManager({
     return categoryScopedItems.filter((item) => {
       if (statusTab === "ACTIVE" && !item.isAvailable) return false;
       if (statusTab === "SOLD_OUT" && item.isAvailable) return false;
-      if (statusTab === "MARKET_PRICE" && item.pricingType !== "MARKET_PRICE") {
-        return false;
-      }
       if (pricingFilter !== "ALL" && item.pricingType !== pricingFilter) {
         return false;
       }
@@ -180,7 +172,6 @@ export function MenuManager({
     { id: "ALL", label: c.all, count: counts.all },
     { id: "ACTIVE", label: c.inStock, count: counts.active },
     { id: "SOLD_OUT", label: c.soldOut, count: counts.soldOut },
-    { id: "MARKET_PRICE", label: c.marketPrice, count: counts.market },
   ];
 
   const selectedCatLabel = selectedCategory
@@ -225,7 +216,7 @@ export function MenuManager({
         <div
           role="tablist"
           aria-label={t.colStock}
-          className="flex items-center gap-1 -mb-px"
+          className="no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto -mb-px"
         >
           {statusTabs.map((tab) => {
             const active = statusTab === tab.id;
@@ -321,7 +312,6 @@ export function MenuManager({
             { value: "ALL", label: t.pricingFilterAll },
             { value: "FIXED", label: t.pricingFixed },
             { value: "WEIGHT_BASED", label: t.pricingWeight },
-            { value: "MARKET_PRICE", label: t.pricingMarket },
           ]}
         />
 
@@ -388,26 +378,14 @@ export function MenuManager({
                 item.nameEn,
                 item.name
               );
-              const dualPrice =
-                item.pricingType === "MARKET_PRICE"
-                  ? null
-                  : formatDualPrice(item.price, currencyConfig, {
-                      locale,
-                      localeOnly: true,
-                      weightUnit:
-                        item.pricingType === "WEIGHT_BASED"
-                          ? item.weightUnit
-                          : null,
-                    });
-              const marketRange =
-                item.pricingType === "MARKET_PRICE"
-                  ? formatMarketRange(
-                      item.marketPriceMin,
-                      item.marketPriceMax,
-                      currencyConfig,
-                      { weightUnit: item.weightUnit, locale, localeOnly: true }
-                    )
-                  : null;
+              const dualPrice = formatDualPrice(item.price, currencyConfig, {
+                locale,
+                localeOnly: true,
+                weightUnit:
+                  item.pricingType === "WEIGHT_BASED"
+                    ? item.weightUnit
+                    : null,
+              });
 
               return (
                 <article
@@ -517,11 +495,6 @@ export function MenuManager({
                                 </span>
                                 <span className="shrink-0 tabular-nums font-medium text-zinc-950">
                                   {vf.primary}
-                                  {vf.secondary && (
-                                    <span className="ml-1.5 font-normal text-[11px] text-zinc-400">
-                                      {vf.secondary}
-                                    </span>
-                                  )}
                                 </span>
                               </div>
                             );
@@ -535,28 +508,10 @@ export function MenuManager({
                       ) : item.cookingStyles.length > 0 ? (
                         <div className="space-y-2">
                           <div className="flex items-baseline justify-between gap-2">
-                            {item.pricingType === "MARKET_PRICE" ? (
-                              <>
-                                <span className="rounded border border-brand-subtle bg-brand-subtle px-1.5 py-0.5 text-[11px] font-semibold text-zinc-900">
-                                  {c.marketPrice}
-                                </span>
-                                <span className="text-[12px] tabular-nums text-zinc-500">
-                                  {marketRange?.primary ?? t.dailyWeighIn}
-                                </span>
-                              </>
-                            ) : (
-                              dualPrice && (
-                                <>
-                                  <span className="text-[14px] font-semibold tabular-nums text-zinc-950">
-                                    {dualPrice.primary}
-                                  </span>
-                                  {dualPrice.secondary && (
-                                    <span className="text-[11px] tabular-nums text-zinc-500">
-                                      {dualPrice.secondary}
-                                    </span>
-                                  )}
-                                </>
-                              )
+                            {dualPrice && (
+                              <span className="text-[14px] font-semibold tabular-nums text-zinc-950">
+                                {dualPrice.primary}
+                              </span>
                             )}
                           </div>
                           <div className="space-y-1 border-t border-zinc-100 pt-2 text-[12px]">
@@ -591,31 +546,13 @@ export function MenuManager({
                           </div>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <p className="text-[11px] text-zinc-400">
-                              {item.pricingType === "MARKET_PRICE"
-                                ? t.pricingLabel
-                                : t.primaryCurrencyLabel(tenant.currency)}
-                            </p>
-                            <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-zinc-950">
-                              {item.pricingType === "MARKET_PRICE"
-                                ? c.marketPrice
-                                : dualPrice?.primary}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] text-zinc-400">
-                              {item.pricingType === "MARKET_PRICE"
-                                ? t.estimatedLabel
-                                : t.dualCurrencyLabel}
-                            </p>
-                            <p className="mt-0.5 text-[13px] font-medium tabular-nums text-zinc-600">
-                              {item.pricingType === "MARKET_PRICE"
-                                ? marketRange?.primary ?? "—"
-                                : dualPrice?.secondary ?? t.singleCurrencyOnly}
-                            </p>
-                          </div>
+                        <div>
+                          <p className="text-[11px] text-zinc-400">
+                            {t.primaryCurrencyLabel(tenant.currency)}
+                          </p>
+                          <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-zinc-950">
+                            {dualPrice?.primary}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -751,26 +688,10 @@ export function MenuManager({
                       </td>
 
                       <td className="px-4 py-2.5 tabular-nums">
-                        {item.pricingType === "MARKET_PRICE" ? (
-                          <span className="rounded border border-brand-subtle bg-brand-subtle px-2 py-0.5 text-[11px] font-medium text-zinc-900">
-                            {c.marketPrice}
-                            {item.weightUnit
-                              ? ` (${formatWeightUnit(item.weightUnit, locale)})`
-                              : ""}
+                        {dualPrice && (
+                          <span className="font-medium text-zinc-950">
+                            {dualPrice.primary}
                           </span>
-                        ) : (
-                          dualPrice && (
-                            <div>
-                              <span className="font-medium text-zinc-950">
-                                {dualPrice.primary}
-                              </span>
-                              {dualPrice.secondary && (
-                                <span className="ml-1.5 text-[11px] text-zinc-400">
-                                  {dualPrice.secondary}
-                                </span>
-                              )}
-                            </div>
-                          )
                         )}
                       </td>
 
