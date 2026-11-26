@@ -12,6 +12,7 @@ import {
   localizeTag,
   resolveLocalized,
 } from "../src/lib/i18n";
+import { parsePortalLocale, PORTAL_COPY } from "../src/lib/portal-i18n";
 import { parseTableCodeFromSearch, sanitizeTableCode } from "../src/lib/table-code";
 
 describe("Cambodian localization & fallback helpers", () => {
@@ -105,5 +106,48 @@ describe("Dual-currency engine (USD & KHR)", () => {
     assert.ok(range);
     assert.equal(range.primary, "$26.00 – $34.00 / kg");
     assert.equal(range.secondary, "106,500 ៛ – 139,500 ៛");
+  });
+
+  it("formats single locale-matched currency when localeOnly is enabled (km -> KHR only, en -> USD only)", () => {
+    const khrCfg = {
+      primaryCurrency: "KHR" as const,
+      showDualCurrency: true,
+      exchangeRate: 4100,
+      khrRounding: 100 as const,
+    };
+    const kmOnly = formatDualPrice(40000, khrCfg, {
+      locale: "km",
+      localeOnly: true,
+    });
+    assert.equal(kmOnly.primary, "40,000 ៛");
+    assert.equal(kmOnly.secondary, null);
+
+    const enOnly = formatDualPrice(40000, khrCfg, {
+      locale: "en",
+      localeOnly: true,
+    });
+    assert.equal(enOnly.primary, "$9.76");
+    assert.equal(enOnly.secondary, null);
+  });
+});
+
+describe("Portal i18n dictionary (km & en)", () => {
+  it("defaults portal locale to Khmer and supports English", () => {
+    assert.equal(parsePortalLocale(undefined), "km");
+    assert.equal(parsePortalLocale(null), "km");
+    assert.equal(parsePortalLocale("km"), "km");
+    assert.equal(parsePortalLocale("en"), "en");
+  });
+
+  it("maintains full key parity across km and en dictionaries", () => {
+    for (const section of ["common", "login", "superAdmin", "admin"] as const) {
+      const kmKeys = Object.keys(PORTAL_COPY.km[section]).sort();
+      const enKeys = Object.keys(PORTAL_COPY.en[section]).sort();
+      assert.deepEqual(kmKeys, enKeys, `Key mismatch in PORTAL_COPY.${section}`);
+    }
+    assert.deepEqual(
+      Object.keys(PORTAL_COPY.km.admin.sections).sort(),
+      Object.keys(PORTAL_COPY.en.admin.sections).sort()
+    );
   });
 });

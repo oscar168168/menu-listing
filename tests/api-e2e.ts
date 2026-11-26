@@ -134,8 +134,8 @@ async function run() {
   assert.ok(kepHtml.includes(`--brand-primary:${kepTheme.primary}`));
   assert.ok(kepHtml.includes(`--brand-primary-foreground:${kepTheme.foreground}`));
   assert.ok(kepHtml.includes("ក្តាមសេះឆាម្រេចខ្ចី"), "Kep Khmer dish title must render by default");
-  assert.ok(kepHtml.includes("40,000 ៛"), "KHR-primary menu must render KHR prices");
-  assert.ok(kepHtml.includes("$9.76"), "KHR-primary menu must render dual USD conversion");
+  assert.ok(kepHtml.includes("40,000 ៛"), "Khmer menu must render KHR prices");
+  assert.ok(!kepHtml.includes("$9.76"), "Khmer menu must render KHR only without USD");
   if (kepFound.data.vendorMode === "LISTING_ONLY") {
     assert.ok(!kepHtml.includes("to cart"), "LISTING_ONLY vendor mode must omit add-to-cart controls");
   }

@@ -45,6 +45,7 @@ interface NativeDialogProps {
   lightDismiss?: boolean;
   maxWidthClass?: string;
   hideHeader?: boolean;
+  closeLabel?: string;
   children: React.ReactNode;
 }
 
@@ -64,6 +65,7 @@ export function NativeDialog({
   lightDismiss = true,
   maxWidthClass,
   hideHeader = false,
+  closeLabel = "Close dialog",
   children,
 }: NativeDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -214,7 +216,7 @@ export function NativeDialog({
             <button
               type="button"
               onClick={() => void animatedClose()}
-              aria-label="Close dialog"
+              aria-label={closeLabel}
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
             >
               <X className="h-4 w-4" strokeWidth={1.5} />

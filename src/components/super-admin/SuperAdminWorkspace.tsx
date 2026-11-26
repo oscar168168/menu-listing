@@ -17,9 +17,16 @@ import {
   Shield,
 } from "lucide-react";
 import { NativeDialog } from "@/components/ui/NativeDialog";
+import {
+  PortalLanguageSwitcher,
+  usePortalLocale,
+} from "@/components/ui/PortalLanguageSwitcher";
 import { Toast, type ToastMessage } from "@/components/ui/Toast";
+import { resolveLocalized } from "@/lib/i18n";
+import { PORTAL_COPY } from "@/lib/portal-i18n";
 import { slugify } from "@/lib/slug";
 import type {
+  Locale,
   ScanAnalyticsRow,
   SessionUser,
   SuperAdminTenantSummary,
@@ -51,13 +58,19 @@ interface SuperAdminDashboardPayload {
 interface SuperAdminWorkspaceProps {
   initialData: SuperAdminDashboardPayload;
   user: SessionUser;
+  initialLocale?: Locale;
 }
 
 export function SuperAdminWorkspace({
   initialData,
   user,
+  initialLocale = "km",
 }: SuperAdminWorkspaceProps) {
   const router = useRouter();
+  const [locale, setLocale] = usePortalLocale(initialLocale);
+  const t = PORTAL_COPY[locale].superAdmin;
+  const c = PORTAL_COPY[locale].common;
+
   const [data, setData] = useState<SuperAdminDashboardPayload>(initialData);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | TenantStatusType>(
@@ -81,6 +94,12 @@ export function SuperAdminWorkspace({
     right: number;
   } | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+
+  const getTenantDisplayName = useCallback(
+    (tenant: { nameKm?: string; nameEn?: string; name: string }) =>
+      resolveLocalized(locale, tenant.nameKm, tenant.nameEn, tenant.name),
+    [locale]
+  );
 
   useEffect(() => {
     if (!openMenuState) return;
@@ -108,7 +127,8 @@ export function SuperAdminWorkspace({
   const activeMenuTenant = useMemo(
     () =>
       openMenuState
-        ? (data.tenants.find((t) => t.id === openMenuState.tenantId) ?? null)
+        ? (data.tenants.find((tItem) => tItem.id === openMenuState.tenantId) ??
+          null)
         : null,
     [data.tenants, openMenuState]
   );
@@ -129,6 +149,13 @@ export function SuperAdminWorkspace({
     });
   };
 
+  const notify = useCallback(
+    (text: string, tone: "neutral" | "error" = "neutral") => {
+      setToast({ id: Date.now(), text, tone });
+    },
+    []
+  );
+
   const openEditTenantModal = (tenant: SuperAdminTenantSummary) => {
     setEditingTenant(tenant);
     setEditSlug(tenant.slug);
@@ -143,9 +170,7 @@ export function SuperAdminWorkspace({
 
     const normalizedSlug = slugify(editSlug);
     if (!normalizedSlug || normalizedSlug.length < 2) {
-      setEditError(
-        "Slug must be at least 2 lowercase letters/numbers (e.g. pak-khlang-168)."
-      );
+      setEditError(t.slugError);
       return;
     }
 
@@ -173,23 +198,23 @@ export function SuperAdminWorkspace({
         };
       };
       if (!res.ok || !json.tenant) {
-        throw new Error(json.error ?? "Failed to update venue");
+        throw new Error(json.error ?? t.toastUpdateVenueError);
       }
 
       const updated = json.tenant;
       const primaryDisplay = updated.nameKm || updated.nameEn || updated.name;
       setData((prev) => ({
         ...prev,
-        tenants: prev.tenants.map((t) =>
-          t.id === updated.id
+        tenants: prev.tenants.map((item) =>
+          item.id === updated.id
             ? {
-                ...t,
+                ...item,
                 slug: updated.slug,
                 name: primaryDisplay,
                 nameEn: updated.nameEn,
                 nameKm: updated.nameKm,
               }
-            : t
+            : item
         ),
         analytics: prev.analytics.map((a) =>
           a.tenantId === updated.id
@@ -205,22 +230,20 @@ export function SuperAdminWorkspace({
       }));
 
       setEditingTenant(null);
-      notify(`Updated "${primaryDisplay}" (/m/${updated.slug})`);
+      notify(
+        t.toastUpdatedVenue(
+          getTenantDisplayName(updated),
+          updated.slug
+        )
+      );
     } catch (err) {
       setEditError(
-        err instanceof Error ? err.message : "Could not update venue"
+        err instanceof Error ? err.message : t.toastUpdateVenueError
       );
     } finally {
       setEditSaving(false);
     }
   };
-
-  const notify = useCallback(
-    (text: string, tone: "neutral" | "error" = "neutral") => {
-      setToast({ id: Date.now(), text, tone });
-    },
-    []
-  );
 
   const filteredTenants = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -256,14 +279,14 @@ export function SuperAdminWorkspace({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextStatus }),
       });
-      if (!res.ok) throw new Error("Failed to update status");
+      if (!res.ok) throw new Error(t.toastStatusError);
 
       setData((prev) => {
-        const nextTenants = prev.tenants.map((t) =>
-          t.id === tenant.id ? { ...t, status: nextStatus } : t
+        const nextTenants = prev.tenants.map((item) =>
+          item.id === tenant.id ? { ...item, status: nextStatus } : item
         );
         const activeTenants = nextTenants.filter(
-          (t) => t.status === "ACTIVE"
+          (item) => item.status === "ACTIVE"
         ).length;
         return {
           ...prev,
@@ -276,13 +299,14 @@ export function SuperAdminWorkspace({
         };
       });
 
+      const displayName = getTenantDisplayName(tenant);
       notify(
         nextStatus === "SUSPENDED"
-          ? `Suspended "${tenant.name}" — QR scans now show unavailable screen`
-          : `Re-activated "${tenant.name}"`
+          ? t.toastSuspended(displayName)
+          : t.toastActivated(displayName)
       );
     } catch {
-      notify("Could not update venue status", "error");
+      notify(t.toastStatusError, "error");
     } finally {
       setBusyTenantId(null);
       setConfirmSuspendTenant(null);
@@ -300,21 +324,22 @@ export function SuperAdminWorkspace({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vendorMode: nextMode }),
       });
-      if (!res.ok) throw new Error("Failed to update storefront mode");
+      if (!res.ok) throw new Error(t.toastModeError);
 
       setData((prev) => ({
         ...prev,
-        tenants: prev.tenants.map((t) =>
-          t.id === tenant.id ? { ...t, vendorMode: nextMode } : t
+        tenants: prev.tenants.map((item) =>
+          item.id === tenant.id ? { ...item, vendorMode: nextMode } : item
         ),
       }));
+      const displayName = getTenantDisplayName(tenant);
       notify(
         nextMode === "CART"
-          ? `"${tenant.name}" switched to Add to Cart mode`
-          : `"${tenant.name}" switched to Product Listing Only mode`
+          ? t.toastModeCart(displayName)
+          : t.toastModeListing(displayName)
       );
     } catch {
-      notify("Could not update storefront mode", "error");
+      notify(t.toastModeError, "error");
     } finally {
       setBusyTenantId(null);
     }
@@ -328,10 +353,10 @@ export function SuperAdminWorkspace({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenantId: tenant.id }),
       });
-      if (!res.ok) throw new Error("Impersonation failed");
+      if (!res.ok) throw new Error(t.toastImpersonateError);
       router.push("/admin");
     } catch {
-      notify("Unable to open venue admin workspace", "error");
+      notify(t.toastImpersonateError, "error");
       setBusyTenantId(null);
     }
   };
@@ -342,32 +367,37 @@ export function SuperAdminWorkspace({
   };
 
   const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-US", {
+    new Date(iso).toLocaleDateString(locale === "km" ? "km-KH" : "en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
 
   return (
-    <div className="min-h-dvh bg-[#FAFAFA] text-zinc-950">
+    <div lang={locale} className="min-h-dvh bg-[#FAFAFA] text-zinc-950">
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white">
         <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-zinc-950 text-white">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-950 text-white">
               <Shield className="h-3.5 w-3.5" strokeWidth={1.5} />
             </span>
-            <div>
-              <p className="text-[14px] font-semibold tracking-[-0.02em] text-zinc-950">
-                MenuOS · Super Admin
+            <div className="min-w-0">
+              <p className="truncate text-[14px] font-semibold tracking-[-0.02em] text-zinc-950">
+                {t.brandTitle}
               </p>
-              <p className="hidden text-[11px] text-zinc-500 sm:block">
-                Platform governance · {user.email}
+              <p className="hidden truncate text-[11px] text-zinc-500 sm:block">
+                {t.brandSubtitle} · {user.username || user.phone || user.email}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <PortalLanguageSwitcher
+              locale={locale}
+              onChange={setLocale}
+              compact
+            />
             <button
               type="button"
               onClick={() => {
@@ -377,12 +407,13 @@ export function SuperAdminWorkspace({
               className="inline-flex items-center gap-1.5 rounded-md bg-zinc-950 px-3.5 py-1.5 text-[13px] font-medium text-white hover:bg-zinc-800"
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
-              New venue
+              <span>{t.newVenue}</span>
             </button>
             <button
               type="button"
               onClick={() => void handleLogout()}
-              aria-label="Sign out"
+              aria-label={c.signOut}
+              title={c.signOut}
               className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
             >
               <LogOut className="h-4 w-4" strokeWidth={1.5} />
@@ -392,14 +423,14 @@ export function SuperAdminWorkspace({
       </header>
 
       <main className="mx-auto max-w-[1280px] space-y-6 px-4 py-6 sm:px-6">
-        {/* Disciplined Swiss Typographic Summary Strip (Zero fake sparklines) */}
+        {/* Disciplined Swiss Typographic Summary Strip */}
         <section
-          aria-label="Platform metrics"
+          aria-label={t.platformMetricsAria}
           className="grid grid-cols-2 divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0"
         >
           <div className="px-4 py-3.5">
             <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-zinc-500">
-              Onboarded Venues
+              {t.onboardedVenues}
             </p>
             <p className="mt-1 text-[24px] font-semibold tabular-nums tracking-[-0.02em] text-zinc-950">
               {data.totals.totalTenants}
@@ -408,7 +439,7 @@ export function SuperAdminWorkspace({
 
           <div className="px-4 py-3.5">
             <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-zinc-500">
-              Active / Suspended
+              {t.activeSuspended}
             </p>
             <p className="mt-1 text-[24px] font-semibold tabular-nums tracking-[-0.02em] text-zinc-950">
               {data.totals.activeTenants}
@@ -421,7 +452,7 @@ export function SuperAdminWorkspace({
 
           <div className="px-4 py-3.5">
             <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-zinc-500">
-              Published Items
+              {t.publishedItems}
             </p>
             <p className="mt-1 text-[24px] font-semibold tabular-nums tracking-[-0.02em] text-zinc-950">
               {data.totals.totalItems}
@@ -430,7 +461,7 @@ export function SuperAdminWorkspace({
 
           <div className="px-4 py-3.5">
             <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-zinc-500">
-              QR Scans (7d / Total)
+              {t.qrScansSummary}
             </p>
             <p className="mt-1 text-[24px] font-semibold tabular-nums tracking-[-0.02em] text-zinc-950">
               {data.totals.scansLast7Days}
@@ -448,12 +479,9 @@ export function SuperAdminWorkspace({
                 id="tenant-directory-heading"
                 className="text-[15px] font-semibold tracking-[-0.02em] text-zinc-950"
               >
-                Tenant Directory
+                {t.directoryHeading}
               </h1>
-              <p className="text-[12px] text-zinc-500">
-                Inspect live mobile menus, troubleshoot admin workspaces, or
-                suspend tenant access.
-              </p>
+              <p className="text-[12px] text-zinc-500">{t.directorySubtitle}</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -466,8 +494,8 @@ export function SuperAdminWorkspace({
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search venue, slug, owner..."
-                  aria-label="Search tenants"
+                  placeholder={t.searchPlaceholder}
+                  aria-label={t.searchAria}
                   className="w-56 rounded-md border border-zinc-200 bg-[#FAFAFA] py-1.5 pl-8 pr-3 text-[13px] text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-950 focus:bg-white focus:outline-none"
                 />
               </div>
@@ -485,10 +513,10 @@ export function SuperAdminWorkspace({
                     }`}
                   >
                     {status === "ALL"
-                      ? "All"
+                      ? c.all
                       : status === "ACTIVE"
-                        ? "Active"
-                        : "Suspended"}
+                        ? c.active
+                        : c.suspended}
                   </button>
                 ))}
               </div>
@@ -502,43 +530,41 @@ export function SuperAdminWorkspace({
             className="responsive-table-wrapper"
           >
             <table className="responsive-table text-left text-[13px]">
-              <caption className="sr-only">
-                Directory of onboarded multi-tenant venues
-              </caption>
+              <caption className="sr-only">{t.tableCaption}</caption>
               <thead className="border-b border-zinc-200 bg-[#FAFAFA] text-[11px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
                 <tr>
                   <th scope="col" className="whitespace-nowrap px-4 py-2.5">
-                    Venue (ហាង)
+                    {t.colVenue}
                   </th>
                   <th scope="col" className="whitespace-nowrap px-4 py-2.5">
-                    Login (Username / Phone)
+                    {t.colLogin}
                   </th>
                   <th scope="col" className="whitespace-nowrap px-4 py-2.5">
-                    Status
+                    {t.colStatus}
                   </th>
                   <th scope="col" className="whitespace-nowrap px-4 py-2.5">
-                    Mode
+                    {t.colMode}
                   </th>
                   <th
                     scope="col"
                     className="whitespace-nowrap px-4 py-2.5 text-right"
                   >
-                    Items
+                    {t.colItems}
                   </th>
                   <th
                     scope="col"
                     className="whitespace-nowrap px-4 py-2.5 text-right"
                   >
-                    QR Scans
+                    {t.colScans}
                   </th>
                   <th scope="col" className="whitespace-nowrap px-4 py-2.5">
-                    Created
+                    {t.colCreated}
                   </th>
                   <th
                     scope="col"
                     className="whitespace-nowrap px-4 py-2.5 text-right"
                   >
-                    Actions
+                    {t.colActions}
                   </th>
                 </tr>
               </thead>
@@ -549,12 +575,13 @@ export function SuperAdminWorkspace({
                       colSpan={8}
                       className="px-4 py-10 text-center text-[13px] text-zinc-500"
                     >
-                      No venues match your filter.
+                      {t.noMatch}
                     </td>
                   </tr>
                 ) : (
                   filteredTenants.map((tenant) => {
                     const isBusy = busyTenantId === tenant.id;
+                    const displayName = getTenantDisplayName(tenant);
                     return (
                       <tr
                         key={tenant.id}
@@ -569,24 +596,13 @@ export function SuperAdminWorkspace({
                             />
                             <div className="min-w-0 max-w-[240px] lg:max-w-[280px]">
                               <p className="truncate text-[13.5px] font-semibold text-zinc-950">
-                                {tenant.nameKm ? (
-                                  <span lang="km">{tenant.nameKm}</span>
-                                ) : (
-                                  tenant.name
-                                )}
+                                {displayName}
                               </p>
                               <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                                {tenant.nameKm &&
-                                  tenant.nameEn &&
-                                  tenant.nameEn !== tenant.nameKm && (
-                                    <span className="truncate text-[11.5px] text-zinc-500">
-                                      {tenant.nameEn}
-                                    </span>
-                                  )}
                                 <button
                                   type="button"
                                   onClick={() => openEditTenantModal(tenant)}
-                                  title="Click to edit URL slug / subdomain path"
+                                  title={t.editSlugTitle}
                                   className="group inline-flex shrink-0 items-center gap-1 font-mono text-[11px] text-zinc-500 hover:text-zinc-950"
                                 >
                                   <span>/m/{tenant.slug}</span>
@@ -601,33 +617,35 @@ export function SuperAdminWorkspace({
                         </th>
 
                         <td
-                          data-label="Owner"
+                          data-label={t.colLogin}
                           className="whitespace-nowrap px-4 py-3 text-zinc-600"
                         >
                           {tenant.ownerEmail ?? (
-                            <span className="text-zinc-400">Unassigned</span>
+                            <span className="text-zinc-400">
+                              {t.unassigned}
+                            </span>
                           )}
                         </td>
 
                         <td
-                          data-label="Status"
+                          data-label={t.colStatus}
                           className="whitespace-nowrap px-4 py-3"
                         >
                           {tenant.status === "ACTIVE" ? (
                             <span className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-900">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                              ACTIVE
+                              {c.active}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">
                               <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
-                              SUSPENDED
+                              {c.suspended}
                             </span>
                           )}
                         </td>
 
                         <td
-                          data-label="Mode"
+                          data-label={t.colMode}
                           className="whitespace-nowrap px-4 py-3"
                         >
                           <button
@@ -641,41 +659,41 @@ export function SuperAdminWorkspace({
                                   : "CART"
                               )
                             }
-                            title="Click to switch storefront mode"
+                            title={t.switchModeTitle}
                             className="inline-flex items-center whitespace-nowrap rounded-md border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 text-[11px] font-medium text-zinc-700 hover:border-zinc-400 hover:bg-white disabled:opacity-40"
                           >
                             {tenant.vendorMode === "CART"
-                              ? "Add to Cart"
-                              : "Listing Only"}
+                              ? c.addToCart
+                              : c.listingOnly}
                           </button>
                         </td>
 
                         <td
-                          data-label="Items"
+                          data-label={t.colItems}
                           className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-zinc-800"
                         >
                           {tenant.itemCount}
                         </td>
 
                         <td
-                          data-label="QR Scans"
+                          data-label={t.colScans}
                           className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-zinc-800"
                         >
                           <span className="font-medium">{tenant.scanCount}</span>
                           <span className="ml-1 text-[11px] text-zinc-400">
-                            ({tenant.scansLast7Days} 7d)
+                            ({tenant.scansLast7Days})
                           </span>
                         </td>
 
                         <td
-                          data-label="Created"
+                          data-label={t.colCreated}
                           className="whitespace-nowrap px-4 py-3 tabular-nums text-zinc-500"
                         >
                           {formatDate(tenant.createdAt)}
                         </td>
 
                         <td
-                          data-label="Actions"
+                          data-label={t.colActions}
                           className="whitespace-nowrap px-4 py-3 text-right"
                         >
                           <div
@@ -685,9 +703,11 @@ export function SuperAdminWorkspace({
                             <button
                               type="button"
                               disabled={isBusy}
-                              aria-label={`More actions for ${tenant.name}`}
+                              aria-label={t.moreActionsFor(displayName)}
                               aria-haspopup="menu"
-                              aria-expanded={openMenuState?.tenantId === tenant.id}
+                              aria-expanded={
+                                openMenuState?.tenantId === tenant.id
+                              }
                               onClick={(e) =>
                                 toggleRowActionsMenu(tenant.id, e.currentTarget)
                               }
@@ -713,11 +733,9 @@ export function SuperAdminWorkspace({
         <section className="rounded-xl border border-zinc-200 bg-white">
           <div className="border-b border-zinc-200 px-4 py-3.5">
             <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-zinc-950">
-              QR Scan Activity Summary
+              {t.analyticsTitle}
             </h2>
-            <p className="text-[12px] text-zinc-500">
-              Non-blocking scan volume by venue and top table codes.
-            </p>
+            <p className="text-[12px] text-zinc-500">{t.analyticsSubtitle}</p>
           </div>
 
           <div className="divide-y divide-zinc-200">
@@ -725,6 +743,12 @@ export function SuperAdminWorkspace({
               const barWidthPct = Math.max(
                 4,
                 Math.round((row.totalScans / maxScans) * 100)
+              );
+              const rowDisplayName = resolveLocalized(
+                locale,
+                row.tenantNameKm,
+                row.tenantNameEn,
+                row.tenantName
               );
               return (
                 <div
@@ -738,11 +762,8 @@ export function SuperAdminWorkspace({
                       aria-hidden="true"
                     />
                     <div className="min-w-0">
-                      <p
-                        lang="km"
-                        className="truncate text-[13px] font-semibold text-zinc-950"
-                      >
-                        {row.tenantNameKm || row.tenantName}
+                      <p className="truncate text-[13px] font-semibold text-zinc-950">
+                        {rowDisplayName}
                       </p>
                       <p className="font-mono text-[11px] text-zinc-400">
                         /m/{row.slug}
@@ -753,10 +774,10 @@ export function SuperAdminWorkspace({
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-[12px]">
                       <span className="tabular-nums font-medium text-zinc-900">
-                        {row.totalScans} total scans
+                        {t.totalScans(row.totalScans)}
                       </span>
                       <span className="tabular-nums text-zinc-500">
-                        {row.last7Days} in last 7d
+                        {t.last7Days(row.last7Days)}
                       </span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
@@ -769,17 +790,17 @@ export function SuperAdminWorkspace({
 
                   <div className="flex flex-wrap gap-1.5 md:justify-end">
                     {row.topTables.length > 0 ? (
-                      row.topTables.map((t) => (
+                      row.topTables.map((table) => (
                         <span
-                          key={t.tableCode}
+                          key={table.tableCode}
                           className="rounded border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 text-[11px] tabular-nums text-zinc-600"
                         >
-                          T-{t.tableCode}: {t.count}
+                          {t.tableBadge(table.tableCode, table.count)}
                         </span>
                       ))
                     ) : (
                       <span className="text-[11px] text-zinc-400">
-                        No table tags yet
+                        {t.noTableTags}
                       </span>
                     )}
                   </div>
@@ -794,6 +815,7 @@ export function SuperAdminWorkspace({
       {provisionMounted && (
         <ProvisionTenantModal
           open={provisionOpen}
+          locale={locale}
           onClose={() => setProvisionOpen(false)}
           onProvisioned={({ summary, analyticsRow }) => {
             setData((prev) => ({
@@ -807,7 +829,7 @@ export function SuperAdminWorkspace({
                 activeTenants: prev.totals.activeTenants + 1,
               },
             }));
-            notify("New venue provisioned and ready");
+            notify(t.toastProvisioned);
           }}
         />
       )}
@@ -816,11 +838,13 @@ export function SuperAdminWorkspace({
       <NativeDialog
         open={Boolean(editingTenant)}
         onClose={() => setEditingTenant(null)}
-        title="Edit Venue & URL Slug"
-        subtitle="Update public menu URL path (/m/slug) and bilingual venue names."
+        title={t.editModalTitle}
+        subtitle={t.editModalSubtitle}
+        closeLabel={c.closeDialog}
         maxWidthClass="max-w-md"
       >
         <form
+          lang={locale}
           onSubmit={(e) => void handleSaveTenantEdit(e)}
           className="p-5 space-y-4"
         >
@@ -829,7 +853,7 @@ export function SuperAdminWorkspace({
               htmlFor="edit-tenant-slug"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              URL Slug / Subdomain Path
+              {t.slugLabel}
             </label>
             <div className="mt-1 flex items-center rounded-lg border border-zinc-200 bg-white focus-within:border-zinc-950">
               <span className="pl-3 pr-1 font-mono text-[12.5px] text-zinc-400">
@@ -848,7 +872,7 @@ export function SuperAdminWorkspace({
               />
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
-              <span>Suggestions:</span>
+              <span>{t.slugSuggestions}</span>
               {["pak-khlang-168", "somros-pak-khlang-168", slugify(editNameEn)]
                 .filter(
                   (s, idx, arr) => s.length >= 2 && arr.indexOf(s) === idx
@@ -869,10 +893,9 @@ export function SuperAdminWorkspace({
           <div>
             <label
               htmlFor="edit-tenant-name-km"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              ឈ្មោះហាង (ខ្មែរ) · Venue Name (Khmer)
+              {t.venueNameKmLabel}
             </label>
             <input
               id="edit-tenant-name-km"
@@ -882,7 +905,7 @@ export function SuperAdminWorkspace({
               maxLength={100}
               value={editNameKm}
               onChange={(e) => setEditNameKm(e.target.value)}
-              placeholder="សម្រស់ឆ្នេរប៉ាក់ខ្លង 168"
+              placeholder={t.venueNameKmPlaceholder}
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[13.5px] text-zinc-950 focus:border-zinc-950 focus:outline-none"
             />
           </div>
@@ -892,7 +915,7 @@ export function SuperAdminWorkspace({
               htmlFor="edit-tenant-name-en"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Venue Name (English · optional)
+              {t.venueNameEnLabel}
             </label>
             <input
               id="edit-tenant-name-en"
@@ -901,7 +924,7 @@ export function SuperAdminWorkspace({
               maxLength={100}
               value={editNameEn}
               onChange={(e) => setEditNameEn(e.target.value)}
-              placeholder="Somros Chhne Pak Khlang 168"
+              placeholder={t.venueNameEnPlaceholder}
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[13.5px] text-zinc-950 focus:border-zinc-950 focus:outline-none"
             />
           </div>
@@ -918,14 +941,14 @@ export function SuperAdminWorkspace({
               onClick={() => setEditingTenant(null)}
               className="rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-100"
             >
-              Cancel
+              {c.cancel}
             </button>
             <button
               type="submit"
               disabled={editSaving}
               className="rounded-md bg-zinc-950 px-4 py-2 text-[13px] font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
             >
-              {editSaving ? "Saving..." : "Save changes"}
+              {editSaving ? c.saving : c.saveChanges}
             </button>
           </div>
         </form>
@@ -935,22 +958,21 @@ export function SuperAdminWorkspace({
       <NativeDialog
         open={Boolean(confirmSuspendTenant)}
         onClose={() => setConfirmSuspendTenant(null)}
-        title="Suspend venue menu?"
-        subtitle="Immediate platform governance control."
+        title={t.suspendModalTitle}
+        subtitle={t.suspendModalSubtitle}
+        closeLabel={c.closeDialog}
         maxWidthClass="max-w-sm"
       >
-        <div className="p-5">
+        <div lang={locale} className="p-5">
           <p className="text-[14px] leading-relaxed text-zinc-700">
-            Suspending{" "}
+            {t.suspendWarningPrefix}{" "}
             <strong className="font-semibold text-zinc-950">
-              {confirmSuspendTenant?.name}
+              {confirmSuspendTenant
+                ? getTenantDisplayName(confirmSuspendTenant)
+                : ""}
             </strong>{" "}
-            immediately replaces{" "}
-            <code className="font-mono text-[12px]">
-              /m/{confirmSuspendTenant?.slug}
-            </code>{" "}
-            with a neutral &ldquo;Menu temporarily unavailable&rdquo; screen on
-            QR scans.
+            (<code className="font-mono text-[12px]">/m/{confirmSuspendTenant?.slug}</code>){" "}
+            {t.suspendWarningSuffix}
           </p>
           <div className="mt-5 flex justify-end gap-2">
             <button
@@ -959,7 +981,7 @@ export function SuperAdminWorkspace({
               onClick={() => setConfirmSuspendTenant(null)}
               className="rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-100"
             >
-              Cancel
+              {c.cancel}
             </button>
             <button
               type="button"
@@ -969,7 +991,7 @@ export function SuperAdminWorkspace({
               }
               className="rounded-md bg-red-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-red-700"
             >
-              Suspend venue
+              {t.confirmSuspendBtn}
             </button>
           </div>
         </div>
@@ -978,8 +1000,9 @@ export function SuperAdminWorkspace({
       {/* Floating Row Actions Menu */}
       {openMenuState && activeMenuTenant && (
         <div
+          lang={locale}
           role="menu"
-          aria-label={`Actions for ${activeMenuTenant.name}`}
+          aria-label={t.moreActionsFor(getTenantDisplayName(activeMenuTenant))}
           data-row-actions-menu
           style={{
             position: "fixed",
@@ -999,7 +1022,7 @@ export function SuperAdminWorkspace({
             className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
           >
             <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
-            <span>Edit venue &amp; slug</span>
+            <span>{t.editVenueAndSlug}</span>
           </button>
 
           <Link
@@ -1010,7 +1033,7 @@ export function SuperAdminWorkspace({
             className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
           >
             <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} />
-            <span>Open live menu</span>
+            <span>{t.openLiveMenu}</span>
           </Link>
 
           <button
@@ -1024,7 +1047,7 @@ export function SuperAdminWorkspace({
             className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
           >
             <Settings2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-            <span>Manage menu</span>
+            <span>{t.manageMenu}</span>
           </button>
 
           <div className="my-1 border-t border-zinc-100" role="separator" />
@@ -1041,7 +1064,7 @@ export function SuperAdminWorkspace({
               className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-red-600 hover:bg-red-50 hover:text-red-700"
             >
               <PauseCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
-              <span>Suspend venue</span>
+              <span>{t.suspendVenue}</span>
             </button>
           ) : (
             <button
@@ -1055,7 +1078,7 @@ export function SuperAdminWorkspace({
               className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
             >
               <PlayCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
-              <span>Activate venue</span>
+              <span>{t.activateVenue}</span>
             </button>
           )}
         </div>

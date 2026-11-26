@@ -20,12 +20,26 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import { resolveLocalized } from "@/lib/i18n";
+import { PORTAL_COPY } from "@/lib/portal-i18n";
 import { getTenantThemeStyle } from "@/lib/theme";
 import { CategorySidebar } from "@/components/admin/CategorySidebar";
 import type { ItemFormPayload } from "@/components/admin/ItemEditorModal";
 import { MenuManager } from "@/components/admin/MenuManager";
 import { NativeDialog } from "@/components/ui/NativeDialog";
+import {
+  PortalLanguageSwitcher,
+  usePortalLocale,
+} from "@/components/ui/PortalLanguageSwitcher";
 import { Toast, type ToastMessage } from "@/components/ui/Toast";
+import type {
+  Locale,
+  SerializedCategory,
+  SerializedCookingStylePreset,
+  SerializedMenuItem,
+  SerializedTenant,
+  SessionUser,
+} from "@/types/menu";
 
 const CategoryModal = dynamic(
   () =>
@@ -66,13 +80,6 @@ const MobilePreviewFrame = dynamic(
     ),
   { ssr: false }
 );
-import type {
-  SerializedCategory,
-  SerializedCookingStylePreset,
-  SerializedMenuItem,
-  SerializedTenant,
-  SessionUser,
-} from "@/types/menu";
 
 type AdminSection = "menu" | "quick" | "theme" | "qr";
 
@@ -82,14 +89,8 @@ interface AdminWorkspaceProps {
   cookingStylePresets: SerializedCookingStylePreset[];
   user: SessionUser;
   isImpersonating: boolean;
+  initialLocale?: Locale;
 }
-
-const SECTION_LABELS: Record<AdminSection, string> = {
-  menu: "Menu Catalog",
-  quick: "Quick Stock & Price",
-  theme: "Brand & Currency",
-  qr: "QR Center",
-};
 
 export function AdminWorkspace({
   initialTenant,
@@ -97,8 +98,13 @@ export function AdminWorkspace({
   cookingStylePresets,
   user,
   isImpersonating,
+  initialLocale = "km",
 }: AdminWorkspaceProps) {
   const router = useRouter();
+  const [locale, setLocale] = usePortalLocale(initialLocale);
+  const t = PORTAL_COPY[locale].admin;
+  const c = PORTAL_COPY[locale].common;
+
   const [tenant, setTenant] = useState<SerializedTenant>(initialTenant);
   const [categories, setCategories] =
     useState<SerializedCategory[]>(initialCategories);
@@ -110,7 +116,6 @@ export function AdminWorkspace({
   const [showPreview, setShowPreview] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
-  // Modals owned at workspace level so sidebar + quick '+' rail button work from anywhere
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [categoryModalMounted, setCategoryModalMounted] = useState(false);
   const [editingCategory, setEditingCategory] =
@@ -148,7 +153,6 @@ export function AdminWorkspace({
     []
   );
 
-  // Press '/' to focus quick search (skip when already typing inside an input/textarea)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -170,12 +174,19 @@ export function AdminWorkspace({
   }, []);
 
   const selectedCategory = useMemo(
-    () => categories.find((c) => c.id === selectedCategoryId) ?? null,
+    () => categories.find((cat) => cat.id === selectedCategoryId) ?? null,
     [categories, selectedCategoryId]
   );
 
   const showsCategorySidebar =
     activeSection === "menu" || activeSection === "quick";
+
+  const tenantDisplayName = resolveLocalized(
+    locale,
+    tenant.nameKm,
+    tenant.nameEn,
+    tenant.name
+  );
 
   // --- Category Mutations ---
   const handleSaveCategory = async (payload: {
@@ -184,6 +195,12 @@ export function AdminWorkspace({
     isVisible: boolean;
   }) => {
     const canonical = payload.nameKm || payload.nameEn;
+    const displayName = resolveLocalized(
+      locale,
+      payload.nameKm,
+      payload.nameEn,
+      canonical
+    );
     if (editingCategory) {
       const res = await fetch(`/api/admin/categories/${editingCategory.id}`, {
         method: "PATCH",
@@ -191,7 +208,7 @@ export function AdminWorkspace({
         body: JSON.stringify(payload),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Update failed");
+      if (!res.ok) throw new Error(data.error ?? c.unknownError);
 
       setCategories((prev) =>
         prev.map((cat) =>
@@ -206,7 +223,7 @@ export function AdminWorkspace({
             : cat
         )
       );
-      notify(`Updated category "${canonical}"`);
+      notify(t.toastCatUpdated(displayName));
     } else {
       const res = await fetch("/api/admin/categories", {
         method: "POST",
@@ -218,12 +235,12 @@ export function AdminWorkspace({
         error?: string;
       };
       if (!res.ok || !data.category) {
-        throw new Error(data.error ?? "Creation failed");
+        throw new Error(data.error ?? c.unknownError);
       }
       const created = data.category;
       setCategories((prev) => [...prev, created]);
       setSelectedCategoryId(created.id);
-      notify(`Added category "${canonical}"`);
+      notify(t.toastCatAdded(displayName));
     }
   };
 
@@ -232,6 +249,12 @@ export function AdminWorkspace({
     nextVisible: boolean
   ) => {
     const previous = categories;
+    const catName = resolveLocalized(
+      locale,
+      category.nameKm,
+      category.nameEn,
+      category.name
+    );
     setCategories((prev) =>
       prev.map((cat) =>
         cat.id === category.id ? { ...cat, isVisible: nextVisible } : cat
@@ -243,15 +266,13 @@ export function AdminWorkspace({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isVisible: nextVisible }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error(t.toastCatVisError);
       notify(
-        nextVisible
-          ? `"${category.nameKm || category.nameEn}" is now visible`
-          : `"${category.nameKm || category.nameEn}" hidden from menu`
+        nextVisible ? t.toastCatVisible(catName) : t.toastCatHidden(catName)
       );
     } catch {
       setCategories(previous);
-      notify("Could not update category visibility", "error");
+      notify(t.toastCatVisError, "error");
     }
   };
 
@@ -267,13 +288,13 @@ export function AdminWorkspace({
       const res = await fetch("/api/admin/categories/reorder", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderedIds: normalized.map((c) => c.id) }),
+        body: JSON.stringify({ orderedIds: normalized.map((cat) => cat.id) }),
       });
-      if (!res.ok) throw new Error("Reorder failed");
-      notify("Category order saved");
+      if (!res.ok) throw new Error(t.toastCatOrderError);
+      notify(t.toastCatOrderSaved);
     } catch {
       setCategories(previous);
-      notify("Could not save category order", "error");
+      notify(t.toastCatOrderError, "error");
     }
   };
 
@@ -288,8 +309,8 @@ export function AdminWorkspace({
   };
 
   const reorderCategoryByIds = (fromId: string, targetId: string) => {
-    const fromIdx = categories.findIndex((c) => c.id === fromId);
-    const toIdx = categories.findIndex((c) => c.id === targetId);
+    const fromIdx = categories.findIndex((cat) => cat.id === fromId);
+    const toIdx = categories.findIndex((cat) => cat.id === targetId);
     if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
     const next = [...categories];
     const [moved] = next.splice(fromIdx, 1);
@@ -303,18 +324,24 @@ export function AdminWorkspace({
     const target = deletingCategory;
     setDeletingCategory(null);
     const previous = categories;
-    setCategories((prev) => prev.filter((c) => c.id !== target.id));
+    setCategories((prev) => prev.filter((cat) => cat.id !== target.id));
     if (selectedCategoryId === target.id) setSelectedCategoryId("ALL");
 
+    const targetName = resolveLocalized(
+      locale,
+      target.nameKm,
+      target.nameEn,
+      target.name
+    );
     try {
       const res = await fetch(`/api/admin/categories/${target.id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Delete failed");
-      notify(`Deleted category "${target.nameKm || target.nameEn}"`);
+      if (!res.ok) throw new Error(t.toastCatDeleteError);
+      notify(t.toastCatDeleted(targetName));
     } catch {
       setCategories(previous);
-      notify("Could not delete category", "error");
+      notify(t.toastCatDeleteError, "error");
     }
   };
 
@@ -331,7 +358,7 @@ export function AdminWorkspace({
         error?: string;
       };
       if (!res.ok || !data.item) {
-        throw new Error(data.error ?? "Update failed");
+        throw new Error(data.error ?? c.unknownError);
       }
       const updatedItem = data.item;
 
@@ -353,7 +380,16 @@ export function AdminWorkspace({
           return { ...cat, items: withoutOld };
         })
       );
-      notify(`Saved "${updatedItem.nameKm || updatedItem.nameEn}"`);
+      notify(
+        t.toastItemSaved(
+          resolveLocalized(
+            locale,
+            updatedItem.nameKm,
+            updatedItem.nameEn,
+            updatedItem.name
+          )
+        )
+      );
     } else {
       const res = await fetch("/api/admin/items", {
         method: "POST",
@@ -365,7 +401,7 @@ export function AdminWorkspace({
         error?: string;
       };
       if (!res.ok || !data.item) {
-        throw new Error(data.error ?? "Creation failed");
+        throw new Error(data.error ?? c.unknownError);
       }
       const createdItem = data.item;
 
@@ -376,7 +412,16 @@ export function AdminWorkspace({
             : cat
         )
       );
-      notify(`Added "${createdItem.nameKm || createdItem.nameEn}"`);
+      notify(
+        t.toastItemAdded(
+          resolveLocalized(
+            locale,
+            createdItem.nameKm,
+            createdItem.nameEn,
+            createdItem.name
+          )
+        )
+      );
     }
   };
 
@@ -385,6 +430,7 @@ export function AdminWorkspace({
     nextAvailable: boolean
   ) => {
     const previous = categories;
+    const itemName = resolveLocalized(locale, item.nameKm, item.nameEn, item.name);
     setCategories((prev) =>
       prev.map((cat) =>
         cat.id === item.categoryId
@@ -404,15 +450,15 @@ export function AdminWorkspace({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isAvailable: nextAvailable }),
       });
-      if (!res.ok) throw new Error("Toggle failed");
+      if (!res.ok) throw new Error(t.toastItemAvailError);
       notify(
         nextAvailable
-          ? `"${item.nameKm || item.nameEn}" marked In Stock (មាន)`
-          : `"${item.nameKm || item.nameEn}" marked Sold Out (អស់)`
+          ? t.toastItemInStock(itemName)
+          : t.toastItemSoldOut(itemName)
       );
     } catch {
       setCategories(previous);
-      notify("Failed to update availability", "error");
+      notify(t.toastItemAvailError, "error");
     }
   };
 
@@ -421,6 +467,12 @@ export function AdminWorkspace({
     const target = deletingItem;
     setDeletingItem(null);
     const previous = categories;
+    const targetName = resolveLocalized(
+      locale,
+      target.nameKm,
+      target.nameEn,
+      target.name
+    );
 
     setCategories((prev) =>
       prev.map((cat) =>
@@ -434,11 +486,11 @@ export function AdminWorkspace({
       const res = await fetch(`/api/admin/items/${target.id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Delete failed");
-      notify(`Removed "${target.nameKm || target.nameEn}"`);
+      if (!res.ok) throw new Error(t.toastItemDeleteError);
+      notify(t.toastItemDeleted(targetName));
     } catch {
       setCategories(previous);
-      notify("Could not delete dish", "error");
+      notify(t.toastItemDeleteError, "error");
     }
   };
 
@@ -453,7 +505,7 @@ export function AdminWorkspace({
   };
 
   const themeVars = getTenantThemeStyle(tenant.primaryColor);
-  const initials = (user.name || user.email)
+  const initials = (user.name || user.username || user.email)
     .split(/\s+/)
     .map((p) => p[0])
     .join("")
@@ -467,36 +519,51 @@ export function AdminWorkspace({
   }> = [
     {
       id: "menu",
-      label: "Menu Catalog",
-      icon: <UtensilsCrossed className="h-[18px] w-[18px]" strokeWidth={1.5} />,
+      label: t.sections.menu,
+      icon: (
+        <UtensilsCrossed className="h-[18px] w-[18px]" strokeWidth={1.5} />
+      ),
     },
     {
       id: "quick",
-      label: "Quick Stock & Price",
+      label: t.sections.quick,
       icon: <Zap className="h-[18px] w-[18px]" strokeWidth={1.5} />,
     },
     {
       id: "theme",
-      label: "Brand & Currency",
+      label: t.sections.theme,
       icon: <Palette className="h-[18px] w-[18px]" strokeWidth={1.5} />,
     },
     {
       id: "qr",
-      label: "QR Center",
+      label: t.sections.qr,
       icon: <QrCode className="h-[18px] w-[18px]" strokeWidth={1.5} />,
     },
   ];
 
   const handleSectionSelect = (section: AdminSection) => {
     setActiveSection(section);
-    // Automatically open live 375px preview when editing Brand & Currency on wide desktop screens
-    if (section === "theme" && typeof window !== "undefined" && window.innerWidth >= 1280) {
+    if (
+      section === "theme" &&
+      typeof window !== "undefined" &&
+      window.innerWidth >= 1280
+    ) {
       setShowPreview(true);
     }
   };
 
+  const selectedCategoryTitle = selectedCategory
+    ? resolveLocalized(
+        locale,
+        selectedCategory.nameKm,
+        selectedCategory.nameEn,
+        selectedCategory.name
+      )
+    : "";
+
   return (
     <div
+      lang={locale}
       style={themeVars}
       className="flex min-h-dvh flex-col bg-[#FAFAFA] text-zinc-950"
     >
@@ -505,9 +572,9 @@ export function AdminWorkspace({
         <div className="border-b border-zinc-800 bg-zinc-950 px-4 py-2 text-[12px] text-zinc-200">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span>
-              Super Admin inspection mode — managing{" "}
-              <strong lang="km" className="font-semibold text-white">
-                {tenant.nameKm || tenant.nameEn || tenant.name}
+              {t.impersonatingPrefix}{" "}
+              <strong className="font-semibold text-white">
+                {tenantDisplayName}
               </strong>{" "}
               (<code className="font-mono text-zinc-400">/m/{tenant.slug}</code>)
             </span>
@@ -517,7 +584,7 @@ export function AdminWorkspace({
               className="inline-flex items-center gap-1 rounded border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-zinc-800"
             >
               <ArrowLeft className="h-3 w-3" strokeWidth={1.5} />
-              Return to Super Admin
+              <span>{t.returnToSuperAdmin}</span>
             </button>
           </div>
         </div>
@@ -527,7 +594,7 @@ export function AdminWorkspace({
       <div className="flex flex-1 min-h-0">
         {/* 1. Far-Left Primary Icon Rail (Desktop) */}
         <aside
-          aria-label="Primary workspace modules"
+          aria-label={t.sections.menu}
           className="sticky top-0 hidden h-dvh w-[56px] shrink-0 flex-col items-center justify-between border-r border-zinc-200 bg-white py-3 sm:flex"
         >
           <div className="flex flex-col items-center gap-2.5">
@@ -535,10 +602,10 @@ export function AdminWorkspace({
             <Link
               href={`/m/${tenant.slug}`}
               target="_blank"
-              title={`${tenant.nameKm || tenant.nameEn} — Open live menu`}
+              title={t.openLiveMenuTitle(tenantDisplayName)}
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-[#FAFAFA] text-[12px] font-bold text-zinc-950"
             >
-              {(tenant.nameKm || tenant.nameEn || tenant.name).slice(0, 1).toUpperCase()}
+              {tenantDisplayName.slice(0, 1).toUpperCase()}
             </Link>
 
             {/* Quick Add Dish Accent Button */}
@@ -546,8 +613,8 @@ export function AdminWorkspace({
               type="button"
               disabled={categories.length === 0}
               onClick={() => openItemModal(null)}
-              title="Add new dish"
-              aria-label="Add new dish"
+              title={t.addNewDish}
+              aria-label={t.addNewDish}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               <Plus className="h-4 w-4" strokeWidth={2} />
@@ -592,16 +659,8 @@ export function AdminWorkspace({
               <button
                 type="button"
                 onClick={() => setSidebarOpen((prev) => !prev)}
-                title={
-                  sidebarOpen
-                    ? "Collapse category sidebar"
-                    : "Expand category sidebar"
-                }
-                aria-label={
-                  sidebarOpen
-                    ? "Collapse category sidebar"
-                    : "Expand category sidebar"
-                }
+                title={sidebarOpen ? t.collapseSidebar : t.expandSidebar}
+                aria-label={sidebarOpen ? t.collapseSidebar : t.expandSidebar}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950"
               >
                 {sidebarOpen ? (
@@ -615,16 +674,8 @@ export function AdminWorkspace({
             <button
               type="button"
               onClick={() => setShowPreview((prev) => !prev)}
-              title={
-                showPreview
-                  ? "Hide 375px live preview"
-                  : "Show 375px live preview"
-              }
-              aria-label={
-                showPreview
-                  ? "Hide 375px live preview"
-                  : "Show 375px live preview"
-              }
+              title={showPreview ? t.hidePreview : t.showPreview}
+              aria-label={showPreview ? t.hidePreview : t.showPreview}
               className={`hidden xl:flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                 showPreview
                   ? "bg-brand-subtle text-zinc-950"
@@ -637,8 +688,8 @@ export function AdminWorkspace({
             <button
               type="button"
               onClick={() => void handleLogout()}
-              title="Sign out"
-              aria-label="Sign out"
+              title={c.signOut}
+              aria-label={c.signOut}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950"
             >
               <LogOut className="h-4 w-4" strokeWidth={1.5} />
@@ -650,6 +701,7 @@ export function AdminWorkspace({
         {showsCategorySidebar && sidebarOpen && (
           <div className="sticky top-0 hidden h-dvh w-[236px] shrink-0 border-r border-zinc-200 bg-white lg:block">
             <CategorySidebar
+              locale={locale}
               categories={categories}
               selectedCategoryId={selectedCategoryId}
               onSelectCategory={setSelectedCategoryId}
@@ -665,24 +717,22 @@ export function AdminWorkspace({
           </div>
         )}
 
-        {/* 3. Right Content Column (Top Breadcrumb Header + Main Workspace + Optional Mobile Preview) */}
+        {/* 3. Right Content Column */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top Bar */}
           <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 sm:px-5">
             <div className="flex items-center gap-2.5 min-w-0">
-              {/* Mobile Sidebar Drawer Trigger */}
               {showsCategorySidebar && (
                 <button
                   type="button"
                   onClick={() => setMobileDrawerOpen(true)}
-                  aria-label="Open category sidebar"
+                  aria-label={t.openCategoryDrawer}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 lg:hidden"
                 >
                   <MenuIcon className="h-4 w-4" strokeWidth={1.5} />
                 </button>
               )}
 
-              {/* Semantic Breadcrumbs (modern-web-guidance `breadcrumbs`) */}
               <nav
                 aria-label="Breadcrumbs"
                 className="admin-breadcrumb min-w-0 text-[13px]"
@@ -702,11 +752,8 @@ export function AdminWorkspace({
                         style={{ backgroundColor: tenant.primaryColor }}
                         aria-hidden="true"
                       />
-                      <span
-                        lang="km"
-                        className="truncate max-w-[140px] sm:max-w-none"
-                      >
-                        {tenant.nameKm || tenant.nameEn || tenant.name}
+                      <span className="truncate max-w-[140px] sm:max-w-none">
+                        {tenantDisplayName}
                       </span>
                     </button>
                   </li>
@@ -728,7 +775,7 @@ export function AdminWorkspace({
                           : "font-medium text-zinc-500 hover:text-zinc-950"
                       }
                     >
-                      {SECTION_LABELS[activeSection]}
+                      {t.sections[activeSection]}
                     </a>
                   </li>
                   {showsCategorySidebar && selectedCategory && (
@@ -737,12 +784,9 @@ export function AdminWorkspace({
                         href={`#cat-${selectedCategory.id}`}
                         onClick={(e) => e.preventDefault()}
                         aria-current="page"
-                        lang="km"
                         className="font-semibold text-zinc-950 truncate max-w-[160px]"
                       >
-                        {selectedCategory.nameKm ||
-                          selectedCategory.nameEn ||
-                          selectedCategory.name}
+                        {selectedCategoryTitle}
                       </a>
                     </li>
                   )}
@@ -750,7 +794,7 @@ export function AdminWorkspace({
               </nav>
             </div>
 
-            {/* Center Global Quick Search (Press '/' to focus) */}
+            {/* Center Global Quick Search */}
             <div className="hidden md:block flex-1 max-w-sm">
               <div className="relative">
                 <Search
@@ -767,15 +811,15 @@ export function AdminWorkspace({
                       setActiveSection("menu");
                     }
                   }}
-                  placeholder="Search dishes or press '/'..."
-                  aria-label="Quick search dishes"
+                  placeholder={t.searchPlaceholder}
+                  aria-label={t.searchAria}
                   className="w-full rounded-lg border border-zinc-200 bg-[#FAFAFA] py-1.5 pl-8 pr-8 text-[12.5px] text-zinc-950 placeholder:text-zinc-400 focus:border-brand focus:bg-white focus:outline-none"
                 />
                 {globalSearch ? (
                   <button
                     type="button"
                     onClick={() => setGlobalSearch("")}
-                    aria-label="Clear search"
+                    aria-label={t.clearSearchAria}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
                   >
                     <X className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -791,9 +835,15 @@ export function AdminWorkspace({
             {/* Right Controls */}
             <div className="flex items-center gap-2 shrink-0">
               <span className="hidden 2xl:inline-flex items-center rounded-md border border-zinc-200 bg-[#FAFAFA] px-2 py-1 text-[11px] font-medium text-zinc-600">
-                {tenant.vendorMode === "CART" ? "Add to Cart" : "Listing Only"}{" "}
-                · {tenant.currency}
+                {tenant.vendorMode === "CART" ? c.addToCart : c.listingOnly} ·{" "}
+                {tenant.currency}
               </span>
+
+              <PortalLanguageSwitcher
+                locale={locale}
+                onChange={setLocale}
+                compact
+              />
 
               <button
                 type="button"
@@ -805,7 +855,7 @@ export function AdminWorkspace({
                 }`}
               >
                 <Smartphone className="h-3.5 w-3.5" strokeWidth={1.5} />
-                {showPreview ? "Hide preview" : "Live preview"}
+                <span>{showPreview ? t.hidePreview : t.showPreview}</span>
               </button>
 
               <Link
@@ -813,12 +863,12 @@ export function AdminWorkspace({
                 target="_blank"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-100"
               >
-                <span className="hidden sm:inline">Live menu</span>
+                <span className="hidden sm:inline">{t.liveMenu}</span>
                 <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} />
               </Link>
 
               <span
-                title={user.email}
+                title={user.username || user.phone || user.email}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-zinc-950 text-[11px] font-semibold text-white"
               >
                 {initials}
@@ -826,7 +876,7 @@ export function AdminWorkspace({
             </div>
           </header>
 
-          {/* Compact Mobile Section Bar (shown < sm when left rail is hidden) */}
+          {/* Compact Mobile Section Bar */}
           <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-3 py-1.5 sm:hidden">
             {navItems.map((item) => {
               const active = activeSection === item.id;
@@ -856,6 +906,7 @@ export function AdminWorkspace({
               <div className="min-w-0">
                 {activeSection === "menu" && (
                   <MenuManager
+                    locale={locale}
                     tenant={tenant}
                     categories={categories}
                     selectedCategoryId={selectedCategoryId}
@@ -872,6 +923,7 @@ export function AdminWorkspace({
 
                 {activeSection === "quick" && (
                   <QuickMarketPanel
+                    locale={locale}
                     tenant={tenant}
                     categories={categories}
                     selectedCategoryId={selectedCategoryId}
@@ -884,6 +936,7 @@ export function AdminWorkspace({
 
                 {activeSection === "theme" && (
                   <ThemeStudio
+                    locale={locale}
                     tenant={tenant}
                     onDraftChange={setTenant}
                     onSaved={setTenant}
@@ -892,13 +945,17 @@ export function AdminWorkspace({
                 )}
 
                 {activeSection === "qr" && (
-                  <QrCenter tenant={tenant} onNotify={notify} />
+                  <QrCenter locale={locale} tenant={tenant} onNotify={notify} />
                 )}
               </div>
 
               {showPreview && (
                 <div className="hidden xl:block">
-                  <MobilePreviewFrame tenant={tenant} categories={categories} />
+                  <MobilePreviewFrame
+                    locale={locale}
+                    tenant={tenant}
+                    categories={categories}
+                  />
                 </div>
               )}
             </div>
@@ -906,16 +963,18 @@ export function AdminWorkspace({
         </div>
       </div>
 
-      {/* Mobile Category Sidebar Drawer (< lg) */}
+      {/* Mobile Category Sidebar Drawer */}
       <NativeDialog
         open={mobileDrawerOpen}
         onClose={() => setMobileDrawerOpen(false)}
-        title="Categories"
-        subtitle="Select a category to filter your menu."
+        title={t.mobileCategoriesTitle}
+        subtitle={t.mobileCategoriesSubtitle}
+        closeLabel={c.closeDialog}
         maxWidthClass="max-w-sm"
       >
-        <div className="max-h-[70dvh]">
+        <div lang={locale} className="max-h-[70dvh]">
           <CategorySidebar
+            locale={locale}
             categories={categories}
             selectedCategoryId={selectedCategoryId}
             onSelectCategory={(id) => {
@@ -943,10 +1002,11 @@ export function AdminWorkspace({
         </div>
       </NativeDialog>
 
-      {/* Modals (loaded on first open) */}
+      {/* Modals */}
       {categoryModalMounted && (
         <CategoryModal
           open={categoryModalOpen}
+          locale={locale}
           editingCategory={editingCategory}
           onClose={() => setCategoryModalOpen(false)}
           onSave={handleSaveCategory}
@@ -956,6 +1016,7 @@ export function AdminWorkspace({
       {itemModalMounted && (
         <ItemEditorModal
           open={itemModalOpen}
+          locale={locale}
           editingItem={editingItem}
           defaultCategoryId={
             selectedCategoryId !== "ALL"
@@ -974,20 +1035,24 @@ export function AdminWorkspace({
       <NativeDialog
         open={Boolean(deletingCategory)}
         onClose={() => setDeletingCategory(null)}
-        title="Delete category?"
-        subtitle="This removes the category and all dishes inside it."
+        title={t.deleteCategoryTitle}
+        subtitle={t.deleteCategorySubtitle}
+        closeLabel={c.closeDialog}
         maxWidthClass="max-w-sm"
       >
-        <div className="p-5">
+        <div lang={locale} className="p-5">
           <p className="text-[14px] text-zinc-700">
-            Delete{" "}
-            <span lang="km" className="font-semibold text-zinc-950">
-              {deletingCategory?.nameKm || deletingCategory?.nameEn}
-            </span>
-            {deletingCategory && deletingCategory.items.length > 0
-              ? ` and its ${deletingCategory.items.length} dish(es)`
+            {deletingCategory
+              ? t.deleteCategoryConfirm(
+                  resolveLocalized(
+                    locale,
+                    deletingCategory.nameKm,
+                    deletingCategory.nameEn,
+                    deletingCategory.name
+                  ),
+                  deletingCategory.items.length
+                )
               : ""}
-            ? This cannot be undone.
           </p>
           <div className="mt-5 flex justify-end gap-2">
             <button
@@ -996,14 +1061,14 @@ export function AdminWorkspace({
               onClick={() => setDeletingCategory(null)}
               className="rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-100"
             >
-              Cancel
+              {c.cancel}
             </button>
             <button
               type="button"
               onClick={() => void confirmDeleteCategory()}
               className="rounded-md bg-red-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-red-700"
             >
-              Delete category
+              {t.deleteCategoryBtn}
             </button>
           </div>
         </div>
@@ -1013,16 +1078,22 @@ export function AdminWorkspace({
       <NativeDialog
         open={Boolean(deletingItem)}
         onClose={() => setDeletingItem(null)}
-        title="Delete dish?"
+        title={t.deleteDishTitle}
+        closeLabel={c.closeDialog}
         maxWidthClass="max-w-sm"
       >
-        <div className="p-5">
+        <div lang={locale} className="p-5">
           <p className="text-[14px] text-zinc-700">
-            Permanently remove{" "}
-            <span lang="km" className="font-semibold text-zinc-950">
-              {deletingItem?.nameKm || deletingItem?.nameEn}
-            </span>{" "}
-            from your menu?
+            {deletingItem
+              ? t.deleteDishConfirm(
+                  resolveLocalized(
+                    locale,
+                    deletingItem.nameKm,
+                    deletingItem.nameEn,
+                    deletingItem.name
+                  )
+                )
+              : ""}
           </p>
           <div className="mt-5 flex justify-end gap-2">
             <button
@@ -1031,14 +1102,14 @@ export function AdminWorkspace({
               onClick={() => setDeletingItem(null)}
               className="rounded-md border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-100"
             >
-              Cancel
+              {c.cancel}
             </button>
             <button
               type="button"
               onClick={() => void confirmDeleteItem()}
               className="rounded-md bg-red-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-red-700"
             >
-              Delete dish
+              {t.deleteDishBtn}
             </button>
           </div>
         </div>

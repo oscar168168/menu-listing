@@ -105,6 +105,7 @@ function ItemDetailBody({
           weightUnit:
             item.pricingType === "WEIGHT_BASED" ? item.weightUnit : null,
           locale,
+          localeOnly: true,
         });
 
   const marketRange =
@@ -113,14 +114,17 @@ function ItemDetailBody({
           item.marketPriceMin,
           item.marketPriceMax,
           currencyConfig,
-          { weightUnit: item.weightUnit, locale }
+          { weightUnit: item.weightUnit, locale, localeOnly: true }
         )
       : null;
 
   const buttonTotalFormatted =
     item.pricingType === "MARKET_PRICE"
       ? null
-      : formatDualPrice(totalUnitPrice * quantity, currencyConfig, { locale });
+      : formatDualPrice(totalUnitPrice * quantity, currencyConfig, {
+          locale,
+          localeOnly: true,
+        });
 
   const handleAdd = () => {
     onAddToShortlist({
@@ -264,7 +268,7 @@ function ItemDetailBody({
                   const formatted = formatDualPrice(
                     variant.price,
                     currencyConfig,
-                    { locale }
+                    { locale, localeOnly: true }
                   );
                   const label = resolveLocalized(
                     locale,
@@ -320,7 +324,7 @@ function ItemDetailBody({
                   const formatted = formatDualPrice(
                     variant.price,
                     currencyConfig,
-                    { locale }
+                    { locale, localeOnly: true }
                   );
                   const label = resolveLocalized(
                     locale,
@@ -384,7 +388,10 @@ function ItemDetailBody({
                         : null;
                   const surchargeFormatted =
                     style.surcharge > 0
-                      ? formatSurcharge(style.surcharge, currencyConfig)
+                      ? formatSurcharge(style.surcharge, currencyConfig, {
+                          locale,
+                          localeOnly: true,
+                        })
                       : null;
 
                   return (
@@ -452,7 +459,10 @@ function ItemDetailBody({
                         : null;
                   const surchargeFormatted =
                     style.surcharge > 0
-                      ? formatSurcharge(style.surcharge, currencyConfig)
+                      ? formatSurcharge(style.surcharge, currencyConfig, {
+                          locale,
+                          localeOnly: true,
+                        })
                       : null;
                   return (
                     <li

@@ -59,6 +59,7 @@ export function ShortlistModal({
 
   const subtotalFormatted = formatDualPrice(estimatedSubtotal, currencyConfig, {
     locale,
+    localeOnly: true,
   });
 
   const totalCount = entries.reduce((sum, e) => sum + e.quantity, 0);
@@ -142,7 +143,7 @@ export function ShortlistModal({
                     : formatDualPrice(
                         (entry.unitPrice + styleFee) * entry.quantity,
                         currencyConfig,
-                        { locale }
+                        { locale, localeOnly: true }
                       );
                 const marketEst =
                   entry.pricingType === "MARKET_PRICE"
@@ -150,7 +151,7 @@ export function ShortlistModal({
                         entry.marketPriceMin,
                         entry.marketPriceMax,
                         currencyConfig,
-                        { weightUnit: entry.weightUnit, locale }
+                        { weightUnit: entry.weightUnit, locale, localeOnly: true }
                       )
                     : null;
 

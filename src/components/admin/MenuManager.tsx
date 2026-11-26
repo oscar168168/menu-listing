@@ -19,8 +19,15 @@ import {
   formatSurcharge,
   type DualCurrencyConfig,
 } from "@/lib/currency";
-import { formatWeightUnit, PRESET_SEAFOOD_TAGS } from "@/lib/i18n";
+import {
+  formatWeightUnit,
+  localizeTag,
+  PRESET_SEAFOOD_TAGS,
+  resolveLocalized,
+} from "@/lib/i18n";
+import { PORTAL_COPY } from "@/lib/portal-i18n";
 import type {
+  Locale,
   PricingType,
   SerializedCategory,
   SerializedMenuItem,
@@ -28,6 +35,7 @@ import type {
 } from "@/types/menu";
 
 interface MenuManagerProps {
+  locale: Locale;
   tenant: SerializedTenant;
   categories: SerializedCategory[];
   selectedCategoryId: string;
@@ -36,13 +44,17 @@ interface MenuManagerProps {
   onAddDish: () => void;
   onEditDish: (item: SerializedMenuItem) => void;
   onDeleteDish: (item: SerializedMenuItem) => void;
-  onToggleAvailability: (item: SerializedMenuItem, nextAvailable: boolean) => void;
+  onToggleAvailability: (
+    item: SerializedMenuItem,
+    nextAvailable: boolean
+  ) => void;
 }
 
 type StatusTab = "ALL" | "ACTIVE" | "SOLD_OUT" | "MARKET_PRICE";
 type ViewMode = "grid" | "table";
 
 export function MenuManager({
+  locale,
   tenant,
   categories,
   selectedCategoryId,
@@ -53,8 +65,13 @@ export function MenuManager({
   onDeleteDish,
   onToggleAvailability,
 }: MenuManagerProps) {
+  const t = PORTAL_COPY[locale].admin;
+  const c = PORTAL_COPY[locale].common;
+
   const [statusTab, setStatusTab] = useState<StatusTab>("ALL");
-  const [pricingFilter, setPricingFilter] = useState<"ALL" | PricingType>("ALL");
+  const [pricingFilter, setPricingFilter] = useState<"ALL" | PricingType>(
+    "ALL"
+  );
   const [tagFilter, setTagFilter] = useState<string>("ALL");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
@@ -74,25 +91,29 @@ export function MenuManager({
   );
 
   const selectedCategory = useMemo(
-    () => categories.find((c) => c.id === selectedCategoryId) ?? null,
+    () => categories.find((cat) => cat.id === selectedCategoryId) ?? null,
     [categories, selectedCategoryId]
   );
 
-  // Scoped to selected category (or all categories)
   const categoryScopedItems = useMemo(() => {
     const cats =
       selectedCategoryId === "ALL"
         ? categories
-        : categories.filter((c) => c.id === selectedCategoryId);
+        : categories.filter((cat) => cat.id === selectedCategoryId);
     return cats.flatMap((cat) =>
       cat.items.map((item) => ({
         ...item,
-        categoryName: cat.nameKm || cat.nameEn || cat.name,
+        categoryName: resolveLocalized(
+          locale,
+          cat.nameKm,
+          cat.nameEn,
+          cat.name
+        ),
         categoryNameKm: cat.nameKm,
         categoryNameEn: cat.nameEn,
       }))
     );
-  }, [categories, selectedCategoryId]);
+  }, [categories, selectedCategoryId, locale]);
 
   const counts = useMemo(() => {
     let active = 0;
@@ -138,7 +159,12 @@ export function MenuManager({
         item.nameEn.toLowerCase().includes(q) ||
         item.nameKm.toLowerCase().includes(q) ||
         item.descriptionEn.toLowerCase().includes(q) ||
-        item.tags.some((t) => t.toLowerCase().includes(q)) ||
+        item.descriptionKm.toLowerCase().includes(q) ||
+        item.tags.some(
+          (tag) =>
+            tag.toLowerCase().includes(q) ||
+            localizeTag(tag, "km").toLowerCase().includes(q)
+        ) ||
         item.categoryName.toLowerCase().includes(q)
       );
     });
@@ -151,47 +177,35 @@ export function MenuManager({
     statusTab !== "ALL";
 
   const statusTabs: Array<{ id: StatusTab; label: string; count: number }> = [
-    { id: "ALL", label: "All", count: counts.all },
-    { id: "ACTIVE", label: "In Stock", count: counts.active },
-    { id: "SOLD_OUT", label: "Sold Out", count: counts.soldOut },
-    { id: "MARKET_PRICE", label: "Market Price", count: counts.market },
+    { id: "ALL", label: c.all, count: counts.all },
+    { id: "ACTIVE", label: c.inStock, count: counts.active },
+    { id: "SOLD_OUT", label: c.soldOut, count: counts.soldOut },
+    { id: "MARKET_PRICE", label: c.marketPrice, count: counts.market },
   ];
+
+  const selectedCatLabel = selectedCategory
+    ? resolveLocalized(
+        locale,
+        selectedCategory.nameKm,
+        selectedCategory.nameEn,
+        selectedCategory.name
+      )
+    : undefined;
 
   return (
     <div className="space-y-4">
       {/* Page Title & Primary CTA Row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-baseline gap-2.5">
-            <h1
-              lang="km"
-              className="text-[20px] font-semibold tracking-[-0.02em] text-zinc-950"
-            >
-              {selectedCategory
-                ? selectedCategory.nameKm ||
-                  selectedCategory.nameEn ||
-                  selectedCategory.name
-                : "មុខម្ហូបទាំងអស់ · All Dishes"}
-            </h1>
-            {selectedCategory?.nameKm &&
-              selectedCategory?.nameEn &&
-              selectedCategory.nameEn !== selectedCategory.nameKm && (
-                <span className="text-[14px] text-zinc-500">
-                  {selectedCategory.nameEn}
-                </span>
-              )}
-          </div>
+          <h1 className="text-[20px] font-semibold tracking-[-0.02em] text-zinc-950">
+            {selectedCatLabel ?? t.allDishesHeading}
+          </h1>
           <p className="mt-0.5 text-[12px] text-zinc-500">
-            Showing{" "}
-            <span className="tabular-nums font-medium text-zinc-700">
-              {filteredItems.length}
-            </span>{" "}
-            of{" "}
-            <span className="tabular-nums">{categoryScopedItems.length}</span>{" "}
-            items
-            {selectedCategory
-              ? ` in ${selectedCategory.nameKm || selectedCategory.nameEn}`
-              : " across all categories"}
+            {t.showingItems(
+              filteredItems.length,
+              categoryScopedItems.length,
+              selectedCatLabel
+            )}
           </p>
         </div>
 
@@ -202,13 +216,17 @@ export function MenuManager({
           className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-[13px] font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           <Plus className="h-4 w-4" strokeWidth={1.75} />
-          Add Dish
+          <span>{t.addDishBtn}</span>
         </button>
       </div>
 
-      {/* Status Tabs Bar (Underline style inspired by reference workspace) */}
+      {/* Status Tabs Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200">
-        <div role="tablist" aria-label="Dish status filters" className="flex items-center gap-1 -mb-px">
+        <div
+          role="tablist"
+          aria-label={t.colStock}
+          className="flex items-center gap-1 -mb-px"
+        >
           {statusTabs.map((tab) => {
             const active = statusTab === tab.id;
             return (
@@ -243,15 +261,15 @@ export function MenuManager({
         <div className="flex items-center gap-1 pb-1.5">
           <div
             role="group"
-            aria-label="Catalog view mode"
+            aria-label={t.gridViewLabel}
             className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5"
           >
             <button
               type="button"
               onClick={() => setViewMode("grid")}
               aria-pressed={viewMode === "grid"}
-              title="Card grid view"
-              aria-label="Card grid view"
+              title={t.gridViewLabel}
+              aria-label={t.gridViewLabel}
               className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
                 viewMode === "grid"
                   ? "bg-zinc-900 text-white"
@@ -264,8 +282,8 @@ export function MenuManager({
               type="button"
               onClick={() => setViewMode("table")}
               aria-pressed={viewMode === "table"}
-              title="Compact list view"
-              aria-label="Compact list view"
+              title={t.tableViewLabel}
+              aria-label={t.tableViewLabel}
               className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
                 viewMode === "table"
                   ? "bg-zinc-900 text-white"
@@ -289,31 +307,34 @@ export function MenuManager({
             type="search"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Filter dishes..."
-            aria-label="Filter dishes in current category"
+            placeholder={t.filterDishesPlaceholder}
+            aria-label={t.filterDishesPlaceholder}
             className="w-full rounded-lg border border-zinc-200 bg-white py-1.5 pl-8 pr-3 text-[13px] text-zinc-950 placeholder:text-zinc-400 focus:border-brand focus:outline-none"
           />
         </div>
 
         <NativeSelect
-          ariaLabel="Filter by pricing type"
+          ariaLabel={t.pricingFilterAll}
           value={pricingFilter}
           onChange={(v) => setPricingFilter(v as "ALL" | PricingType)}
           options={[
-            { value: "ALL", label: "Pricing: All" },
-            { value: "FIXED", label: "Fixed Price" },
-            { value: "WEIGHT_BASED", label: "Weight-Based" },
-            { value: "MARKET_PRICE", label: "Market Price" },
+            { value: "ALL", label: t.pricingFilterAll },
+            { value: "FIXED", label: t.pricingFixed },
+            { value: "WEIGHT_BASED", label: t.pricingWeight },
+            { value: "MARKET_PRICE", label: t.pricingMarket },
           ]}
         />
 
         <NativeSelect
-          ariaLabel="Filter by tag"
+          ariaLabel={t.tagFilterAll}
           value={tagFilter}
           onChange={setTagFilter}
           options={[
-            { value: "ALL", label: "Tag: All" },
-            ...availableTags.map((tag) => ({ value: tag, label: tag })),
+            { value: "ALL", label: t.tagFilterAll },
+            ...availableTags.map((tag) => ({
+              value: tag,
+              label: localizeTag(tag, locale),
+            })),
           ]}
         />
 
@@ -328,7 +349,7 @@ export function MenuManager({
             }}
             className="text-[12px] font-medium text-zinc-500 underline underline-offset-4 hover:text-zinc-950"
           >
-            Reset filters
+            {c.resetFilters}
           </button>
         )}
       </div>
@@ -338,13 +359,13 @@ export function MenuManager({
         <div className="rounded-xl border border-zinc-200 bg-white px-6 py-14 text-center">
           <p className="text-[14px] font-medium text-zinc-900">
             {categoryScopedItems.length === 0
-              ? "No dishes in this category yet"
-              : "No dishes match your active filters"}
+              ? t.emptyCategoryTitle
+              : t.emptyFilteredTitle}
           </p>
           <p className="mt-1 text-[12px] text-zinc-500">
             {categoryScopedItems.length === 0
-              ? "Click Add Dish to create your first item here."
-              : "Try resetting filters or selecting another category from the left sidebar."}
+              ? t.emptyCategoryBody
+              : t.emptyFilteredBody}
           </p>
           {categoryScopedItems.length === 0 && categories.length > 0 && (
             <button
@@ -353,21 +374,26 @@ export function MenuManager({
               className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-1.5 text-[13px] font-medium"
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Add Dish
+              <span>{t.addDishBtn}</span>
             </button>
           )}
         </div>
       ) : viewMode === "grid" ? (
-        /* ==================================================================
-           CARD GRID VIEW (Size-Aware Container Query Grid — Reference UI)
-           ================================================================== */
         <div className="admin-catalog-grid-container">
           <div className="admin-catalog-grid">
             {filteredItems.map((item) => {
+              const dishTitle = resolveLocalized(
+                locale,
+                item.nameKm,
+                item.nameEn,
+                item.name
+              );
               const dualPrice =
                 item.pricingType === "MARKET_PRICE"
                   ? null
                   : formatDualPrice(item.price, currencyConfig, {
+                      locale,
+                      localeOnly: true,
                       weightUnit:
                         item.pricingType === "WEIGHT_BASED"
                           ? item.weightUnit
@@ -379,7 +405,7 @@ export function MenuManager({
                       item.marketPriceMin,
                       item.marketPriceMax,
                       currencyConfig,
-                      { weightUnit: item.weightUnit }
+                      { weightUnit: item.weightUnit, locale, localeOnly: true }
                     )
                   : null;
 
@@ -391,13 +417,13 @@ export function MenuManager({
                   }`}
                 >
                   <div>
-                    {/* Top Row: Thumbnail + Bilingual Name + Edit/Delete */}
+                    {/* Top Row: Thumbnail + Name + Edit/Delete */}
                     <div className="flex items-start justify-between gap-2.5">
                       <div className="flex items-start gap-2.5 min-w-0 flex-1">
                         {item.imageUrl ? (
                           <img
                             src={item.imageUrl}
-                            alt={item.nameEn}
+                            alt={dishTitle}
                             width={44}
                             height={44}
                             loading="lazy"
@@ -416,22 +442,14 @@ export function MenuManager({
                         )}
                         <div className="min-w-0 flex-1">
                           <h3
-                            lang="km"
-                            className={`line-clamp-1 text-[14px] font-semibold ${
+                            className={`line-clamp-2 text-[14px] font-semibold ${
                               item.isAvailable
                                 ? "text-zinc-950"
                                 : "text-zinc-500"
                             }`}
                           >
-                            {item.nameKm || item.nameEn}
+                            {dishTitle}
                           </h3>
-                          {item.nameKm &&
-                            item.nameEn &&
-                            item.nameEn !== item.nameKm && (
-                              <p className="truncate text-[12px] text-zinc-500">
-                                {item.nameEn}
-                              </p>
-                            )}
                         </div>
                       </div>
 
@@ -439,7 +457,7 @@ export function MenuManager({
                         <button
                           type="button"
                           onClick={() => onEditDish(item)}
-                          aria-label={`Edit ${item.nameEn}`}
+                          aria-label={`Edit ${dishTitle}`}
                           className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950"
                         >
                           <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -447,7 +465,7 @@ export function MenuManager({
                         <button
                           type="button"
                           onClick={() => onDeleteDish(item)}
-                          aria-label={`Delete ${item.nameEn}`}
+                          aria-label={`Delete ${dishTitle}`}
                           className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -465,7 +483,7 @@ export function MenuManager({
                           key={tag}
                           className="rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-600"
                         >
-                          {tag}
+                          {localizeTag(tag, locale)}
                         </span>
                       ))}
                       {item.tags.length > 2 && (
@@ -482,7 +500,8 @@ export function MenuManager({
                           {item.variants.slice(0, 3).map((variant, idx) => {
                             const vf = formatDualPrice(
                               variant.price,
-                              currencyConfig
+                              currencyConfig,
+                              { locale, localeOnly: true }
                             );
                             return (
                               <div
@@ -490,7 +509,11 @@ export function MenuManager({
                                 className="flex items-center justify-between gap-2"
                               >
                                 <span className="truncate text-zinc-600">
-                                  {variant.label}
+                                  {resolveLocalized(
+                                    locale,
+                                    variant.labelKm,
+                                    variant.label
+                                  )}
                                 </span>
                                 <span className="shrink-0 tabular-nums font-medium text-zinc-950">
                                   {vf.primary}
@@ -505,7 +528,7 @@ export function MenuManager({
                           })}
                           {item.variants.length > 3 && (
                             <p className="text-[11px] font-medium text-zinc-500 underline underline-offset-2">
-                              +{item.variants.length - 3} more variants
+                              {t.moreVariants(item.variants.length - 3)}
                             </p>
                           )}
                         </div>
@@ -515,10 +538,10 @@ export function MenuManager({
                             {item.pricingType === "MARKET_PRICE" ? (
                               <>
                                 <span className="rounded border border-brand-subtle bg-brand-subtle px-1.5 py-0.5 text-[11px] font-semibold text-zinc-900">
-                                  Market Price
+                                  {c.marketPrice}
                                 </span>
                                 <span className="text-[12px] tabular-nums text-zinc-500">
-                                  {marketRange?.primary ?? "Daily weigh-in"}
+                                  {marketRange?.primary ?? t.dailyWeighIn}
                                 </span>
                               </>
                             ) : (
@@ -542,25 +565,27 @@ export function MenuManager({
                                 key={style.id}
                                 className="flex items-center justify-between gap-2"
                               >
-                                <span
-                                  lang="km"
-                                  className="truncate text-zinc-600"
-                                >
-                                  {style.nameKm || style.nameEn}
+                                <span className="truncate text-zinc-600">
+                                  {resolveLocalized(
+                                    locale,
+                                    style.nameKm,
+                                    style.nameEn
+                                  )}
                                 </span>
                                 <span className="shrink-0 tabular-nums text-[11px] text-zinc-500">
                                   {style.surcharge > 0
                                     ? formatSurcharge(
                                         style.surcharge,
-                                        currencyConfig
+                                        currencyConfig,
+                                        { locale, localeOnly: true }
                                       ).primary
-                                    : "Included"}
+                                    : t.included}
                                 </span>
                               </div>
                             ))}
                             {item.cookingStyles.length > 2 && (
                               <p className="text-[11px] font-medium text-zinc-500">
-                                +{item.cookingStyles.length - 2} more styles
+                                {t.moreStyles(item.cookingStyles.length - 2)}
                               </p>
                             )}
                           </div>
@@ -570,25 +595,25 @@ export function MenuManager({
                           <div>
                             <p className="text-[11px] text-zinc-400">
                               {item.pricingType === "MARKET_PRICE"
-                                ? "Pricing"
-                                : `Primary (${tenant.currency})`}
+                                ? t.pricingLabel
+                                : t.primaryCurrencyLabel(tenant.currency)}
                             </p>
                             <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-zinc-950">
                               {item.pricingType === "MARKET_PRICE"
-                                ? "Market Price"
+                                ? c.marketPrice
                                 : dualPrice?.primary}
                             </p>
                           </div>
                           <div>
                             <p className="text-[11px] text-zinc-400">
                               {item.pricingType === "MARKET_PRICE"
-                                ? "Estimated"
-                                : "Dual Currency"}
+                                ? t.estimatedLabel
+                                : t.dualCurrencyLabel}
                             </p>
                             <p className="mt-0.5 text-[13px] font-medium tabular-nums text-zinc-600">
                               {item.pricingType === "MARKET_PRICE"
                                 ? marketRange?.primary ?? "—"
-                                : dualPrice?.secondary ?? "Single"}
+                                : dualPrice?.secondary ?? t.singleCurrencyOnly}
                             </p>
                           </div>
                         </div>
@@ -596,7 +621,7 @@ export function MenuManager({
                     </div>
                   </div>
 
-                  {/* Card Footer: Status Pill + Instant Toggle + Edit Arrow */}
+                  {/* Card Footer */}
                   <div className="mt-4 flex items-center justify-between gap-2 border-t border-zinc-100 pt-3">
                     <div className="flex items-center gap-2">
                       <span
@@ -611,14 +636,14 @@ export function MenuManager({
                             item.isAvailable ? "bg-emerald-600" : "bg-zinc-400"
                           }`}
                         />
-                        {item.isAvailable ? "In stock" : "Sold out"}
+                        {item.isAvailable ? c.inStock : c.soldOut}
                       </span>
                       <NativeSwitch
                         checked={item.isAvailable}
                         onChange={(checked) =>
                           onToggleAvailability(item, checked)
                         }
-                        label={`Toggle stock for ${item.nameEn}`}
+                        label={dishTitle}
                         srOnlyLabel
                       />
                     </div>
@@ -626,7 +651,7 @@ export function MenuManager({
                     <button
                       type="button"
                       onClick={() => onEditDish(item)}
-                      aria-label={`Open ${item.nameEn} editor`}
+                      aria-label={`Edit ${dishTitle}`}
                       className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400 hover:text-zinc-950"
                     >
                       <ChevronsRight className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -638,40 +663,45 @@ export function MenuManager({
           </div>
         </div>
       ) : (
-        /* ==================================================================
-           COMPACT TABLE VIEW (High-Density 100+ Dish Management)
-           ================================================================== */
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-[13px]">
               <thead className="border-b border-zinc-200 bg-[#FAFAFA] text-[11px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
                 <tr>
                   <th scope="col" className="px-4 py-2.5">
-                    Dish
+                    {t.colDish}
                   </th>
                   <th scope="col" className="px-4 py-2.5">
-                    Category
+                    {t.colCategory}
                   </th>
                   <th scope="col" className="px-4 py-2.5">
-                    Price / Mode
+                    {t.colPriceMode}
                   </th>
                   <th scope="col" className="px-4 py-2.5">
-                    Options
+                    {t.colOptions}
                   </th>
                   <th scope="col" className="px-4 py-2.5">
-                    Stock
+                    {t.colStock}
                   </th>
                   <th scope="col" className="px-4 py-2.5 text-right">
-                    Actions
+                    {t.colActions}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200">
                 {filteredItems.map((item) => {
+                  const dishTitle = resolveLocalized(
+                    locale,
+                    item.nameKm,
+                    item.nameEn,
+                    item.name
+                  );
                   const dualPrice =
                     item.pricingType === "MARKET_PRICE"
                       ? null
                       : formatDualPrice(item.price, currencyConfig, {
+                          locale,
+                          localeOnly: true,
                           weightUnit:
                             item.pricingType === "WEIGHT_BASED"
                               ? item.weightUnit
@@ -687,7 +717,7 @@ export function MenuManager({
                           {item.imageUrl ? (
                             <img
                               src={item.imageUrl}
-                              alt={item.nameEn}
+                              alt={dishTitle}
                               width={36}
                               height={36}
                               loading="lazy"
@@ -704,22 +734,14 @@ export function MenuManager({
                           )}
                           <div className="min-w-0">
                             <p
-                              lang="km"
                               className={`truncate font-semibold ${
                                 item.isAvailable
                                   ? "text-zinc-950"
                                   : "text-zinc-400"
                               }`}
                             >
-                              {item.nameKm || item.nameEn}
+                              {dishTitle}
                             </p>
-                            {item.nameKm &&
-                              item.nameEn &&
-                              item.nameEn !== item.nameKm && (
-                                <p className="truncate text-[11px] text-zinc-500">
-                                  {item.nameEn}
-                                </p>
-                              )}
                           </div>
                         </div>
                       </td>
@@ -731,9 +753,9 @@ export function MenuManager({
                       <td className="px-4 py-2.5 tabular-nums">
                         {item.pricingType === "MARKET_PRICE" ? (
                           <span className="rounded border border-brand-subtle bg-brand-subtle px-2 py-0.5 text-[11px] font-medium text-zinc-900">
-                            Market Price
+                            {c.marketPrice}
                             {item.weightUnit
-                              ? ` (${formatWeightUnit(item.weightUnit, "en")})`
+                              ? ` (${formatWeightUnit(item.weightUnit, locale)})`
                               : ""}
                           </span>
                         ) : (
@@ -754,10 +776,10 @@ export function MenuManager({
 
                       <td className="px-4 py-2.5 text-[12px] tabular-nums text-zinc-500">
                         {item.cookingStyles.length > 0
-                          ? `${item.cookingStyles.length} styles`
+                          ? t.stylesCount(item.cookingStyles.length)
                           : item.variants.length > 0
-                            ? `${item.variants.length} variants`
-                            : "Standard"}
+                            ? t.variantsCount(item.variants.length)
+                            : t.standardOption}
                       </td>
 
                       <td className="px-4 py-2.5">
@@ -767,11 +789,11 @@ export function MenuManager({
                             onChange={(checked) =>
                               onToggleAvailability(item, checked)
                             }
-                            label={`Toggle stock for ${item.nameEn}`}
+                            label={dishTitle}
                             srOnlyLabel
                           />
                           <span className="text-[12px] text-zinc-600">
-                            {item.isAvailable ? "In stock" : "Sold out"}
+                            {item.isAvailable ? c.inStock : c.soldOut}
                           </span>
                         </div>
                       </td>
@@ -781,7 +803,7 @@ export function MenuManager({
                           <button
                             type="button"
                             onClick={() => onEditDish(item)}
-                            aria-label={`Edit ${item.nameEn}`}
+                            aria-label={`Edit ${dishTitle}`}
                             className="inline-flex h-7 w-7 items-center justify-center rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
                           >
                             <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -789,7 +811,7 @@ export function MenuManager({
                           <button
                             type="button"
                             onClick={() => onDeleteDish(item)}
-                            aria-label={`Delete ${item.nameEn}`}
+                            aria-label={`Delete ${dishTitle}`}
                             className="inline-flex h-7 w-7 items-center justify-center rounded border border-zinc-200 bg-white text-zinc-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                           >
                             <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />

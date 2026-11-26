@@ -83,6 +83,7 @@ export function formatDualPrice(
     locale?: Locale;
     prefix?: string;
     includeUnitOnSecondary?: boolean;
+    localeOnly?: boolean;
   }
 ): FormattedDualPrice {
   const locale = options?.locale ?? "en";
@@ -92,6 +93,31 @@ export function formatDualPrice(
   const prefix = options?.prefix ? `${options.prefix} ` : "";
   const secondaryUnit =
     options?.includeUnitOnSecondary && unitSuffix ? unitSuffix : "";
+
+  if (options?.localeOnly) {
+    if (locale === "km") {
+      const khrAmount =
+        config.primaryCurrency === "USD"
+          ? convertUsdToKhr(amount, config.exchangeRate, config.khrRounding)
+          : roundKhr(amount, config.khrRounding);
+      return {
+        primary: `${prefix}${formatKhr(khrAmount)}${unitSuffix}`,
+        secondary: null,
+      };
+    }
+
+    const usdAmount =
+      config.primaryCurrency === "KHR"
+        ? convertKhrToUsd(
+            roundKhr(amount, config.khrRounding),
+            config.exchangeRate
+          )
+        : amount;
+    return {
+      primary: `${prefix}${formatUsd(usdAmount)}${unitSuffix}`,
+      secondary: null,
+    };
+  }
 
   if (config.primaryCurrency === "USD") {
     const primary = `${prefix}${formatUsd(amount)}${unitSuffix}`;
@@ -129,7 +155,11 @@ export function formatMarketRange(
   min: number | null | undefined,
   max: number | null | undefined,
   config: DualCurrencyConfig,
-  options?: { weightUnit?: WeightUnit | null; locale?: Locale }
+  options?: {
+    weightUnit?: WeightUnit | null;
+    locale?: Locale;
+    localeOnly?: boolean;
+  }
 ): FormattedDualPrice | null {
   if (min == null && max == null) return null;
   const locale = options?.locale ?? "en";
@@ -139,6 +169,45 @@ export function formatMarketRange(
 
   const low = min ?? max ?? 0;
   const high = max ?? min ?? 0;
+
+  if (options?.localeOnly) {
+    if (locale === "km") {
+      const lowKhr =
+        config.primaryCurrency === "USD"
+          ? convertUsdToKhr(low, config.exchangeRate, config.khrRounding)
+          : roundKhr(low, config.khrRounding);
+      const highKhr =
+        config.primaryCurrency === "USD"
+          ? convertUsdToKhr(high, config.exchangeRate, config.khrRounding)
+          : roundKhr(high, config.khrRounding);
+      return {
+        primary:
+          lowKhr === highKhr
+            ? `${formatKhr(lowKhr)}${unitSuffix}`
+            : `${formatKhr(lowKhr)} – ${formatKhr(highKhr)}${unitSuffix}`,
+        secondary: null,
+      };
+    }
+
+    const lowUsd =
+      config.primaryCurrency === "KHR"
+        ? convertKhrToUsd(roundKhr(low, config.khrRounding), config.exchangeRate)
+        : low;
+    const highUsd =
+      config.primaryCurrency === "KHR"
+        ? convertKhrToUsd(
+            roundKhr(high, config.khrRounding),
+            config.exchangeRate
+          )
+        : high;
+    return {
+      primary:
+        lowUsd === highUsd
+          ? `${formatUsd(lowUsd)}${unitSuffix}`
+          : `${formatUsd(lowUsd)} – ${formatUsd(highUsd)}${unitSuffix}`,
+      secondary: null,
+    };
+  }
 
   if (config.primaryCurrency === "USD") {
     const primary =
@@ -177,12 +246,13 @@ export function formatMarketRange(
 
 export function formatSurcharge(
   surcharge: number,
-  config: DualCurrencyConfig
+  config: DualCurrencyConfig,
+  options?: { locale?: Locale; localeOnly?: boolean }
 ): FormattedDualPrice {
   if (surcharge <= 0) {
     return { primary: "+$0", secondary: null };
   }
-  const formatted = formatDualPrice(surcharge, config);
+  const formatted = formatDualPrice(surcharge, config, options);
   return {
     primary: `+${formatted.primary}`,
     secondary: formatted.secondary ? `+${formatted.secondary}` : null,

@@ -8,7 +8,7 @@ import {
 import { DEFAULT_MENU_CATEGORIES } from "@/lib/i18n";
 import type { PricingType } from "@/types/menu";
 
-export const DEMO_CATALOG_VERSION = "v5-pak-khlang-168-full-menu";
+export const DEMO_CATALOG_VERSION = "v6-pak-khlang-168-fb-photos";
 
 export function isPakKhlangVenue(tenant: {
   slug: string;
@@ -161,7 +161,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 25000,
     imageUrl:
-      "https://m1.quebecormedia.com/emp/emp/005ce5d3-9363-41f7-8ab2-b7c6c5dd46dd_ORIGINAL.jpg",
+      "/images/pak-khlang/fresh-oysters.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 4,
@@ -180,7 +180,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 25000,
     imageUrl:
-      "https://cdn.i-scmp.com/sites/default/files/styles/square/public/d8/images/2019/09/18/scmp_02aug17_fe_foodshoot2550_jonw4348_new_.jpg?itok=fvGPCN8I",
+      "/images/pak-khlang/blood-cockles.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 5,
@@ -199,7 +199,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 25000,
     imageUrl:
-      "https://i0.wp.com/thegoodlifefrance.com/wp-content/uploads/2019/11/snails-cooked-in-garlic-butter.jpg",
+      "/images/pak-khlang/sea-snails.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 6,
@@ -239,7 +239,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 40000,
     imageUrl:
-      "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9Tj7CsaqNHAyG1Exoj5GYLruR130geWwZoFOFCoKV5CDx_k-j9cowZXm3xJgsurirp1meY1WCzvNYFyGITshKNdwcTf8Xh3veSkQDnSc37OcIUN8USUFFZTEyjX4oA6vlPBStB93g=w400-h400-n-k-no",
+      "/images/pak-khlang/kampot-pepper-crab.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 0,
@@ -258,7 +258,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 40000,
     imageUrl:
-      "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9SIS9-oidQ8IifsJaJ4T_5OTCQ0SVBSrIHQtAH17KdX1CJs__hzRMnbdhk4IBI7FujkUOwtdySn1AEOZYtJLnDndFqScHFvKxeKSU4nQtPjAJH60NMcBqJIneH8MKhuFMNh_6QR=w400-h400-n-k-no",
+      "/images/pak-khlang/steamed-mud-crab.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 1,
@@ -277,7 +277,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 35000,
     imageUrl:
-      "https://vuacuacamau.vn/images/posts/steamed-blue-swimmer-crab.webp",
+      "/images/pak-khlang/steamed-blue-crab.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 2,
@@ -296,7 +296,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 35000,
     imageUrl:
-      "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9Rl4piUV549SuFvTVbyAfOZR6nKHdUIznnBRpeUbQLK53DBaaJM-frYxFrh53O7PW9dhK95pKSHyhy48I8t8OcrkgunLPAjX0M96Eag9zV9GcPDM4mN5IT1q7O9R1LToWx0zrXf=w400-h400-n-k-no",
+      "/images/pak-khlang/marinated-blue-crab.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 3,
@@ -335,7 +335,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 40000,
     imageUrl:
-      "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9Q0BlzMx1b336rOR3iH3g9YV4z4JM7NXZIztvAnGBtP-DyzORKNQOXvDUk7jccFyOd8IWj9yc73GK72tL9ckRAs1zehVC2JAGwtUoEQSYAgX18dmlhdT7Kcxk17Mx_HtXpWK7vm=w400-h400-n-k-no",
+      "/images/pak-khlang/grilled-king-prawns.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 1,
@@ -354,7 +354,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 35000,
     imageUrl:
-      "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9TvSg_MCV244cZIPJQ4m4f6K2aq4eC6-SpoRuF8iK-jg7ghzxRVnFLrXHB6yt0UHDkilNFhIlj8aTSCJ6Bp9_mQqd24bEPEvEKeaGMv7531SsAz-mHnPqJtnUQkSNhgA_DsNB1q-Q=w400-h400-n-k-no",
+      "/images/pak-khlang/stir-fried-garlic-shrimp.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 2,
@@ -373,7 +373,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 35000,
     imageUrl:
-      "https://oursamui.com/wp-content/uploads/2026/03/Goong-Chae-Nam-Pla.jpeg",
+      "/images/pak-khlang/koh-kong-raw-shrimp.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 3,
@@ -392,7 +392,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 25000,
     imageUrl:
-      "https://lh3.googleusercontent.com/gps-cs-s/ANWiy9SLAv9b8zXmqtWQUN-6tumftddOIAUdSsx6Mtlc1Berg3whYwU_iARBg4UjW1_javBpmqSNgqdncP3l24esJfCrhn_kWA-xycE7aTxh8_hHs4pyKfeEyem_D_KHFZbLXqhsoRRJ=w400-h400-n-k-no",
+      "/images/pak-khlang/garlic-fried-shrimp.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 4,
@@ -413,7 +413,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 35000,
     imageUrl:
-      "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ed/DFC_6124_Grilled_whole_squid_skewers_sizzling_over_hot_coals_with_smoky_char_and_golden_glaze_ready_to_eat.jpg/330px-DFC_6124_Grilled_whole_squid_skewers_sizzling_over_hot_coals_with_smoky_char_and_golden_glaze_ready_to_eat.jpg",
+      "/images/pak-khlang/grilled-squid.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 0,
@@ -432,7 +432,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 35000,
     imageUrl:
-      "https://images.squarespace-cdn.com/content/v1/5e9483a9bb182a1caddc2e21/1600936560729-WHHCQH5671Z389Q9560P/D8E8859F-946D-4A07-B4F4-BC7709C1066E.jpeg",
+      "/images/pak-khlang/steamed-squid-koh-kong.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 1,
@@ -451,7 +451,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 35000,
     imageUrl:
-      "https://grantourismotravels.com/wp-content/uploads/2020/08/Squid-Green-Peppercorns-Recipe-Cambodia-Kampot-Pepper-Stir-Fry-Copyright-2020-Terence-Carter-Grantourismo.jpg",
+      "/images/pak-khlang/squid-green-peppercorn.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 2,
@@ -470,7 +470,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 25000,
     imageUrl:
-      "https://api.photon.aremedia.net.au/wp-content/uploads/sites/11/food/2015/09/16/27172/C148F552-Da37fd1-ThaiMangoSquidSalad-RMAFAD-27-(1).jpg?fit=2048%2C1536&format=auto",
+      "/images/pak-khlang/mango-squid-salad.jpg",
     tags: [],
     isAvailable: true,
     sortOrder: 3,
@@ -510,7 +510,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 35000,
     imageUrl:
-      "https://carryitlikeharry.com/wp-content/uploads/2017/07/DSCF0492.jpg",
+      "/images/pak-khlang/crab-glass-noodles.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 1,
@@ -578,7 +578,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     pricingType: "FIXED",
     priceDecimal: 6000,
     imageUrl:
-      "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Thai_Red_Ice_Milk_Tea_-_Siam_Siam_2024-07-31.jpg/250px-Thai_Red_Ice_Milk_Tea_-_Siam_Siam_2024-07-31.jpg",
+      "/images/pak-khlang/thai-milk-tea.jpg",
     tags: ["Signature"],
     isAvailable: true,
     sortOrder: 0,
@@ -840,24 +840,63 @@ const LEGACY_DEMO_ITEM_NAMES = new Set<string>([
   "Coca-Cola & Chilled Soft Drinks",
 ]);
 
+const inFlightSyncs = new Map<string, Promise<FirestoreTenantDoc>>();
+
 /**
  * Seeds or upgrades a tenant's categories & demo items to the 7 default categories
  * (Seafood, Crab, Shrimp, Squid, Rice, Beer, Drink) and KHR pricing (25,000៛ / 35,000៛ / 40,000៛).
  * Preserves any custom user-created items by re-attaching them to the closest default category.
+ * Uses an in-process lock and deterministic IDs so concurrent callers cannot duplicate docs.
  */
 export async function syncTenantDefaultCatalog(
   tenantId: string,
   tenant: FirestoreTenantDoc,
   options: { preserveCustomItems?: boolean } = { preserveCustomItems: true }
 ): Promise<FirestoreTenantDoc> {
+  const existing = inFlightSyncs.get(tenantId);
+  if (existing) {
+    return existing;
+  }
+
+  const run = runSyncTenantDefaultCatalog(tenantId, tenant, options).finally(() => {
+    inFlightSyncs.delete(tenantId);
+  });
+  inFlightSyncs.set(tenantId, run);
+  return run;
+}
+
+async function runSyncTenantDefaultCatalog(
+  tenantId: string,
+  tenant: FirestoreTenantDoc,
+  options: { preserveCustomItems?: boolean }
+): Promise<FirestoreTenantDoc> {
   const isSora = isPakKhlangVenue(tenant);
   const isKep = tenant.slug === "kep-bay-kitchen";
   const demoItems = isKep ? KEP_DEMO_ITEMS : SORA_DEMO_ITEMS;
 
-  const [existingCatsSnap, existingItemsSnap] = await Promise.all([
+  const [freshTenantSnap, existingCatsSnap, existingItemsSnap] = await Promise.all([
+    tenantDoc(tenantId).get(),
     categoriesCol(tenantId).get(),
     menuItemsCol(tenantId).get(),
   ]);
+
+  const currentTenant = freshTenantSnap.exists ? freshTenantSnap.data()! : tenant;
+  const freshMeta =
+    currentTenant.metaJson &&
+    typeof currentTenant.metaJson === "object" &&
+    !Array.isArray(currentTenant.metaJson)
+      ? (currentTenant.metaJson as Record<string, unknown>)
+      : {};
+
+  if (
+    options.preserveCustomItems !== false &&
+    freshMeta.demoCatalogVersion === DEMO_CATALOG_VERSION &&
+    existingCatsSnap.size <= DEFAULT_MENU_CATEGORIES.length &&
+    existingItemsSnap.size >= demoItems.length &&
+    existingItemsSnap.size <= demoItems.length + 10
+  ) {
+    return currentTenant;
+  }
 
   const oldCatNameById = new Map<string, { nameEn: string; nameKm: string }>();
   for (const doc of existingCatsSnap.docs) {
@@ -870,29 +909,49 @@ export async function syncTenantDefaultCatalog(
 
   const customItemsToKeep = options.preserveCustomItems
     ? existingItemsSnap.docs
-        .map((d) => d.data())
+        .map((d) => ({ id: d.id, data: d.data() }))
         .filter(
-          (item) =>
+          ({ data: item }) =>
             !LEGACY_DEMO_ITEM_NAMES.has(item.nameEn || item.name) &&
             !LEGACY_DEMO_ITEM_NAMES.has(item.name)
         )
     : [];
 
+  const targetCatIds = new Set<string>(
+    DEFAULT_MENU_CATEGORIES.map((cat) => `default-cat-${cat.key}`)
+  );
+  const targetItemIds = new Set<string>(
+    isSora || isKep
+      ? demoItems.map(
+          (item, idx) =>
+            `default-item-${String(idx).padStart(2, "0")}-${item.categoryKey}`
+        )
+      : []
+  );
+  for (const custom of customItemsToKeep) {
+    targetItemIds.add(custom.id);
+  }
+
   const ops: Array<(batch: FirebaseFirestore.WriteBatch) => void> = [];
 
   for (const doc of existingItemsSnap.docs) {
-    ops.push((b) => b.delete(doc.ref));
+    if (!targetItemIds.has(doc.id)) {
+      ops.push((b) => b.delete(doc.ref));
+    }
   }
   for (const doc of existingCatsSnap.docs) {
-    ops.push((b) => b.delete(doc.ref));
+    if (!targetCatIds.has(doc.id)) {
+      ops.push((b) => b.delete(doc.ref));
+    }
   }
 
   const now = new Date();
   const catIdByKey = new Map<DefaultCategoryKey, string>();
 
   DEFAULT_MENU_CATEGORIES.forEach((cat, idx) => {
-    const ref = categoriesCol(tenantId).doc();
-    catIdByKey.set(cat.key, ref.id);
+    const id = `default-cat-${cat.key}`;
+    const ref = categoriesCol(tenantId).doc(id);
+    catIdByKey.set(cat.key, id);
     ops.push((b) =>
       b.set(ref, {
         tenantId,
@@ -908,9 +967,10 @@ export async function syncTenantDefaultCatalog(
   });
 
   if (isSora || isKep) {
-    for (const item of demoItems) {
+    demoItems.forEach((item, idx) => {
       const categoryId = catIdByKey.get(item.categoryKey)!;
-      const ref = menuItemsCol(tenantId).doc();
+      const id = `default-item-${String(idx).padStart(2, "0")}-${item.categoryKey}`;
+      const ref = menuItemsCol(tenantId).doc(id);
       ops.push((b) =>
         b.set(ref, {
           tenantId,
@@ -936,11 +996,11 @@ export async function syncTenantDefaultCatalog(
           updatedAt: now,
         })
       );
-    }
+    });
   }
 
   // Re-attach any custom items the user manually added
-  customItemsToKeep.forEach((custom, idx) => {
+  customItemsToKeep.forEach(({ id, data: custom }, idx) => {
     const oldCat = oldCatNameById.get(custom.categoryId);
     let targetKey: DefaultCategoryKey = "seafood";
     const hint = `${oldCat?.nameEn ?? ""} ${oldCat?.nameKm ?? ""}`;
@@ -954,10 +1014,10 @@ export async function syncTenantDefaultCatalog(
     else if (hint.includes("drink") || hint.includes("ភេសជ្ជៈ")) targetKey = "drink";
 
     const categoryId = catIdByKey.get(targetKey)!;
-    const ref = menuItemsCol(tenantId).doc();
+    const ref = menuItemsCol(tenantId).doc(id);
     // If custom item had a small USD price (< 200) and we're upgrading tenant to KHR, convert it cleanly
     const migratedPrice =
-      tenant.currency === "USD" && custom.priceDecimal > 0 && custom.priceDecimal < 250
+      currentTenant.currency === "USD" && custom.priceDecimal > 0 && custom.priceDecimal < 250
         ? Math.round((custom.priceDecimal * 4100) / 100) * 100
         : custom.priceDecimal;
 
@@ -974,10 +1034,10 @@ export async function syncTenantDefaultCatalog(
   });
 
   const existingMeta =
-    tenant.metaJson &&
-    typeof tenant.metaJson === "object" &&
-    !Array.isArray(tenant.metaJson)
-      ? (tenant.metaJson as Record<string, unknown>)
+    currentTenant.metaJson &&
+    typeof currentTenant.metaJson === "object" &&
+    !Array.isArray(currentTenant.metaJson)
+      ? (currentTenant.metaJson as Record<string, unknown>)
       : {};
 
   const nextMeta = {
@@ -989,12 +1049,12 @@ export async function syncTenantDefaultCatalog(
   const tenantUpdates = {
     ...(isSora
       ? {
-          name: tenant.nameKm ? tenant.name : PAK_KHLANG_168_PROFILE.name,
-          nameEn: tenant.nameKm
-            ? tenant.nameEn ?? tenant.name
+          name: currentTenant.nameKm ? currentTenant.name : PAK_KHLANG_168_PROFILE.name,
+          nameEn: currentTenant.nameKm
+            ? currentTenant.nameEn ?? currentTenant.name
             : PAK_KHLANG_168_PROFILE.nameEn,
-          nameKm: tenant.nameKm ? tenant.nameKm : PAK_KHLANG_168_PROFILE.nameKm,
-          coverUrl: tenant.coverUrl || PAK_KHLANG_168_PROFILE.coverUrl,
+          nameKm: currentTenant.nameKm ? currentTenant.nameKm : PAK_KHLANG_168_PROFILE.nameKm,
+          coverUrl: currentTenant.coverUrl || PAK_KHLANG_168_PROFILE.coverUrl,
         }
       : {}),
     currency: "KHR",
@@ -1009,7 +1069,7 @@ export async function syncTenantDefaultCatalog(
   await commitBatchedWrites(ops);
 
   return {
-    ...tenant,
+    ...currentTenant,
     ...tenantUpdates,
   };
 }

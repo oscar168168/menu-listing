@@ -2,11 +2,17 @@
 
 import Link from "next/link";
 import { ExternalLink, Smartphone } from "lucide-react";
+import { PORTAL_COPY } from "@/lib/portal-i18n";
 import { getTenantThemeStyle } from "@/lib/theme";
 import { PublicMenuClient } from "@/components/public-menu/PublicMenuClient";
-import type { SerializedCategory, SerializedTenant } from "@/types/menu";
+import type {
+  Locale,
+  SerializedCategory,
+  SerializedTenant,
+} from "@/types/menu";
 
 interface MobilePreviewFrameProps {
+  locale: Locale;
   tenant: SerializedTenant;
   categories: SerializedCategory[];
 }
@@ -15,27 +21,29 @@ interface MobilePreviewFrameProps {
  * Collapsible 375px live mobile viewport frame mirroring edits in real time.
  */
 export function MobilePreviewFrame({
+  locale,
   tenant,
   categories,
 }: MobilePreviewFrameProps) {
+  const t = PORTAL_COPY[locale].admin;
   const themeStyle = getTenantThemeStyle(tenant.primaryColor);
 
   return (
     <aside
-      aria-label="Live mobile preview"
+      aria-label={t.previewTitle}
       className="sticky top-[73px] flex flex-col items-center"
     >
       <div className="mb-2.5 flex w-[375px] items-center justify-between px-1">
         <div className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-500">
           <Smartphone className="h-3.5 w-3.5" strokeWidth={1.5} />
-          <span>Live Mobile Preview · 375px</span>
+          <span>{t.previewTitle}</span>
         </div>
         <Link
           href={`/m/${tenant.slug}`}
           target="_blank"
           className="inline-flex items-center gap-1 text-[12px] font-medium text-zinc-600 hover:text-zinc-950"
         >
-          Open live
+          <span>{t.previewOpenLive}</span>
           <ExternalLink className="h-3 w-3" strokeWidth={1.5} />
         </Link>
       </div>

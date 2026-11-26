@@ -12,10 +12,13 @@ import {
   Image as ImageIcon,
   Printer,
 } from "lucide-react";
+import { resolveLocalized } from "@/lib/i18n";
+import { PORTAL_COPY } from "@/lib/portal-i18n";
 import { computeThemeContrast } from "@/lib/theme";
-import type { SerializedTenant } from "@/types/menu";
+import type { Locale, SerializedTenant } from "@/types/menu";
 
 interface QrCenterProps {
+  locale: Locale;
   tenant: SerializedTenant;
   onNotify: (text: string, tone?: "neutral" | "error") => void;
 }
@@ -28,7 +31,10 @@ interface BatchQrItem {
 
 const emptySubscribe = () => () => {};
 
-export function QrCenter({ tenant, onNotify }: QrCenterProps) {
+export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
+  const t = PORTAL_COPY[locale].admin;
+  const c = PORTAL_COPY[locale].common;
+
   const origin = useSyncExternalStore(
     emptySubscribe,
     () => window.location.origin,
@@ -89,10 +95,10 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
     try {
       await navigator.clipboard.writeText(singleUrl);
       setCopiedUrl(true);
-      onNotify("Menu URL copied to clipboard");
+      onNotify(t.toastUrlCopied);
       setTimeout(() => setCopiedUrl(false), 1800);
     } catch {
-      onNotify("Unable to copy URL", "error");
+      onNotify(t.toastUrlCopyError, "error");
     }
   };
 
@@ -100,7 +106,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
     setDownloadingCardPng(true);
     try {
       const res = await fetch(buildDownloadHref("card", tableCode));
-      if (!res.ok) throw new Error("Failed to generate table card");
+      if (!res.ok) throw new Error(c.unknownError);
       const svgText = await res.text();
       const svgBlob = new Blob([svgText], {
         type: "image/svg+xml;charset=utf-8",
@@ -111,7 +117,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
         const img = await new Promise<HTMLImageElement>((resolve, reject) => {
           const el = new window.Image();
           el.onload = () => resolve(el);
-          el.onerror = () => reject(new Error("Could not render table card"));
+          el.onerror = () => reject(new Error(c.unknownError));
           el.src = svgUrl;
         });
 
@@ -119,13 +125,13 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
         canvas.width = 1200;
         canvas.height = 1680;
         const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("Canvas unsupported");
+        if (!ctx) throw new Error(c.unknownError);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
         const pngBlob = await new Promise<Blob | null>((resolve) =>
           canvas.toBlob(resolve, "image/png")
         );
-        if (!pngBlob) throw new Error("Could not encode PNG");
+        if (!pngBlob) throw new Error(c.unknownError);
 
         const cleanTable = tableCode.trim().replace(/[^a-zA-Z0-9_-]/g, "");
         const suffix = cleanTable
@@ -145,7 +151,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
       }
     } catch (err) {
       onNotify(
-        err instanceof Error ? err.message : "Unable to export table card PNG",
+        err instanceof Error ? err.message : c.unknownError,
         "error"
       );
     } finally {
@@ -179,13 +185,26 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
         items.push({ tableCode: code, url, dataUrl });
       }
       setBatchQrs(items);
-      onNotify(`Generated ${items.length} table QR codes`);
+      onNotify(t.toastBatchQr(items.length));
     } catch {
-      onNotify("Could not generate batch QR codes", "error");
+      onNotify(t.toastBatchQrError, "error");
     } finally {
       setGeneratingBatch(false);
     }
   };
+
+  const venueName = resolveLocalized(
+    locale,
+    tenant.nameKm,
+    tenant.nameEn,
+    tenant.name
+  );
+  const tagline = resolveLocalized(
+    locale,
+    tenant.meta.taglineKm,
+    tenant.meta.taglineEn ?? tenant.meta.tagline,
+    t.qrCardDefaultTagline
+  );
 
   return (
     <div className="space-y-6">
@@ -193,12 +212,9 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
       <section className="rounded-xl border border-zinc-200 bg-white">
         <div className="border-b border-zinc-200 px-4 py-3.5">
           <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-zinc-950">
-            QR Code Center
+            {t.qrTitle}
           </h2>
-          <p className="text-[12px] text-zinc-500">
-            Print-ready vector SVG, high-DPI PNG (1200px), and branded table
-            cards pointing straight to your menu.
-          </p>
+          <p className="text-[12px] text-zinc-500">{t.qrSubtitle}</p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-2">
@@ -209,7 +225,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                 htmlFor="qr-table-input"
                 className="block text-[12px] font-medium text-zinc-700"
               >
-                Optional table code
+                {t.qrTableLabel}
               </label>
               <input
                 id="qr-table-input"
@@ -217,14 +233,14 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                 maxLength={24}
                 value={tableCode}
                 onChange={(e) => setTableCode(e.target.value)}
-                placeholder="e.g. 04 or PATIO-2 (leave empty for general menu)"
+                placeholder={t.qrTablePlaceholder}
                 className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-brand focus:outline-none"
               />
             </div>
 
             <div className="rounded-lg border border-zinc-200 bg-[#FAFAFA] p-3">
               <span className="block text-[11px] font-medium uppercase tracking-[0.06em] text-zinc-500">
-                Encoded destination URL
+                {t.qrEncodedUrl}
               </span>
               <div className="mt-1.5 flex items-center gap-2">
                 <code className="flex-1 truncate font-mono text-[12px] text-zinc-900">
@@ -233,18 +249,18 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                 <button
                   type="button"
                   onClick={() => void handleCopyUrl()}
-                  aria-label="Copy menu URL"
+                  aria-label={c.copy}
                   className="inline-flex h-7 items-center gap-1 rounded border border-zinc-200 bg-white px-2 text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
                 >
                   {copiedUrl ? (
                     <>
                       <Check className="h-3 w-3" strokeWidth={1.5} />
-                      Copied
+                      <span>{c.copied}</span>
                     </>
                   ) : (
                     <>
                       <Copy className="h-3 w-3" strokeWidth={1.5} />
-                      Copy
+                      <span>{c.copy}</span>
                     </>
                   )}
                 </button>
@@ -252,7 +268,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                   href={singleUrl}
                   target="_blank"
                   rel="noreferrer"
-                  aria-label="Test live menu link"
+                  aria-label={t.liveMenu}
                   className="inline-flex h-7 w-7 items-center justify-center rounded border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100"
                 >
                   <ExternalLink className="h-3 w-3" strokeWidth={1.5} />
@@ -275,11 +291,10 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
               </div>
               <div className="flex-1 space-y-2">
                 <p className="text-[13px] font-semibold text-zinc-950">
-                  Standalone QR Code
+                  {t.qrStandaloneTitle}
                 </p>
                 <p className="text-[12px] text-zinc-500">
-                  High error correction (Level H) for crisp scanning on menus,
-                  stickers, and counter stands.
+                  {t.qrStandaloneDesc}
                 </p>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <a
@@ -288,7 +303,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                     className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-900 hover:bg-zinc-100"
                   >
                     <FileCode2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    Export SVG
+                    <span>{t.qrExportSvg}</span>
                   </a>
                   <a
                     href={buildDownloadHref("png", tableCode)}
@@ -296,7 +311,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                     className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-[12px] font-medium transition-opacity hover:opacity-90"
                   >
                     <ImageIcon className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    High-DPI PNG
+                    <span>{t.qrExportPng}</span>
                   </a>
                 </div>
               </div>
@@ -318,19 +333,11 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                     className="mx-auto mb-2.5 h-8 w-8 rounded border border-zinc-200 object-contain p-0.5"
                   />
                 )}
-                <p
-                  lang="km"
-                  className="truncate text-[16px] font-semibold tracking-[-0.02em] text-zinc-950"
-                >
-                  {tenant.nameKm || tenant.name}
+                <p className="truncate text-[16px] font-semibold tracking-[-0.02em] text-zinc-950">
+                  {venueName}
                 </p>
-                <p
-                  lang="km"
-                  className="mt-0.5 truncate text-[11px] text-zinc-500"
-                >
-                  {tenant.meta.taglineKm ||
-                    tenant.meta.tagline ||
-                    "ម៉ឺនុយឌីជីថល · Digital Menu"}
+                <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                  {tagline}
                 </p>
 
                 <div className="mt-3">
@@ -342,8 +349,8 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                     }}
                   >
                     {tableCode.trim()
-                      ? `Table ${tableCode.trim()}`
-                      : "Scan for menu"}
+                      ? t.qrCardTableBadge(tableCode.trim())
+                      : t.qrCardScanBadge}
                   </span>
                 </div>
 
@@ -360,7 +367,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                 </div>
 
                 <p className="mt-3 text-[11px] font-medium text-zinc-700">
-                  Point your camera to browse
+                  {t.qrCardInstruction}
                 </p>
                 <p className="mt-1 truncate font-mono text-[10px] text-zinc-400">
                   /m/{tenant.slug}
@@ -376,7 +383,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                 className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-900 hover:bg-zinc-100"
               >
                 <Download className="h-3.5 w-3.5" strokeWidth={1.5} />
-                Download Table Card (SVG)
+                <span>{t.qrDownloadCardSvg}</span>
               </a>
               <button
                 type="button"
@@ -385,9 +392,9 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                 className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-[12px] font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 <ImageIcon className="h-3.5 w-3.5" strokeWidth={1.5} />
-                {downloadingCardPng
-                  ? "Exporting PNG..."
-                  : "Download Table Card (PNG)"}
+                <span>
+                  {downloadingCardPng ? t.qrExportingPng : t.qrDownloadCardPng}
+                </span>
               </button>
             </div>
           </div>
@@ -399,11 +406,9 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3.5">
           <div>
             <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-zinc-950">
-              Batch Table QR Generator
+              {t.qrBatchTitle}
             </h2>
-            <p className="text-[12px] text-zinc-500">
-              Generate table-tagged links (<code className="font-mono">?table=01</code>) for table analytics and printing.
-            </p>
+            <p className="text-[12px] text-zinc-500">{t.qrBatchSubtitle}</p>
           </div>
           {batchQrs.length > 0 && (
             <button
@@ -412,7 +417,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
               className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-900 hover:bg-zinc-100"
             >
               <Printer className="h-3.5 w-3.5" strokeWidth={1.5} />
-              Print sheet
+              <span>{t.qrPrintSheet}</span>
             </button>
           )}
         </div>
@@ -426,7 +431,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
               htmlFor="batch-prefix"
               className="block text-[11px] font-medium text-zinc-600"
             >
-              Prefix (optional)
+              {t.qrPrefixLabel}
             </label>
             <input
               id="batch-prefix"
@@ -434,7 +439,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
               maxLength={12}
               value={batchPrefix}
               onChange={(e) => setBatchPrefix(e.target.value)}
-              placeholder="e.g. T or PATIO"
+              placeholder="T / PATIO"
               className="mt-1 w-32 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] text-zinc-950 placeholder:text-zinc-400 focus:border-brand focus:outline-none"
             />
           </div>
@@ -444,7 +449,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
               htmlFor="batch-from"
               className="block text-[11px] font-medium text-zinc-600"
             >
-              Start #
+              {t.qrStartNum}
             </label>
             <input
               id="batch-from"
@@ -462,7 +467,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
               htmlFor="batch-to"
               className="block text-[11px] font-medium text-zinc-600"
             >
-              End # (max 30)
+              {t.qrEndNum}
             </label>
             <input
               id="batch-to"
@@ -481,7 +486,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
             className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3.5 py-1.5 text-[13px] font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <Grid2x2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-            {generatingBatch ? "Generating..." : "Generate batch"}
+            <span>{generatingBatch ? t.qrGenerating : t.qrGenerateBatch}</span>
           </button>
         </form>
 
@@ -499,7 +504,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                     color: contrast.foreground,
                   }}
                 >
-                  Table {entry.tableCode}
+                  {t.qrCardTableBadge(entry.tableCode)}
                 </span>
                 <img
                   src={entry.dataUrl}
@@ -526,7 +531,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
                     download
                     className="rounded border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
                   >
-                    Card
+                    {t.qrCardBtn}
                   </a>
                 </div>
               </div>
@@ -534,8 +539,7 @@ export function QrCenter({ tenant, onNotify }: QrCenterProps) {
           </div>
         ) : (
           <div className="px-4 py-8 text-center text-[13px] text-zinc-500">
-            Choose a table number range above to generate printable batch QR
-            cards.
+            {t.qrBatchEmpty}
           </div>
         )}
       </section>

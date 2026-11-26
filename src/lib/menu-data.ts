@@ -289,7 +289,7 @@ function loadCachedPublicMenuByNormalizedSlug(
         cookingStylePresets: [],
       };
     },
-    ["public-menu-v11", normalizedSlug],
+    ["public-menu-v12", DEMO_CATALOG_VERSION, normalizedSlug],
     {
       revalidate: 300,
       tags: [getPublicMenuTag(normalizedSlug)],
@@ -405,7 +405,7 @@ export const getCachedHomeVenues = unstable_cache(
       })
     );
   },
-  ["home-venues-v4"],
+  ["home-venues-v5", DEMO_CATALOG_VERSION],
   {
     revalidate: 120,
     tags: ["home-venues"],

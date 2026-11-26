@@ -4,33 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock } from "lucide-react";
-
-const DEMO_ACCOUNTS = [
-  {
-    label: "Super Admin · គ្រប់គ្រងប្រព័ន្ធ",
-    role: "Platform Governance",
-    username: "admin",
-    phone: "012888999",
-    pass: "Admin123!",
-  },
-  {
-    label: "សម្រស់ឆ្នេរប៉ាក់ខ្លង 168 · Somros Chhne Pak Khlang 168",
-    role: "KHR + USD (#1E293B)",
-    username: "sora",
-    phone: "093765166",
-    pass: "Menu123!",
-  },
-  {
-    label: "ផ្ទះបាយឆ្នេរកែប · Kep Bay Kitchen",
-    role: "KHR + USD (#B45309)",
-    username: "kepbay",
-    phone: "012784220",
-    pass: "Menu123!",
-  },
-];
+import {
+  PortalLanguageSwitcher,
+  usePortalLocale,
+} from "@/components/ui/PortalLanguageSwitcher";
+import { PORTAL_COPY } from "@/lib/portal-i18n";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [locale, setLocale] = usePortalLocale("km");
+  const t = PORTAL_COPY[locale].login;
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -53,41 +36,51 @@ export default function LoginPage() {
         error?: string;
       };
       if (!res.ok || !data.redirectTo) {
-        throw new Error(data.error ?? "Sign-in failed");
+        throw new Error(
+          res.status === 401
+            ? t.invalidCredentials
+            : data.error ?? t.signInFailed
+        );
       }
       router.push(data.redirectTo);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid credentials");
+      setError(err instanceof Error ? err.message : t.invalidCredentials);
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-dvh flex-col justify-between bg-[#FAFAFA] px-4 py-8">
+    <div
+      lang={locale}
+      className="flex min-h-dvh flex-col justify-between bg-[#FAFAFA] px-4 py-8"
+    >
       <div className="mx-auto w-full max-w-[420px]">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 hover:text-zinc-950"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-          Back to MenuOS
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 hover:text-zinc-950"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+            <span>{t.backToHome}</span>
+          </Link>
+
+          <PortalLanguageSwitcher
+            locale={locale}
+            onChange={setLocale}
+            compact
+          />
+        </div>
 
         <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6">
           <div className="flex items-center gap-2.5">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-[#FAFAFA] text-zinc-900">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-[#FAFAFA] text-zinc-900">
               <Lock className="h-4 w-4" strokeWidth={1.5} />
             </span>
             <div>
-              <h1
-                lang="km"
-                className="text-[18px] font-semibold tracking-[-0.02em] text-zinc-950"
-              >
-                ចូលគណនី · Sign in to MenuOS
+              <h1 className="text-[18px] font-semibold tracking-[-0.02em] text-zinc-950">
+                {t.title}
               </h1>
-              <p className="text-[12px] text-zinc-500">
-                Sign in with username or phone &amp; password (no OTP needed)
-              </p>
+              <p className="text-[12px] text-zinc-500">{t.subtitle}</p>
             </div>
           </div>
 
@@ -98,10 +91,9 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="login-identifier"
-                lang="km"
                 className="block text-[12px] font-medium text-zinc-700"
               >
-                ឈ្មោះគណនី ឬ លេខទូរស័ព្ទ · Username or Phone
+                {t.identifierLabel}
               </label>
               <input
                 id="login-identifier"
@@ -118,7 +110,7 @@ export default function LoginPage() {
                   setIdentifier(e.target.value);
                   if (error) setError(null);
                 }}
-                placeholder="e.g. sora or 093 765 166"
+                placeholder={t.identifierPlaceholder}
                 className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none"
               />
             </div>
@@ -127,27 +119,26 @@ export default function LoginPage() {
               <div className="flex items-center justify-between">
                 <label
                   htmlFor="login-password"
-                  lang="km"
                   className="block text-[12px] font-medium text-zinc-700"
                 >
-                  ពាក្យសម្ងាត់ · Password
+                  {t.passwordLabel}
                 </label>
                 <button
                   type="button"
                   aria-pressed={showPassword}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? t.hidePassword : t.showPassword}
                   onClick={() => setShowPassword((prev) => !prev)}
                   className="inline-flex items-center gap-1 text-[11.5px] font-medium text-zinc-500 hover:text-zinc-900"
                 >
                   {showPassword ? (
                     <>
                       <EyeOff className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      <span>Hide</span>
+                      <span>{t.hidePassword}</span>
                     </>
                   ) : (
                     <>
                       <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      <span>Show</span>
+                      <span>{t.showPassword}</span>
                     </>
                   )}
                 </button>
@@ -183,9 +174,7 @@ export default function LoginPage() {
               disabled={loading}
               className="flex w-full items-center justify-center gap-1.5 rounded-md bg-zinc-950 px-4 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
             >
-              <span lang="km">
-                {loading ? "កំពុងចូល... Signing in..." : "ចូលគណនី · Sign in"}
-              </span>
+              <span>{loading ? t.signingIn : t.signIn}</span>
               <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
             </button>
           </form>
@@ -194,19 +183,16 @@ export default function LoginPage() {
         {/* Seeded Demo Accounts */}
         <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500">
-            Seeded Demo Credentials (click username or phone to fill)
+            {t.demoTitle}
           </p>
           <div className="mt-2.5 divide-y divide-zinc-100">
-            {DEMO_ACCOUNTS.map((acct) => (
+            {t.demoAccounts.map((acct) => (
               <div
                 key={acct.username}
                 className="flex flex-wrap items-center justify-between gap-2 py-2.5"
               >
                 <div className="min-w-0 flex-1">
-                  <p
-                    lang="km"
-                    className="truncate text-[13px] font-medium text-zinc-900"
-                  >
+                  <p className="truncate text-[13px] font-medium text-zinc-900">
                     {acct.label}
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -219,7 +205,7 @@ export default function LoginPage() {
                       }}
                       className="rounded border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 font-mono text-[11px] font-medium text-zinc-800 hover:border-zinc-400 hover:bg-zinc-100"
                     >
-                      user: {acct.username}
+                      {t.userPrefix} {acct.username}
                     </button>
                     <button
                       type="button"
@@ -230,7 +216,7 @@ export default function LoginPage() {
                       }}
                       className="rounded border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 font-mono text-[11px] font-medium text-zinc-800 hover:border-zinc-400 hover:bg-zinc-100"
                     >
-                      tel: {acct.phone}
+                      {t.phonePrefix} {acct.phone}
                     </button>
                   </div>
                 </div>
@@ -243,9 +229,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <p className="mt-8 text-center text-[11px] text-zinc-400">
-        MenuOS · Cambodian F&amp;B &amp; Seafood Digital Menu Platform
-      </p>
+      <p className="mt-8 text-center text-[11px] text-zinc-400">{t.footer}</p>
     </div>
   );
 }

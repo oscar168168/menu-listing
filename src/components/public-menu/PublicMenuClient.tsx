@@ -185,7 +185,7 @@ const MenuProductCard = memo(function MenuProductCard({
           item.marketPriceMin,
           item.marketPriceMax,
           currencyConfig,
-          { weightUnit: item.weightUnit, locale }
+          { weightUnit: item.weightUnit, locale, localeOnly: true }
         ),
       };
     }
@@ -196,6 +196,7 @@ const MenuProductCard = memo(function MenuProductCard({
       return {
         dualFormatted: formatDualPrice(minPrice, currencyConfig, {
           locale,
+          localeOnly: true,
           prefix: minPrice !== maxPrice ? fromPriceLabel : undefined,
         }),
         marketRange: null,
@@ -207,6 +208,7 @@ const MenuProductCard = memo(function MenuProductCard({
         weightUnit:
           item.pricingType === "WEIGHT_BASED" ? item.weightUnit : null,
         locale,
+        localeOnly: true,
       }),
       marketRange: null,
     };
@@ -214,112 +216,117 @@ const MenuProductCard = memo(function MenuProductCard({
 
   return (
     <article
-      className={`product-card flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white ${
-        !item.isAvailable ? "opacity-55" : ""
+      className={`product-card group relative flex aspect-[4/5] w-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-900 ${
+        !item.isAvailable ? "opacity-65" : ""
       }`}
     >
-      {/* 1. Big Square Image Area */}
-      <div className="relative aspect-square w-full overflow-hidden bg-[#F4F4F5]">
-        {item.imageUrl ? (
-          <Image
-            src={item.imageUrl}
-            alt={title}
-            fill
-            sizes="(max-width: 480px) 46vw, 220px"
-            unoptimized={isBuiltInMediaUrl(item.imageUrl)}
-            preload={isLcpImage && !isPreview}
-            fetchPriority={isLcpImage && !isPreview ? "high" : undefined}
-            loading={isLcpImage && !isPreview ? undefined : isAboveFold ? "eager" : "lazy"}
-            className={`object-cover ${
-              !item.isAvailable ? "grayscale-[35%]" : ""
-            }`}
-          />
-        ) : (
-          <div
-            aria-hidden="true"
-            className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-zinc-300"
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-200 bg-white/80">
-              <UtensilsCrossed
-                className="h-5 w-5 text-zinc-400"
-                strokeWidth={1.5}
-              />
-            </div>
+      {/* 1. Full-Bleed Food Image (or Dark Fallback Surface) */}
+      {item.imageUrl ? (
+        <Image
+          src={item.imageUrl}
+          alt={title}
+          fill
+          sizes="(max-width: 480px) 46vw, 220px"
+          unoptimized={isBuiltInMediaUrl(item.imageUrl)}
+          preload={isLcpImage && !isPreview}
+          fetchPriority={isLcpImage && !isPreview ? "high" : undefined}
+          loading={
+            isLcpImage && !isPreview ? undefined : isAboveFold ? "eager" : "lazy"
+          }
+          className={`object-cover transition-transform duration-300 group-hover:scale-[1.03] ${
+            !item.isAvailable ? "grayscale-[45%]" : ""
+          }`}
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950 text-zinc-600"
+        >
+          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/5">
+            <UtensilsCrossed
+              className="h-5 w-5 text-zinc-400"
+              strokeWidth={1.5}
+            />
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Restrained Top-Left Micro Badge (Sold Out or Live Tank) */}
-        {cornerBadgeTag && (
-          <span
-            className={`km-badge pointer-events-none absolute left-2 top-2 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
-              !item.isAvailable
-                ? "border-zinc-300 bg-white/95 text-zinc-600"
-                : "border-zinc-200 bg-white/95 text-zinc-900"
-            }`}
-          >
-            {cornerBadgeTag}
-          </span>
-        )}
+      {/* Subtle Bottom Scrim for WCAG Contrast on White Overlay Typography */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10"
+      />
 
-        {/* Mode 1 (CART) Only: Clean Floating Add / Stepper Button */}
-        {isCartMode && item.isAvailable && (
-          <div className="absolute bottom-2 right-2">
-            {!needsSheetConfig && inShortlistQty > 0 ? (
-              <div className="inline-flex items-center rounded-full border border-brand bg-white">
-                <button
-                  type="button"
-                  onClick={() => onUpdateShortlistQty(simpleKey, -1)}
-                  aria-label={`Remove one ${title}`}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-l-full text-zinc-800 hover:bg-zinc-100"
-                >
-                  <Minus className="h-3 w-3" strokeWidth={1.5} />
-                </button>
-                <span className="min-w-[1.2rem] text-center text-[12px] font-semibold tabular-nums text-zinc-950">
-                  {inShortlistQty}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onUpdateShortlistQty(simpleKey, 1)}
-                  aria-label={`Add one more ${title}`}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-r-full bg-brand"
-                >
-                  <Plus className="h-3 w-3" strokeWidth={1.5} />
-                </button>
-              </div>
-            ) : (
+      {/* Top Row: Left Micro Badge + Right Cart Control */}
+      {cornerBadgeTag && (
+        <span
+          className={`km-badge pointer-events-none absolute left-2.5 top-2.5 rounded-md border px-2 py-0.5 text-[10px] font-semibold shadow-sm ${
+            !item.isAvailable
+              ? "border-zinc-300 bg-white/95 text-zinc-700"
+              : "border-zinc-200 bg-white/95 text-zinc-900"
+          }`}
+        >
+          {cornerBadgeTag}
+        </span>
+      )}
+
+      {isCartMode && item.isAvailable && (
+        <div className="absolute right-2.5 top-2.5 z-[1]">
+          {!needsSheetConfig && inShortlistQty > 0 ? (
+            <div className="inline-flex items-center rounded-full border border-brand bg-white shadow-sm">
               <button
                 type="button"
-                onClick={() => {
-                  if (needsSheetConfig) {
-                    onSelectItem(item);
-                  } else {
-                    onAddSimpleItem(item);
-                  }
-                }}
-                aria-label={`Add ${title} to cart`}
-                className={`inline-flex h-8 items-center justify-center gap-1 rounded-full border text-[12px] font-semibold transition-colors ${
-                  inShortlistQty > 0
-                    ? "border-brand bg-brand px-2.5"
-                    : "w-8 border-zinc-200 bg-white/95 text-zinc-900 hover:border-zinc-400 hover:bg-white"
-                }`}
+                onClick={() => onUpdateShortlistQty(simpleKey, -1)}
+                aria-label={`Remove one ${title}`}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-l-full text-zinc-800 hover:bg-zinc-100"
               >
-                <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-                {inShortlistQty > 0 && (
-                  <span className="tabular-nums">{inShortlistQty}</span>
-                )}
+                <Minus className="h-3 w-3" strokeWidth={1.5} />
               </button>
-            )}
-          </div>
-        )}
-      </div>
+              <span className="min-w-[1.2rem] text-center text-[12px] font-semibold tabular-nums text-zinc-950">
+                {inShortlistQty}
+              </span>
+              <button
+                type="button"
+                onClick={() => onUpdateShortlistQty(simpleKey, 1)}
+                aria-label={`Add one more ${title}`}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-r-full bg-brand"
+              >
+                <Plus className="h-3 w-3" strokeWidth={1.5} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (needsSheetConfig) {
+                  onSelectItem(item);
+                } else {
+                  onAddSimpleItem(item);
+                }
+              }}
+              aria-label={`Add ${title} to cart`}
+              className={`inline-flex h-8 items-center justify-center gap-1 rounded-full border text-[12px] font-semibold shadow-sm transition-colors ${
+                inShortlistQty > 0
+                  ? "border-brand bg-brand px-2.5"
+                  : "w-8 border-white/30 bg-white/95 text-zinc-900 hover:bg-white"
+              }`}
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+              {inShortlistQty > 0 && (
+                <span className="tabular-nums">{inShortlistQty}</span>
+              )}
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* 2. Food Title + 3. Price (Clean Centered Editorial Hierarchy) */}
-      <div className="flex flex-1 flex-col items-center justify-between gap-1.5 px-2.5 pt-2.5 pb-3 text-center">
-        <h3 className="w-full text-[13.5px] font-semibold text-zinc-950">
+      {/* 2. Bottom Overlay: Dish Title + Price */}
+      <div className="relative mt-auto flex flex-col items-start gap-1 p-3 text-left">
+        <h3 className="w-full text-[13.5px] font-semibold text-white">
           <button
             type="button"
             onClick={() => onSelectItem(item)}
-            className="card-trigger line-clamp-2 w-full text-center text-zinc-950"
+            className="card-trigger line-clamp-2 w-full text-left text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]"
           >
             {title}
           </button>
@@ -327,24 +334,24 @@ const MenuProductCard = memo(function MenuProductCard({
 
         <div className="w-full">
           {item.pricingType === "MARKET_PRICE" ? (
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="km-badge inline-block rounded-md border border-brand-subtle bg-brand-subtle px-2 py-0.5 text-[11px] font-semibold text-zinc-900">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="km-badge inline-block rounded-md bg-white/95 px-2 py-0.5 text-[10.5px] font-semibold text-zinc-950">
                 {marketPriceLabel}
               </span>
               {marketRange && (
-                <span className="text-[11px] tabular-nums text-zinc-500">
+                <span className="text-[11px] tabular-nums text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
                   {marketRange.primary}
                 </span>
               )}
             </div>
           ) : (
             dualFormatted && (
-              <div className="flex flex-col items-center tabular-nums">
-                <span className="text-[14px] font-semibold text-zinc-950">
+              <div className="flex flex-wrap items-baseline gap-1.5 tabular-nums">
+                <span className="text-[14px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
                   {dualFormatted.primary}
                 </span>
                 {dualFormatted.secondary && (
-                  <span className="text-[11px] text-zinc-500">
+                  <span className="text-[11px] text-white/80">
                     {dualFormatted.secondary}
                   </span>
                 )}
@@ -431,7 +438,7 @@ const MenuCategorySections = memo(function MenuCategorySections({
         const deferBelowFold =
           !isPreview && catIdx > 0 && itemsBeforeSection >= 4;
         const estimatedHeightPx =
-          44 + Math.ceil(category.items.length / 2) * 268;
+          44 + Math.ceil(category.items.length / 2) * 232;
         const sectionStyle: CSSProperties | undefined = deferBelowFold
           ? ({
               containIntrinsicSize: `auto none auto ${estimatedHeightPx}px`,
@@ -942,7 +949,11 @@ export function PublicMenuClient({
     [shortlist]
   );
   const shortlistSubtotalFormatted = useMemo(
-    () => formatDualPrice(shortlistSubtotal, currencyConfig, { locale }),
+    () =>
+      formatDualPrice(shortlistSubtotal, currencyConfig, {
+        locale,
+        localeOnly: true,
+      }),
     [shortlistSubtotal, currencyConfig, locale]
   );
 

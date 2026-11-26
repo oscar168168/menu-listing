@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { resolveAdminContext } from "@/lib/auth";
 import { getAdminTenantMenu } from "@/lib/menu-data";
+import { parsePortalLocale, PORTAL_LOCALE_COOKIE } from "@/lib/portal-i18n";
 import { AdminWorkspace } from "@/components/admin/AdminWorkspace";
 
 export const metadata: Metadata = {
@@ -16,10 +18,17 @@ export default async function AdminPage() {
     redirect("/login?next=/admin");
   }
 
-  const data = await getAdminTenantMenu(ctx.tenantId);
+  const [data, cookieStore] = await Promise.all([
+    getAdminTenantMenu(ctx.tenantId),
+    cookies(),
+  ]);
   if (!data) {
     redirect("/super-admin");
   }
+
+  const initialLocale = parsePortalLocale(
+    cookieStore.get(PORTAL_LOCALE_COOKIE)?.value
+  );
 
   return (
     <AdminWorkspace
@@ -28,6 +37,7 @@ export default async function AdminPage() {
       cookingStylePresets={data.cookingStylePresets}
       user={ctx.user}
       isImpersonating={ctx.isImpersonating}
+      initialLocale={initialLocale}
     />
   );
 }

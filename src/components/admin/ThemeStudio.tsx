@@ -11,6 +11,7 @@ import {
 import { NativeSwitch } from "@/components/ui/NativeSwitch";
 import { NativeSelect } from "@/components/ui/NativeSelect";
 import { compressImageForUpload } from "@/lib/image-resize";
+import { PORTAL_COPY } from "@/lib/portal-i18n";
 import {
   computeThemeContrast,
   CURATED_THEME_PRESETS,
@@ -19,12 +20,14 @@ import {
 import { formatDualPrice } from "@/lib/currency";
 import type {
   KhrRounding,
+  Locale,
   PrimaryCurrency,
   SerializedTenant,
   TenantMeta,
 } from "@/types/menu";
 
 interface ThemeStudioProps {
+  locale: Locale;
   tenant: SerializedTenant;
   onDraftChange: (nextTenant: SerializedTenant) => void;
   onSaved: (savedTenant: SerializedTenant) => void;
@@ -32,15 +35,19 @@ interface ThemeStudioProps {
 }
 
 export function ThemeStudio({
+  locale,
   tenant,
   onDraftChange,
   onSaved,
   onNotify,
 }: ThemeStudioProps) {
+  const t = PORTAL_COPY[locale].admin;
+  const c = PORTAL_COPY[locale].common;
+
   const [hexInput, setHexInput] = useState(tenant.primaryColor);
-  const [uploadingField, setUploadingField] = useState<"logo" | "cover" | null>(
-    null
-  );
+  const [uploadingField, setUploadingField] = useState<
+    "logo" | "cover" | null
+  >(null);
   const [saving, setSaving] = useState(false);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -113,17 +120,13 @@ export function ThemeStudio({
       });
       const json = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !json.url) {
-        throw new Error(json.error ?? "Upload failed");
+        throw new Error(json.error ?? c.unknownError);
       }
       updateField(field === "logo" ? "logoUrl" : "coverUrl", json.url);
-      onNotify(
-        field === "logo"
-          ? "Logo uploaded — click Save to publish"
-          : "Cover uploaded — click Save to publish"
-      );
+      onNotify(field === "logo" ? t.toastLogoUploaded : t.toastCoverUploaded);
     } catch (err) {
       onNotify(
-        err instanceof Error ? err.message : "Image upload failed",
+        err instanceof Error ? err.message : c.unknownError,
         "error"
       );
     } finally {
@@ -177,14 +180,14 @@ export function ThemeStudio({
         error?: string;
       };
       if (!res.ok || !data.tenant) {
-        throw new Error(data.error ?? "Failed to save settings");
+        throw new Error(data.error ?? c.unknownError);
       }
       onSaved(data.tenant);
       setHexInput(data.tenant.primaryColor);
-      onNotify("Settings saved");
+      onNotify(t.toastSettingsSaved);
     } catch (err) {
       onNotify(
-        err instanceof Error ? err.message : "Unable to save settings",
+        err instanceof Error ? err.message : c.unknownError,
         "error"
       );
     } finally {
@@ -197,15 +200,10 @@ export function ThemeStudio({
       {/* Main Essentials Card */}
       <section className="rounded-xl border border-zinc-200 bg-white">
         <div className="border-b border-zinc-200 px-5 py-4">
-          <h1
-            lang="km"
-            className="text-[16px] font-semibold tracking-[-0.02em] text-zinc-950"
-          >
-            ការកំណត់ហាង · Storefront Settings
+          <h1 className="text-[16px] font-semibold tracking-[-0.02em] text-zinc-950">
+            {t.settingsTitle}
           </h1>
-          <p className="text-[12px] text-zinc-500">
-            Khmer venue name, storefront mode, currency, and brand accent color.
-          </p>
+          <p className="text-[12px] text-zinc-500">{t.settingsSubtitle}</p>
         </div>
 
         <div className="space-y-5 p-5">
@@ -214,10 +212,9 @@ export function ThemeStudio({
             <div>
               <label
                 htmlFor="settings-venue-name-km"
-                lang="km"
                 className="block text-[12px] font-medium text-zinc-700"
               >
-                ឈ្មោះហាង (ខ្មែរ) · Venue name (Khmer)
+                {t.venueNameKmLabel}
               </label>
               <input
                 id="settings-venue-name-km"
@@ -233,7 +230,7 @@ export function ThemeStudio({
                     nameKm: e.target.value,
                   })
                 }
-                placeholder="ឧ. សម្រស់ឆ្នេរប៉ាក់ខ្លង 168"
+                placeholder={t.venueNameKmPlaceholder}
                 className="mt-1.5 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 focus:border-brand focus:outline-none"
               />
             </div>
@@ -243,7 +240,7 @@ export function ThemeStudio({
                 htmlFor="settings-venue-name-en"
                 className="block text-[12px] font-medium text-zinc-700"
               >
-                Venue name (English · optional)
+                {t.venueNameEnLabel}
               </label>
               <input
                 id="settings-venue-name-en"
@@ -258,19 +255,16 @@ export function ThemeStudio({
                     nameEn: e.target.value,
                   })
                 }
-                placeholder="e.g. Somros Chhne Pak Khlang 168"
+                placeholder={t.venueNameEnPlaceholder}
                 className="mt-1.5 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 focus:border-brand focus:outline-none"
               />
             </div>
           </div>
 
-          {/* 2. Vendor Mode (Add to Cart vs Listing Only) */}
+          {/* 2. Vendor Mode */}
           <div>
-            <span
-              lang="km"
-              className="block text-[12px] font-medium text-zinc-700"
-            >
-              ទម្រង់ម៉ឺនុយ · Menu mode
+            <span className="block text-[12px] font-medium text-zinc-700">
+              {t.menuModeLabel}
             </span>
             <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <button
@@ -293,14 +287,11 @@ export function ThemeStudio({
                   <ShoppingBag className="h-4 w-4" strokeWidth={1.5} />
                 </span>
                 <div className="min-w-0">
-                  <p
-                    lang="km"
-                    className="text-[13px] font-semibold text-zinc-950"
-                  >
-                    មានកន្ត្រកកម្ម៉ង់ · Add to Cart
+                  <p className="text-[13px] font-semibold text-zinc-950">
+                    {c.addToCart}
                   </p>
                   <p className="text-[11.5px] text-zinc-500">
-                    Cart bag, + buttons &amp; Show-to-Staff
+                    {t.addToCartDesc}
                   </p>
                 </div>
               </button>
@@ -325,14 +316,11 @@ export function ThemeStudio({
                   <LayoutGrid className="h-4 w-4" strokeWidth={1.5} />
                 </span>
                 <div className="min-w-0">
-                  <p
-                    lang="km"
-                    className="text-[13px] font-semibold text-zinc-950"
-                  >
-                    បង្ហាញតែមុខម្ហូប · Listing Only
+                  <p className="text-[13px] font-semibold text-zinc-950">
+                    {c.listingOnly}
                   </p>
                   <p className="text-[11.5px] text-zinc-500">
-                    Pure photo menu with no cart UI
+                    {t.listingOnlyDesc}
                   </p>
                 </div>
               </button>
@@ -345,10 +333,9 @@ export function ThemeStudio({
               <div>
                 <label
                   htmlFor="settings-currency"
-                  lang="km"
                   className="block text-[12px] font-medium text-zinc-700"
                 >
-                  រូបិយប័ណ្ណគោល · Primary currency
+                  {t.primaryCurrencyFieldLabel}
                 </label>
                 <div className="mt-1.5">
                   <NativeSelect
@@ -359,8 +346,8 @@ export function ThemeStudio({
                     }
                     fullWidth
                     options={[
-                      { value: "KHR", label: "KHR (៛) — ប្រាក់រៀល · Cambodian Riel" },
-                      { value: "USD", label: "USD ($) — ប្រាក់ដុល្លារ · US Dollar" },
+                      { value: "KHR", label: c.currencyKhrLabel },
+                      { value: "USD", label: c.currencyUsdLabel },
                     ]}
                   />
                 </div>
@@ -368,11 +355,8 @@ export function ThemeStudio({
 
               <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-[#FAFAFA] px-3 py-2">
                 <div>
-                  <p
-                    lang="km"
-                    className="text-[13px] font-medium text-zinc-900"
-                  >
-                    បង្ហាញពីររូបិយប័ណ្ណ · Dual currency
+                  <p className="text-[13px] font-medium text-zinc-900">
+                    {t.dualCurrencyTitle}
                   </p>
                   <p className="text-[11px] tabular-nums text-zinc-500">
                     {sampleConversion.primary}
@@ -384,7 +368,7 @@ export function ThemeStudio({
                 <NativeSwitch
                   checked={tenant.showDualCurrency}
                   onChange={(val) => updateField("showDualCurrency", val)}
-                  label="Show dual currency"
+                  label={t.dualCurrencyTitle}
                   srOnlyLabel
                 />
               </div>
@@ -397,7 +381,7 @@ export function ThemeStudio({
                     htmlFor="settings-rate"
                     className="block text-[11px] font-medium text-zinc-600"
                   >
-                    1 USD = KHR rate
+                    {t.exchangeRateLabel}
                   </label>
                   <input
                     id="settings-rate"
@@ -414,7 +398,7 @@ export function ThemeStudio({
                 </div>
                 <div>
                   <span className="block text-[11px] font-medium text-zinc-600">
-                    KHR rounding
+                    {t.khrRoundingLabel}
                   </span>
                   <div className="mt-1 grid grid-cols-2 gap-1.5">
                     {([100, 500] as KhrRounding[]).map((step) => (
@@ -437,18 +421,18 @@ export function ThemeStudio({
             )}
           </div>
 
-          {/* 4. Primary Color (Compact Swatches + Hex + Auto Contrast Readout) */}
+          {/* 4. Primary Color */}
           <div className="space-y-2.5 border-t border-zinc-100 pt-4">
             <div className="flex items-center justify-between gap-2">
               <label
                 htmlFor="settings-hex"
                 className="text-[12px] font-medium text-zinc-700"
               >
-                Brand accent color
+                {t.brandColorLabel}
               </label>
               <span className="rounded border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 text-[11px] font-medium tabular-nums text-zinc-700">
                 WCAG {contrast.selectedContrast.toFixed(1)}:1 · {contrast.rating}{" "}
-                (Auto {contrast.foreground})
+                ({contrast.foreground})
               </span>
             </div>
 
@@ -462,7 +446,7 @@ export function ThemeStudio({
                     key={preset.hex}
                     type="button"
                     title={`${preset.name} (${preset.hex})`}
-                    aria-label={`Select ${preset.name}`}
+                    aria-label={preset.name}
                     onClick={() => selectColor(preset.hex)}
                     className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-transform ${
                       active
@@ -489,7 +473,7 @@ export function ThemeStudio({
                   type="color"
                   value={tenant.primaryColor}
                   onChange={(e) => selectColor(e.target.value)}
-                  aria-label="Custom color picker"
+                  aria-label={t.brandColorLabel}
                   className="h-8 w-9 cursor-pointer rounded-md border border-zinc-200 bg-white p-0.5"
                 />
                 <input
@@ -506,12 +490,12 @@ export function ThemeStudio({
         </div>
       </section>
 
-      {/* Collapsed Optional Disclosure 1: Logo & Cover */}
+      {/* Logo & Cover */}
       <details className="ui-details rounded-xl border border-zinc-200 bg-white">
         <summary className="flex items-center justify-between px-5 py-3.5 text-[13.5px] font-medium text-zinc-900 hover:bg-[#FAFAFA] rounded-xl">
           <span>
-            Logo &amp; Cover Header{" "}
-            <span className="font-normal text-zinc-400">(optional)</span>
+            {t.logoCoverTitle}{" "}
+            <span className="font-normal text-zinc-400">({c.optional})</span>
           </span>
           <ChevronDown
             className="ui-details-chevron h-4 w-4 text-zinc-400 transition-transform"
@@ -524,9 +508,8 @@ export function ThemeStudio({
             [
               {
                 field: "logo" as const,
-                title: "Venue logo",
-                placeholder: "Logo",
-                activeLabel: "Logo active",
+                title: t.venueLogoTitle,
+                activeLabel: t.logoActive,
                 url: tenant.logoUrl,
                 accept: "image/png,image/jpeg,image/webp,image/svg+xml",
                 inputRef: logoInputRef,
@@ -534,9 +517,8 @@ export function ThemeStudio({
               },
               {
                 field: "cover" as const,
-                title: "Cover strip",
-                placeholder: "Cover",
-                activeLabel: "Cover active",
+                title: t.coverStripTitle,
+                activeLabel: t.coverActive,
                 url: tenant.coverUrl,
                 accept: "image/png,image/jpeg,image/webp",
                 inputRef: coverInputRef,
@@ -557,7 +539,7 @@ export function ThemeStudio({
                       className={item.imgClassName}
                     />
                   ) : (
-                    <span>{item.placeholder}</span>
+                    <span>—</span>
                   )}
                 </div>
                 <div className="min-w-0">
@@ -565,7 +547,7 @@ export function ThemeStudio({
                     {item.title}
                   </p>
                   <p className="text-[11px] text-zinc-500">
-                    {item.url ? item.activeLabel : "None uploaded"}
+                    {item.url ? item.activeLabel : t.noneUploaded}
                   </p>
                 </div>
               </div>
@@ -581,7 +563,7 @@ export function ThemeStudio({
                     }
                     className="rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-[11px] text-zinc-600 hover:text-red-600"
                   >
-                    Remove
+                    {c.remove}
                   </button>
                 )}
                 <input
@@ -602,7 +584,9 @@ export function ThemeStudio({
                   className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-100"
                 >
                   <Upload className="h-3.5 w-3.5" strokeWidth={1.5} />
-                  {uploadingField === item.field ? "..." : "Upload"}
+                  <span>
+                    {uploadingField === item.field ? "..." : c.upload}
+                  </span>
                 </button>
               </div>
             </div>
@@ -610,13 +594,10 @@ export function ThemeStudio({
         </div>
       </details>
 
-      {/* Vendor Info Card: Khmer Priority Tagline, Contacts, Wi-Fi & Notes */}
+      {/* Vendor Info Card */}
       <details open className="ui-details rounded-xl border border-zinc-200 bg-white">
         <summary className="flex items-center justify-between px-5 py-3.5 text-[13.5px] font-medium text-zinc-900 hover:bg-[#FAFAFA] rounded-xl">
-          <span lang="km">
-            ព័ត៌មានហាង ទំនាក់ទំនង និង Wi-Fi · Vendor Info, Contacts &amp; Notes{" "}
-            <span className="font-normal text-zinc-400">(Khmer Priority)</span>
-          </span>
+          <span>{t.vendorInfoTitle}</span>
           <ChevronDown
             className="ui-details-chevron h-4 w-4 text-zinc-400 transition-transform"
             strokeWidth={1.5}
@@ -627,10 +608,9 @@ export function ThemeStudio({
           <div>
             <label
               htmlFor="opt-tagline-km"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              ពាក្យស្លោក (ខ្មែរ) · Tagline (Khmer)
+              {t.taglineKmLabel}
             </label>
             <input
               id="opt-tagline-km"
@@ -647,7 +627,7 @@ export function ThemeStudio({
                   },
                 })
               }
-              placeholder="ឧ. គ្រឿងសមុទ្រស្រស់ៗប្រចាំថ្ងៃ"
+              placeholder={t.taglineKmPlaceholder}
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
             />
           </div>
@@ -656,7 +636,7 @@ export function ThemeStudio({
               htmlFor="opt-tagline-en"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Tagline (English · optional)
+              {t.taglineEnLabel}
             </label>
             <input
               id="opt-tagline-en"
@@ -672,17 +652,16 @@ export function ThemeStudio({
                   },
                 })
               }
-              placeholder="Daily boat-to-table seafood"
+              placeholder={t.taglineEnPlaceholder}
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
             />
           </div>
           <div>
             <label
               htmlFor="opt-phone"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              លេខទូរស័ព្ទ · Phone
+              {t.phoneLabel}
             </label>
             <input
               id="opt-phone"
@@ -696,46 +675,41 @@ export function ThemeStudio({
           <div>
             <label
               htmlFor="opt-hours"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              ម៉ោងបើកដំណើរការ · Opening hours
+              {t.hoursLabel}
             </label>
             <input
               id="opt-hours"
               type="text"
-              lang="km"
               value={tenant.meta.openingHours ?? ""}
               onChange={(e) => updateMeta("openingHours", e.target.value)}
-              placeholder="រៀងរាល់ថ្ងៃ 11:00 – 23:00"
+              placeholder={t.hoursPlaceholder}
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
             />
           </div>
           <div className="sm:col-span-2">
             <label
               htmlFor="opt-address"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              ទីតាំងហាង · Address
+              {t.addressLabel}
             </label>
             <input
               id="opt-address"
               type="text"
-              lang="km"
               value={tenant.meta.address ?? ""}
               onChange={(e) => updateMeta("address", e.target.value)}
-              placeholder="ឃុំប៉ាក់ខ្លង ស្រុកមណ្ឌលសីមា ខេត្តកោះកុង"
+              placeholder={t.addressPlaceholder}
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
             />
           </div>
           <div>
             <label
               htmlFor="opt-telegram"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              តេឡេក្រាម · Telegram
+              {t.telegramLabel}
             </label>
             <input
               id="opt-telegram"
@@ -749,10 +723,9 @@ export function ThemeStudio({
           <div>
             <label
               htmlFor="opt-facebook"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              ហ្វេសប៊ុក · Facebook Page
+              {t.facebookLabel}
             </label>
             <input
               id="opt-facebook"
@@ -765,10 +738,9 @@ export function ThemeStudio({
           <div className="sm:col-span-2">
             <label
               htmlFor="opt-maps"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              ផែនទី Google Maps · Google Maps URL
+              {t.mapsLabel}
             </label>
             <input
               id="opt-maps"
@@ -781,10 +753,9 @@ export function ThemeStudio({
           <div>
             <label
               htmlFor="opt-wifi"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              ឈ្មោះ Wi-Fi · Wi-Fi network
+              {t.wifiNameLabel}
             </label>
             <input
               id="opt-wifi"
@@ -797,10 +768,9 @@ export function ThemeStudio({
           <div>
             <label
               htmlFor="opt-wifi-pass"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              លេខសម្ងាត់ Wi-Fi · Wi-Fi password
+              {t.wifiPassLabel}
             </label>
             <input
               id="opt-wifi-pass"
@@ -813,10 +783,9 @@ export function ThemeStudio({
           <div>
             <label
               htmlFor="opt-footer-km"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              កំណត់ចំណាំខាងក្រោម (ខ្មែរ) · Footer note (Khmer)
+              {t.footerKmLabel}
             </label>
             <textarea
               id="opt-footer-km"
@@ -832,7 +801,7 @@ export function ThemeStudio({
               htmlFor="opt-footer-en"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Footer note (English · optional)
+              {t.footerEnLabel}
             </label>
             <textarea
               id="opt-footer-en"
@@ -845,15 +814,13 @@ export function ThemeStudio({
           <div className="sm:col-span-2">
             <label
               htmlFor="opt-service"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              ចំណាំសេវាកម្ម / ពន្ធ · Service / VAT note
+              {t.serviceNoteLabel}
             </label>
             <input
               id="opt-service"
               type="text"
-              lang="km"
               value={tenant.meta.serviceNote ?? ""}
               onChange={(e) => updateMeta("serviceNote", e.target.value)}
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px]"
@@ -865,7 +832,7 @@ export function ThemeStudio({
       {/* Clean Save Bar */}
       <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-5 py-3">
         <span className="text-[12px] text-zinc-500">
-          Updates publish immediately to{" "}
+          {t.publishImmediateHint}{" "}
           <code className="font-mono text-zinc-700">/m/{tenant.slug}</code>
         </span>
         <button
@@ -873,7 +840,7 @@ export function ThemeStudio({
           disabled={saving}
           className="rounded-lg bg-brand px-4 py-2 text-[13px] font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save settings"}
+          {saving ? c.saving : t.saveSettingsBtn}
         </button>
       </div>
     </form>

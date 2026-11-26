@@ -14,13 +14,16 @@ import { NativeSwitch } from "@/components/ui/NativeSwitch";
 import { NativeSelect } from "@/components/ui/NativeSelect";
 import { compressImageForUpload } from "@/lib/image-resize";
 import {
+  localizeTag,
   PRESET_SEAFOOD_TAGS,
-  SEAFOOD_TAG_DICTIONARY,
+  resolveLocalized,
   WEIGHT_UNIT_LABELS,
 } from "@/lib/i18n";
+import { PORTAL_COPY } from "@/lib/portal-i18n";
 import type {
   CookingStyleOption,
   ItemVariant,
+  Locale,
   PricingType,
   PrimaryCurrency,
   SerializedCategory,
@@ -49,6 +52,7 @@ export interface ItemFormPayload {
 
 interface ItemEditorModalProps {
   open: boolean;
+  locale: Locale;
   editingItem: SerializedMenuItem | null;
   defaultCategoryId: string;
   categories: SerializedCategory[];
@@ -83,6 +87,7 @@ function isLikelyImageUrl(text: string): boolean {
 }
 
 function ItemEditorForm({
+  locale,
   editingItem,
   defaultCategoryId,
   categories,
@@ -91,6 +96,9 @@ function ItemEditorForm({
   onClose,
   onSave,
 }: Omit<ItemEditorModalProps, "open">) {
+  const t = PORTAL_COPY[locale].admin;
+  const c = PORTAL_COPY[locale].common;
+
   // --- Core 5 Simple Fields (Khmer Priority) ---
   const [nameKm, setNameKm] = useState(
     editingItem?.nameKm || editingItem?.name || ""
@@ -166,7 +174,7 @@ function ItemEditorForm({
       : []
   );
   const [extraTags, setExtraTags] = useState<string[]>(
-    (editingItem?.tags ?? []).filter((t) => t !== "Signature")
+    (editingItem?.tags ?? []).filter((tag) => tag !== "Signature")
   );
 
   const [uploading, setUploading] = useState(false);
@@ -177,7 +185,7 @@ function ItemEditorForm({
 
   const toggleExtraTag = (tag: string) => {
     setExtraTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+      prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]
     );
   };
 
@@ -213,11 +221,11 @@ function ItemEditorForm({
       });
       const json = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !json.url) {
-        throw new Error(json.error ?? "Upload failed");
+        throw new Error(json.error ?? c.unknownError);
       }
       setImageUrl(json.url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Image upload failed");
+      setError(err instanceof Error ? err.message : c.unknownError);
     } finally {
       setUploading(false);
     }
@@ -258,8 +266,8 @@ function ItemEditorForm({
       if (navigator.clipboard?.read) {
         const clipboardItems = await navigator.clipboard.read();
         for (const clipItem of clipboardItems) {
-          const imageType = clipItem.types.find((t) =>
-            t.startsWith("image/")
+          const imageType = clipItem.types.find((tp) =>
+            tp.startsWith("image/")
           );
           if (imageType) {
             const blob = await clipItem.getType(imageType);
@@ -279,20 +287,16 @@ function ItemEditorForm({
           return;
         }
       }
-      setError(
-        "No image found in clipboard. Copy an image (or image URL) and press ⌘V / Ctrl+V."
-      );
+      setError(t.pasteTip);
     } catch {
-      setError(
-        "Press ⌘V / Ctrl+V anywhere in this window to paste a copied image."
-      );
+      setError(t.pasteTip);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameEn.trim() && !nameKm.trim()) {
-      setError("Dish name is required.");
+      setError(t.dishNameRequiredErr);
       return;
     }
 
@@ -302,7 +306,7 @@ function ItemEditorForm({
       pricingType !== "MARKET_PRICE" &&
       (Number.isNaN(numericPrice) || numericPrice < 0)
     ) {
-      setError("Enter a valid price.");
+      setError(t.invalidPriceErr);
       return;
     }
 
@@ -310,8 +314,12 @@ function ItemEditorForm({
     for (const v of variants) {
       if (!v.label.trim() && !v.labelKm.trim() && !v.price.trim()) continue;
       const vp = Number(v.price);
-      if ((!v.label.trim() && !v.labelKm.trim()) || Number.isNaN(vp) || vp < 0) {
-        setError("Every variant requires a label and valid price.");
+      if (
+        (!v.label.trim() && !v.labelKm.trim()) ||
+        Number.isNaN(vp) ||
+        vp < 0
+      ) {
+        setError(t.invalidVariantErr);
         return;
       }
       parsedVariants.push({
@@ -326,7 +334,7 @@ function ItemEditorForm({
       if (!s.nameKm.trim() && !s.nameEn.trim()) continue;
       const fee = Number(s.surcharge || 0);
       if (Number.isNaN(fee) || fee < 0) {
-        setError("Cooking style surcharges must be 0 or greater.");
+        setError(t.invalidSurchargeErr);
         return;
       }
       parsedStyles.push({
@@ -342,7 +350,7 @@ function ItemEditorForm({
 
     const mergedTags = [
       ...(isSignature ? ["Signature"] : []),
-      ...extraTags.filter((t) => t !== "Signature"),
+      ...extraTags.filter((tag) => tag !== "Signature"),
     ];
 
     setSubmitting(true);
@@ -379,7 +387,7 @@ function ItemEditorForm({
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save dish");
+      setError(err instanceof Error ? err.message : c.unknownError);
     } finally {
       setSubmitting(false);
     }
@@ -398,11 +406,12 @@ function ItemEditorForm({
 
   return (
     <form
+      lang={locale}
       onSubmit={(e) => void handleSubmit(e)}
       onPaste={handleFormPaste}
       className="p-5 space-y-4"
     >
-      {/* 1. Photo + Name (Fast 5-Second Primary Entry) */}
+      {/* 1. Photo + Name */}
       <div className="flex items-start gap-3.5">
         <div className="shrink-0 flex flex-col items-center gap-1.5">
           <input
@@ -420,13 +429,13 @@ function ItemEditorForm({
             <div className="relative h-20 w-20 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
               <img
                 src={imageUrl}
-                alt="Dish photo"
+                alt={t.photoBtn}
                 className="h-full w-full object-cover"
               />
               <button
                 type="button"
                 onClick={() => setImageUrl(null)}
-                aria-label="Remove photo"
+                aria-label={c.remove}
                 className="absolute right-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-200 bg-white/95 text-zinc-700 hover:text-zinc-950"
               >
                 <X className="h-3 w-3" strokeWidth={1.75} />
@@ -441,7 +450,7 @@ function ItemEditorForm({
             >
               <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
               <span className="text-[11px] font-medium">
-                {uploading ? "..." : "Photo"}
+                {uploading ? "..." : t.photoBtn}
               </span>
             </button>
           )}
@@ -450,11 +459,11 @@ function ItemEditorForm({
             type="button"
             disabled={uploading}
             onClick={() => void handlePasteFromClipboard()}
-            title="Paste copied image or image URL from clipboard (⌘V / Ctrl+V)"
+            title={t.pasteTitle}
             className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-600 transition-colors hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-950 disabled:opacity-50"
           >
             <ClipboardPaste className="h-3 w-3" strokeWidth={1.5} />
-            <span>Paste</span>
+            <span>{t.pasteBtn}</span>
           </button>
         </div>
 
@@ -462,10 +471,9 @@ function ItemEditorForm({
           <div>
             <label
               htmlFor="dish-name-main"
-              lang="km"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              ឈ្មោះមុខម្ហូប (ខ្មែរ) · Dish name (Khmer)
+              {t.dishNameKmLabel}
             </label>
             <input
               id="dish-name-main"
@@ -475,13 +483,13 @@ function ItemEditorForm({
               maxLength={120}
               value={nameKm}
               onChange={(e) => setNameKm(e.target.value)}
-              placeholder="ឧ. ក្តាមឆាម្រេចកំពត / Kampot Pepper Crab"
+              placeholder={t.dishNameKmPlaceholder}
               autoFocus
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-brand focus:outline-none"
             />
           </div>
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-400">
-            <span>Tip: press ⌘V / Ctrl+V to paste any copied photo</span>
+            <span>{t.pasteTip}</span>
             {imageUrl && (
               <button
                 type="button"
@@ -489,14 +497,14 @@ function ItemEditorForm({
                 onClick={() => fileInputRef.current?.click()}
                 className="font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-950"
               >
-                {uploading ? "Uploading..." : "Upload file"}
+                {uploading ? c.uploading : t.uploadFileLink}
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* 2. Price & Category Side-by-Side + 1-Tap Price Suggestions */}
+      {/* 2. Price & Category Side-by-Side + Quick Price Chips */}
       <div className="space-y-2">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
@@ -505,8 +513,8 @@ function ItemEditorForm({
               className="block text-[12px] font-medium text-zinc-700"
             >
               {pricingType === "MARKET_PRICE"
-                ? "Price (Market Price)"
-                : `Price (${currency})`}
+                ? t.priceMarketLabel
+                : t.priceLabel(currency)}
             </label>
             <div className="mt-1 flex items-center rounded-lg border border-zinc-200 bg-white focus-within:border-brand">
               <span className="pl-3 pr-1 text-[13px] font-medium text-zinc-500">
@@ -523,7 +531,7 @@ function ItemEditorForm({
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder={
                   pricingType === "MARKET_PRICE"
-                    ? "Market price"
+                    ? c.marketPrice
                     : currency === "KHR"
                       ? "25000"
                       : "6.50"
@@ -538,7 +546,7 @@ function ItemEditorForm({
               htmlFor="dish-category-main"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Category
+              {t.categoryLabel}
             </label>
             <div className="mt-1">
               <NativeSelect
@@ -548,29 +556,27 @@ function ItemEditorForm({
                 fullWidth
                 options={categories.map((cat) => ({
                   value: cat.id,
-                  label:
-                    cat.nameKm && cat.nameEn && cat.nameKm !== cat.nameEn
-                      ? `${cat.nameKm} · ${cat.nameEn}`
-                      : cat.nameKm || cat.nameEn || cat.name,
+                  label: resolveLocalized(
+                    locale,
+                    cat.nameKm,
+                    cat.nameEn,
+                    cat.name
+                  ),
                 }))}
               />
             </div>
           </div>
         </div>
 
-        {/* 1-Tap Quick Price Suggestion Chips (e.g. 25,000៛, 35,000៛, 40,000៛) */}
+        {/* 1-Tap Quick Price Suggestion Chips */}
         {pricingType !== "MARKET_PRICE" && (
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
             <span className="mr-0.5 text-[11px] font-medium text-zinc-400">
-              Quick price:
+              {t.quickPriceLabel}
             </span>
             {priceSuggestions.map((suggested) => {
               const rawVal =
-                currency === "KHR"
-                  ? String(suggested)
-                  : Number.isInteger(suggested)
-                    ? suggested.toFixed(2)
-                    : suggested.toFixed(2);
+                currency === "KHR" ? String(suggested) : suggested.toFixed(2);
               const isSelected =
                 price.trim() !== "" && Number(price) === suggested;
               const chipLabel =
@@ -596,42 +602,46 @@ function ItemEditorForm({
         )}
       </div>
 
-      {/* 3. Two Simple 1-Tap Toggles: Signature? & In Stock? */}
+      {/* 3. Two Simple 1-Tap Toggles */}
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-[#FAFAFA] px-3.5 py-2.5">
           <div>
-            <p className="text-[13px] font-medium text-zinc-900">Signature</p>
-            <p className="text-[11px] text-zinc-500">Highlight on menu</p>
+            <p className="text-[13px] font-medium text-zinc-900">
+              {t.signatureTitle}
+            </p>
+            <p className="text-[11px] text-zinc-500">{t.signatureHint}</p>
           </div>
           <NativeSwitch
             checked={isSignature}
             onChange={setIsSignature}
-            label="Signature dish"
+            label={t.signatureTitle}
             srOnlyLabel
           />
         </div>
 
         <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-[#FAFAFA] px-3.5 py-2.5">
           <div>
-            <p className="text-[13px] font-medium text-zinc-900">In stock</p>
-            <p className="text-[11px] text-zinc-500">Available today</p>
+            <p className="text-[13px] font-medium text-zinc-900">
+              {t.inStockTitle}
+            </p>
+            <p className="text-[11px] text-zinc-500">{t.inStockHint}</p>
           </div>
           <NativeSwitch
             checked={isAvailable}
             onChange={setIsAvailable}
-            label="In stock"
+            label={t.inStockTitle}
             srOnlyLabel
           />
         </div>
       </div>
 
-      {/* 4. Collapsed On-Demand Advanced Options (<details>) */}
+      {/* 4. Collapsed On-Demand Advanced Options */}
       <details className="ui-details rounded-lg border border-zinc-200 bg-white">
         <summary className="flex items-center justify-between px-3.5 py-2.5 text-[12.5px] font-medium text-zinc-700 hover:bg-[#FAFAFA] rounded-lg">
           <span>
-            More options
-            <span className="ml-1.5 font-normal text-zinc-400">
-              (Khmer, description, weight / market price, cooking styles)
+            {t.moreOptionsTitle}{" "}
+            <span className="ml-1 font-normal text-zinc-400">
+              ({t.moreOptionsHint})
             </span>
           </span>
           <div className="flex items-center gap-2 shrink-0">
@@ -648,14 +658,14 @@ function ItemEditorForm({
         </summary>
 
         <div className="space-y-4 border-t border-zinc-200 p-3.5">
-          {/* English Name & Descriptions (Khmer Priority) */}
+          {/* English Name & Descriptions */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label
                 htmlFor="dish-name-en"
                 className="block text-[12px] font-medium text-zinc-700"
               >
-                English name (optional)
+                {t.dishNameEnLabel}
               </label>
               <input
                 id="dish-name-en"
@@ -663,7 +673,7 @@ function ItemEditorForm({
                 maxLength={120}
                 value={nameEn}
                 onChange={(e) => setNameEn(e.target.value)}
-                placeholder="e.g. Kampot Pepper Crab"
+                placeholder={t.dishNameEnPlaceholder}
                 className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[13px] text-zinc-950 focus:border-brand focus:outline-none"
               />
             </div>
@@ -671,10 +681,9 @@ function ItemEditorForm({
             <div>
               <label
                 htmlFor="dish-desc-km"
-                lang="km"
                 className="block text-[12px] font-medium text-zinc-700"
               >
-                ពិពណ៌នា (ខ្មែរ) · Description (Khmer)
+                {t.descKmLabel}
               </label>
               <textarea
                 id="dish-desc-km"
@@ -683,7 +692,7 @@ function ItemEditorForm({
                 maxLength={500}
                 value={descriptionKm}
                 onChange={(e) => setDescriptionKm(e.target.value)}
-                placeholder="ព័ត៌មានបន្ថែម..."
+                placeholder={t.descKmPlaceholder}
                 className="mt-1 w-full resize-none rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] text-zinc-950 focus:border-brand focus:outline-none"
               />
             </div>
@@ -693,7 +702,7 @@ function ItemEditorForm({
                 htmlFor="dish-desc-en"
                 className="block text-[12px] font-medium text-zinc-700"
               >
-                Description (English · optional)
+                {t.descEnLabel}
               </label>
               <textarea
                 id="dish-desc-en"
@@ -701,7 +710,7 @@ function ItemEditorForm({
                 maxLength={500}
                 value={descriptionEn}
                 onChange={(e) => setDescriptionEn(e.target.value)}
-                placeholder="Ingredients or serving note..."
+                placeholder={t.descEnPlaceholder}
                 className="mt-1 w-full resize-none rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] text-zinc-950 focus:border-brand focus:outline-none"
               />
             </div>
@@ -710,14 +719,14 @@ function ItemEditorForm({
           {/* Pricing Model */}
           <div className="space-y-2.5 border-t border-zinc-100 pt-3">
             <span className="block text-[12px] font-medium text-zinc-700">
-              Pricing mode
+              {t.pricingModeLabel}
             </span>
             <div className="grid grid-cols-3 gap-1.5">
               {(
                 [
-                  { id: "FIXED", label: "Fixed" },
-                  { id: "WEIGHT_BASED", label: "By Weight" },
-                  { id: "MARKET_PRICE", label: "Market Price" },
+                  { id: "FIXED", label: t.pricingFixed },
+                  { id: "WEIGHT_BASED", label: t.pricingByWeight },
+                  { id: "MARKET_PRICE", label: c.marketPrice },
                 ] as const
               ).map((opt) => (
                 <button
@@ -737,13 +746,13 @@ function ItemEditorForm({
 
             {pricingType === "WEIGHT_BASED" && (
               <NativeSelect
-                ariaLabel="Weight unit"
+                ariaLabel={t.pricingByWeight}
                 value={weightUnit}
                 onChange={(v) => setWeightUnit(v as WeightUnit)}
                 fullWidth
                 options={WEIGHT_UNIT_OPTIONS.map((unit) => ({
                   value: unit,
-                  label: `${WEIGHT_UNIT_LABELS[unit].en} (${WEIGHT_UNIT_LABELS[unit].km})`,
+                  label: WEIGHT_UNIT_LABELS[unit][locale],
                 }))}
               />
             )}
@@ -756,7 +765,7 @@ function ItemEditorForm({
                   step={currency === "KHR" ? "500" : "0.5"}
                   value={marketMin}
                   onChange={(e) => setMarketMin(e.target.value)}
-                  placeholder="Est. min"
+                  placeholder={t.estMinPlaceholder}
                   className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] tabular-nums focus:border-brand focus:outline-none"
                 />
                 <input
@@ -765,17 +774,20 @@ function ItemEditorForm({
                   step={currency === "KHR" ? "500" : "0.5"}
                   value={marketMax}
                   onChange={(e) => setMarketMax(e.target.value)}
-                  placeholder="Est. max"
+                  placeholder={t.estMaxPlaceholder}
                   className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[13px] tabular-nums focus:border-brand focus:outline-none"
                 />
                 <NativeSelect
-                  ariaLabel="Market price unit"
+                  ariaLabel={t.pricingByWeight}
                   value={weightUnit}
                   onChange={(v) => setWeightUnit(v as WeightUnit)}
                   fullWidth
                   options={WEIGHT_UNIT_OPTIONS.map((unit) => ({
                     value: unit,
-                    label: WEIGHT_UNIT_LABELS[unit].shortEn,
+                    label:
+                      locale === "km"
+                        ? WEIGHT_UNIT_LABELS[unit].shortKm
+                        : WEIGHT_UNIT_LABELS[unit].shortEn,
                   }))}
                 />
               </div>
@@ -785,33 +797,29 @@ function ItemEditorForm({
           {/* Extra Tags */}
           <div className="space-y-2 border-t border-zinc-100 pt-3">
             <span className="block text-[12px] font-medium text-zinc-700">
-              Extra tags
+              {t.extraTagsLabel}
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {PRESET_SEAFOOD_TAGS.filter((t) => t !== "Signature").map((tag) => {
-                const selected = extraTags.includes(tag);
-                const km = SEAFOOD_TAG_DICTIONARY[tag]?.km;
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleExtraTag(tag)}
-                    aria-pressed={selected}
-                    className={`rounded-md border px-2 py-1 text-[11.5px] font-medium transition-colors ${
-                      selected
-                        ? "border-brand bg-brand"
-                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100"
-                    }`}
-                  >
-                    {tag}
-                    {km ? (
-                      <span lang="km" className="ml-1 opacity-75">
-                        ({km})
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
+              {PRESET_SEAFOOD_TAGS.filter((tag) => tag !== "Signature").map(
+                (tag) => {
+                  const selected = extraTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleExtraTag(tag)}
+                      aria-pressed={selected}
+                      className={`rounded-md border px-2 py-1 text-[11.5px] font-medium transition-colors ${
+                        selected
+                          ? "border-brand bg-brand"
+                          : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100"
+                      }`}
+                    >
+                      {localizeTag(tag, locale)}
+                    </button>
+                  );
+                }
+              )}
             </div>
           </div>
 
@@ -819,7 +827,7 @@ function ItemEditorForm({
           <div className="space-y-2 border-t border-zinc-100 pt-3">
             <div className="flex items-center justify-between">
               <span className="text-[12px] font-medium text-zinc-700">
-                Cooking styles
+                {t.cookingStylesLabel}
               </span>
               <button
                 type="button"
@@ -837,7 +845,7 @@ function ItemEditorForm({
                 className="inline-flex items-center gap-1 text-[11.5px] font-medium text-zinc-600 hover:text-zinc-950"
               >
                 <Plus className="h-3 w-3" strokeWidth={1.75} />
-                Add style
+                <span>{t.addStyleBtn}</span>
               </button>
             </div>
 
@@ -850,8 +858,13 @@ function ItemEditorForm({
                     onClick={() => handleAttachPresetStyle(preset)}
                     className="inline-flex items-center gap-1 rounded border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 text-[11px] text-zinc-700 hover:bg-white"
                   >
-                    <Plus className="h-2.5 w-2.5 text-zinc-400" strokeWidth={1.75} />
-                    <span lang="km">{preset.nameKm || preset.nameEn}</span>
+                    <Plus
+                      className="h-2.5 w-2.5 text-zinc-400"
+                      strokeWidth={1.75}
+                    />
+                    <span>
+                      {resolveLocalized(locale, preset.nameKm, preset.nameEn)}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -865,7 +878,7 @@ function ItemEditorForm({
                 <input
                   type="text"
                   lang="km"
-                  placeholder="ខ្មែរ"
+                  placeholder={t.styleKmPlaceholder}
                   value={style.nameKm}
                   onChange={(e) =>
                     setCookingStyles((prev) =>
@@ -878,7 +891,7 @@ function ItemEditorForm({
                 />
                 <input
                   type="text"
-                  placeholder="English"
+                  placeholder={t.styleEnPlaceholder}
                   value={style.nameEn}
                   onChange={(e) =>
                     setCookingStyles((prev) =>
@@ -906,7 +919,7 @@ function ItemEditorForm({
                 />
                 <button
                   type="button"
-                  aria-label="Remove cooking style"
+                  aria-label={c.remove}
                   onClick={() =>
                     setCookingStyles((prev) => prev.filter((_, i) => i !== idx))
                   }
@@ -922,7 +935,7 @@ function ItemEditorForm({
           <div className="space-y-2 border-t border-zinc-100 pt-3">
             <div className="flex items-center justify-between">
               <span className="text-[12px] font-medium text-zinc-700">
-                Size / portion variants
+                {t.variantsLabel}
               </span>
               <button
                 type="button"
@@ -935,7 +948,7 @@ function ItemEditorForm({
                 className="inline-flex items-center gap-1 text-[11.5px] font-medium text-zinc-600 hover:text-zinc-950"
               >
                 <Plus className="h-3 w-3" strokeWidth={1.75} />
-                Add variant
+                <span>{t.addVariantBtn}</span>
               </button>
             </div>
 
@@ -946,7 +959,7 @@ function ItemEditorForm({
               >
                 <input
                   type="text"
-                  placeholder="Label (e.g. Large)"
+                  placeholder={t.variantLabelPlaceholder}
                   value={variant.label}
                   onChange={(e) =>
                     setVariants((prev) =>
@@ -961,7 +974,7 @@ function ItemEditorForm({
                   type="number"
                   step={currency === "KHR" ? "100" : "0.01"}
                   min="0"
-                  placeholder="Price"
+                  placeholder={t.variantPricePlaceholder}
                   value={variant.price}
                   onChange={(e) =>
                     setVariants((prev) =>
@@ -974,7 +987,7 @@ function ItemEditorForm({
                 />
                 <button
                   type="button"
-                  aria-label="Remove variant"
+                  aria-label={c.remove}
                   onClick={() =>
                     setVariants((prev) => prev.filter((_, i) => i !== idx))
                   }
@@ -985,13 +998,14 @@ function ItemEditorForm({
               </div>
             ))}
           </div>
+
           {/* Optional External Image URL */}
           <div className="border-t border-zinc-100 pt-3">
             <label
               htmlFor="dish-image-url-opt"
               className="block text-[12px] font-medium text-zinc-700"
             >
-              Image URL (optional)
+              {t.imageUrlOptLabel}
             </label>
             <input
               id="dish-image-url-opt"
@@ -999,7 +1013,7 @@ function ItemEditorForm({
               maxLength={500}
               value={imageUrl ?? ""}
               onChange={(e) => setImageUrl(e.target.value || null)}
-              placeholder="https://... or /images/..."
+              placeholder="https://... / /images/..."
               className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12.5px] text-zinc-950 placeholder:text-zinc-400 focus:border-brand focus:outline-none"
             />
           </div>
@@ -1018,7 +1032,7 @@ function ItemEditorForm({
           onClick={onClose}
           className="rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-100"
         >
-          Cancel
+          {c.cancel}
         </button>
         <button
           type="submit"
@@ -1026,10 +1040,10 @@ function ItemEditorForm({
           className="rounded-lg bg-brand px-4 py-2 text-[13px] font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {submitting
-            ? "Saving..."
+            ? c.saving
             : editingItem
-              ? "Save dish"
-              : "Add dish"}
+              ? t.saveDishBtn
+              : t.addDishSubmitBtn}
         </button>
       </div>
     </form>
@@ -1038,6 +1052,7 @@ function ItemEditorForm({
 
 export function ItemEditorModal({
   open,
+  locale,
   editingItem,
   defaultCategoryId,
   categories,
@@ -1046,17 +1061,22 @@ export function ItemEditorModal({
   onClose,
   onSave,
 }: ItemEditorModalProps) {
+  const t = PORTAL_COPY[locale].admin;
+  const c = PORTAL_COPY[locale].common;
+
   return (
     <NativeDialog
       open={open}
       onClose={onClose}
-      title={editingItem ? "Edit Dish" : "Add Dish"}
-      subtitle="Name, price, signature, stock, and photo — done in seconds."
+      title={editingItem ? t.itemModalEditTitle : t.itemModalNewTitle}
+      subtitle={t.itemModalSubtitle}
+      closeLabel={c.closeDialog}
       maxWidthClass="max-w-lg"
     >
       {open && (
         <ItemEditorForm
           key={editingItem?.id ?? `new-item-${defaultCategoryId}`}
+          locale={locale}
           editingItem={editingItem}
           defaultCategoryId={defaultCategoryId}
           categories={categories}
