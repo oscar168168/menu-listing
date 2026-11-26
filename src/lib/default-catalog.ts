@@ -6,9 +6,9 @@ import {
   type FirestoreTenantDoc,
 } from "@/lib/firestore";
 import { DEFAULT_MENU_CATEGORIES } from "@/lib/i18n";
-import type { PricingType } from "@/types/menu";
+import type { PricingType, WeightUnit } from "@/types/menu";
 
-export const DEMO_CATALOG_VERSION = "v7-pak-khlang-168-complete-coastal-menu";
+export const DEMO_CATALOG_VERSION = "v8-pak-khlang-168-fresh-seafood-kg";
 
 export function isPakKhlangVenue(tenant: {
   slug: string;
@@ -62,6 +62,7 @@ export interface SeedMenuItemSpec {
   descriptionEn: string;
   descriptionKm: string;
   pricingType: PricingType;
+  weightUnit?: WeightUnit | null;
   priceDecimal: number;
   imageUrl: string | null;
   tags: string[];
@@ -992,6 +993,141 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     isAvailable: true,
     sortOrder: 4,
   },
+
+  // 9. Fresh Seafood — Sold by kg (គ្រឿងសមុទ្រស្រស់ · ថ្លឹងគីឡូ) — 7 items
+  {
+    categoryKey: "fresh",
+    name: "Live Mud Crab (Per kg)",
+    nameEn: "Live Mud Crab",
+    nameKm: "ក្តាមថ្មរស់ (ថ្លឹងគីឡូ)",
+    description:
+      "Live Koh Kong mud crab sold fresh by the kilo; free steaming, grilling, or stir-fry preparation available.",
+    descriptionEn:
+      "Live Koh Kong mud crab sold fresh by the kilo; steamed, grilled, or wok-fried to order.",
+    descriptionKm:
+      "ក្តាមថ្មរស់ស្រស់ៗពីកោះកុង លក់តាមគីឡូ — អាចជ្រើសរើសចំហុយ អាំង ឬ ឆាបានតាមចំណូលចិត្ត។",
+    pricingType: "WEIGHT_BASED",
+    weightUnit: "PER_KG",
+    priceDecimal: 65000,
+    imageUrl: "/images/pak-khlang/fresh-mud-crab-kg.jpg",
+    tags: ["Live Tank", "Signature"],
+    isAvailable: true,
+    sortOrder: 0,
+  },
+  {
+    categoryKey: "fresh",
+    name: "Fresh Blue Swimming Crab (Per kg)",
+    nameEn: "Fresh Blue Swimming Crab",
+    nameKm: "ក្តាមសេះស្រស់ (ថ្លឹងគីឡូ)",
+    description:
+      "Live blue swimming crab sold fresh per kilo from Pak Khlang morning fishing boats.",
+    descriptionEn:
+      "Live blue swimming crab sold fresh per kilo from Pak Khlang morning fishing boats.",
+    descriptionKm:
+      "ក្តាមសេះស្រស់ៗថ្មីៗពីទូកនេសាទប៉ាក់ខ្លង លក់ថ្លឹងគីឡូជូនភ្លាមៗ។",
+    pricingType: "WEIGHT_BASED",
+    weightUnit: "PER_KG",
+    priceDecimal: 55000,
+    imageUrl: "/images/pak-khlang/fresh-blue-crab-kg.jpg",
+    tags: ["Live Tank"],
+    isAvailable: true,
+    sortOrder: 1,
+  },
+  {
+    categoryKey: "fresh",
+    name: "Fresh Whole Squid (Per kg)",
+    nameEn: "Fresh Whole Squid",
+    nameKm: "មឹកបំពង់ស្រស់ (ថ្លឹងគីឡូ)",
+    description:
+      "Whole boat-fresh coastal squid sold by the kilo on crushed ice for charcoal grilling or steaming.",
+    descriptionEn:
+      "Whole boat-fresh coastal squid sold by the kilo on crushed ice for charcoal grilling or steaming.",
+    descriptionKm:
+      "មឹកបំពង់សមុទ្រស្រស់ៗលើទឹកកក លក់ថ្លឹងគីឡូសម្រាប់អាំង ចំហុយ ឬ ឆា។",
+    pricingType: "WEIGHT_BASED",
+    weightUnit: "PER_KG",
+    priceDecimal: 45000,
+    imageUrl: "/images/pak-khlang/fresh-squid-kg.jpg",
+    tags: ["Fresh Catch"],
+    isAvailable: true,
+    sortOrder: 2,
+  },
+  {
+    categoryKey: "fresh",
+    name: "Fresh Baby Octopus (Per kg)",
+    nameEn: "Fresh Baby Octopus",
+    nameKm: "មឹកពីងពាងស្រស់ (ថ្លឹងគីឡូ)",
+    description:
+      "Fresh coastal baby octopus sold per kilo; tender texture ideal for charcoal grilling or Koh Kong sauce.",
+    descriptionEn:
+      "Fresh coastal baby octopus sold per kilo; tender texture ideal for charcoal grilling or Koh Kong sauce.",
+    descriptionKm:
+      "មឹកពីងពាងសមុទ្រស្រស់លក់ថ្លឹងគីឡូ សាច់ស្រួយឆ្ងាញ់សម្រាប់អាំង ឬ ស្រុះទឹកត្រីកោះកុង។",
+    pricingType: "WEIGHT_BASED",
+    weightUnit: "PER_KG",
+    priceDecimal: 45000,
+    imageUrl: "/images/pak-khlang/fresh-octopus-kg.jpg",
+    tags: ["Fresh Catch"],
+    isAvailable: true,
+    sortOrder: 3,
+  },
+  {
+    categoryKey: "fresh",
+    name: "Fresh Blood Cockles (Per kg)",
+    nameEn: "Fresh Blood Cockles",
+    nameKm: "ងាវស្រស់ (ថ្លឹងគីឡូ)",
+    description:
+      "Fresh Koh Kong blood cockles weighed per kilo — perfect blanched rare or stir-fried with tamarind.",
+    descriptionEn:
+      "Fresh Koh Kong blood cockles weighed per kilo — perfect blanched rare or stir-fried with tamarind.",
+    descriptionKm:
+      "ងាវសមុទ្រស្រស់ថ្លឹងគីឡូ យកទៅស្រុះទឹកត្រីកោះកុង ឬ ឆាអំពិលទុំឈ្ងុយឆ្ងាញ់។",
+    pricingType: "WEIGHT_BASED",
+    weightUnit: "PER_KG",
+    priceDecimal: 30000,
+    imageUrl: "/images/pak-khlang/fresh-cockles-kg.jpg",
+    tags: ["Fresh Catch"],
+    isAvailable: true,
+    sortOrder: 4,
+  },
+  {
+    categoryKey: "fresh",
+    name: "Fresh Spotted Babylon Snails (Per kg)",
+    nameEn: "Fresh Spotted Babylon Snails",
+    nameKm: "ខ្យងតុកកែស្រស់ (ថ្លឹងគីឡូ)",
+    description:
+      "Sweet spotted sea snails sold fresh by the kilo for charcoal grilling or steaming with lemongrass.",
+    descriptionEn:
+      "Sweet spotted sea snails sold fresh by the kilo for charcoal grilling or steaming with lemongrass.",
+    descriptionKm:
+      "ខ្យងតុកកែសមុទ្រស្រស់លក់ថ្លឹងគីឡូ សាច់ផ្អែមស្រួយសម្រាប់អាំង ឬ ស្រុះគល់ស្លឹកគ្រៃ។",
+    pricingType: "WEIGHT_BASED",
+    weightUnit: "PER_KG",
+    priceDecimal: 40000,
+    imageUrl: "/images/pak-khlang/fresh-spotted-snails-kg.jpg",
+    tags: ["Fresh Catch"],
+    isAvailable: true,
+    sortOrder: 5,
+  },
+  {
+    categoryKey: "fresh",
+    name: "Fresh Coastal Sea Snails (Per kg)",
+    nameEn: "Fresh Coastal Sea Snails",
+    nameKm: "ខ្យងសមុទ្រស្រស់ (ថ្លឹងគីឡូ)",
+    description:
+      "Wild-caught Pak Khlang sea snails weighed straight off the boat by the kilo.",
+    descriptionEn:
+      "Wild-caught Pak Khlang sea snails weighed straight off the boat by the kilo.",
+    descriptionKm:
+      "ខ្យងសមុទ្រស្រស់ៗនេសាទថ្មីៗពីឆ្នេរប៉ាក់ខ្លង លក់ថ្លឹងគីឡូផ្ទាល់។",
+    pricingType: "WEIGHT_BASED",
+    weightUnit: "PER_KG",
+    priceDecimal: 35000,
+    imageUrl: "/images/pak-khlang/fresh-snails-market-kg.jpg",
+    tags: ["Fresh Catch"],
+    isAvailable: true,
+    sortOrder: 6,
+  },
 ];
 
 export const KEP_DEMO_ITEMS: SeedMenuItemSpec[] = [
@@ -1307,7 +1443,9 @@ async function runSyncTenantDefaultCatalog(
           descriptionEn: item.descriptionEn,
           descriptionKm: item.descriptionKm,
           pricingType: item.pricingType,
-          weightUnit: null,
+          weightUnit:
+            item.weightUnit ??
+            (item.pricingType === "WEIGHT_BASED" ? "PER_KG" : null),
           priceDecimal: item.priceDecimal,
           marketPriceMin: null,
           marketPriceMax: null,
@@ -1328,8 +1466,10 @@ async function runSyncTenantDefaultCatalog(
   customItemsToKeep.forEach(({ id, data: custom }, idx) => {
     const oldCat = oldCatNameById.get(custom.categoryId);
     let targetKey: DefaultCategoryKey = "seafood";
-    const hint = `${oldCat?.nameEn ?? ""} ${oldCat?.nameKm ?? ""}`;
-    if (hint.includes("crab") || hint.includes("ក្តាម")) targetKey = "crab";
+    const hint = `${oldCat?.nameEn ?? ""} ${oldCat?.nameKm ?? ""}`.toLowerCase();
+    if (hint.includes("fresh") || hint.includes("គ្រឿងសមុទ្រស្រស់") || hint.includes("ថ្លឹងគីឡូ"))
+      targetKey = "fresh";
+    else if (hint.includes("crab") || hint.includes("ក្តាម")) targetKey = "crab";
     else if (hint.includes("shrimp") || hint.includes("prawn") || hint.includes("បង្គា") || hint.includes("បង្កង"))
       targetKey = "shrimp";
     else if (hint.includes("squid") || hint.includes("មឹក")) targetKey = "squid";
@@ -1385,7 +1525,7 @@ async function runSyncTenantDefaultCatalog(
         }
       : {}),
     currency: "KHR",
-    showDualCurrency: true,
+    showDualCurrency: false,
     exchangeRate: 4100,
     khrRounding: 100,
     metaJson: nextMeta,

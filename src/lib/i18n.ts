@@ -99,7 +99,26 @@ export const DEFAULT_MENU_CATEGORIES = [
   { key: "rice", nameKm: "បាយ និង មី", nameEn: "Rice" },
   { key: "beer", nameKm: "ស្រាបៀរ", nameEn: "Beer" },
   { key: "drink", nameKm: "ភេសជ្ជៈ", nameEn: "Drink" },
+  { key: "fresh", nameKm: "គ្រឿងសមុទ្រស្រស់", nameEn: "Fresh Seafood" },
 ] as const;
+
+export function isFreshSeafoodCategory(category?: {
+  id?: string | null;
+  name?: string | null;
+  nameKm?: string | null;
+  nameEn?: string | null;
+} | null): boolean {
+  if (!category) return false;
+  if (category.id === "default-cat-fresh") return true;
+  const label = `${category.name ?? ""} ${category.nameKm ?? ""} ${category.nameEn ?? ""}`
+    .trim()
+    .toLowerCase();
+  return (
+    label.includes("fresh seafood") ||
+    label.includes("គ្រឿងសមុទ្រស្រស់") ||
+    label.includes("ថ្លឹងគីឡូ")
+  );
+}
 
 export const DEFAULT_COOKING_STYLE_PRESETS = [
   { nameKm: "អាំង", nameEn: "Charcoal Grilled", defaultSurcharge: 0 },

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Search, UtensilsCrossed, Zap } from "lucide-react";
 import { NativeSwitch } from "@/components/ui/NativeSwitch";
 import { convertKhrToUsd, convertUsdToKhr } from "@/lib/currency";
-import { resolveLocalized } from "@/lib/i18n";
+import { isFreshSeafoodCategory, resolveLocalized } from "@/lib/i18n";
 import { PORTAL_COPY } from "@/lib/portal-i18n";
 import type {
   Locale,
@@ -26,7 +26,7 @@ interface QuickMarketPanelProps {
   onNotify: (text: string, tone?: "neutral" | "error") => void;
 }
 
-type QuickFilter = "ALL" | "FIXED" | "PER_KG" | "SOLD_OUT";
+type QuickFilter = "ALL" | "FRESH_KG" | "SOLD_OUT";
 
 interface DualDraft {
   khr: string;
@@ -34,8 +34,8 @@ interface DualDraft {
 }
 
 /**
- * Fast daily stock & pricing sheet supporting linked KHR (៛) and USD ($) inputs
- * across Fixed (per plate) and Per Kg rates.
+ * Fast daily stock & pricing sheet supporting linked KHR (៛) and USD ($) inputs.
+ * Cooked items use fixed pricing automatically; Fresh Seafood items are priced per kg.
  */
 export function QuickMarketPanel({
   locale,
@@ -71,34 +71,32 @@ export function QuickMarketPanel({
       selectedCategoryId === "ALL"
         ? categories
         : categories.filter((cat) => cat.id === selectedCategoryId);
-    return scopedCats.flatMap((cat) =>
-      cat.items.map((item) => ({
+    return scopedCats.flatMap((cat) => {
+      const catIsFresh = isFreshSeafoodCategory(cat);
+      const categoryName = resolveLocalized(
+        locale,
+        cat.nameKm,
+        cat.nameEn,
+        cat.name
+      );
+      return cat.items.map((item) => ({
         ...item,
-        categoryName: resolveLocalized(
-          locale,
-          cat.nameKm,
-          cat.nameEn,
-          cat.name
-        ),
-        categoryNameKm: cat.nameKm,
-        categoryNameEn: cat.nameEn,
-      }))
-    );
+        categoryName,
+        isFreshPerKg: catIsFresh || item.pricingType === "WEIGHT_BASED",
+      }));
+    });
   }, [categories, selectedCategoryId, locale]);
 
   const counts = useMemo(() => {
-    let perKg = 0;
-    let fixed = 0;
+    let freshKg = 0;
     let soldOut = 0;
     for (const item of flatItems) {
-      if (item.pricingType === "WEIGHT_BASED") perKg++;
-      else fixed++;
+      if (item.isFreshPerKg) freshKg++;
       if (!item.isAvailable) soldOut++;
     }
     return {
       all: flatItems.length,
-      perKg,
-      fixed,
+      freshKg,
       soldOut,
     };
   }, [flatItems]);
@@ -106,9 +104,7 @@ export function QuickMarketPanel({
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return flatItems.filter((item) => {
-      const isPerKg = item.pricingType === "WEIGHT_BASED";
-      if (filter === "PER_KG" && !isPerKg) return false;
-      if (filter === "FIXED" && isPerKg) return false;
+      if (filter === "FRESH_KG" && !item.isFreshPerKg) return false;
       if (filter === "SOLD_OUT" && item.isAvailable) return false;
       if (!q) return true;
       return (
@@ -193,9 +189,19 @@ export function QuickMarketPanel({
     }
   };
 
-  const schedulePriceSave = (item: SerializedMenuItem, nextPrimaryPrice: number) => {
+  const schedulePriceSave = (
+    item: SerializedMenuItem & { isFreshPerKg: boolean },
+    nextPrimaryPrice: number
+  ) => {
     const existingTimer = timersRef.current.get(item.id);
     if (existingTimer) clearTimeout(existingTimer);
+
+    const nextPricingType: PricingType = item.isFreshPerKg
+      ? "WEIGHT_BASED"
+      : "FIXED";
+    const nextWeightUnit: WeightUnit | null = item.isFreshPerKg
+      ? "PER_KG"
+      : null;
 
     onCategoriesChange(
       categoriesRef.current.map((cat) =>
@@ -203,7 +209,14 @@ export function QuickMarketPanel({
           ? {
               ...cat,
               items: cat.items.map((i) =>
-                i.id === item.id ? { ...i, price: nextPrimaryPrice } : i
+                i.id === item.id
+                  ? {
+                      ...i,
+                      price: nextPrimaryPrice,
+                      pricingType: nextPricingType,
+                      weightUnit: nextWeightUnit,
+                    }
+                  : i
               ),
             }
           : cat
@@ -216,26 +229,18 @@ export function QuickMarketPanel({
         item,
         {
           price: nextPrimaryPrice,
-          ...(item.pricingType === "MARKET_PRICE"
-            ? {
-                pricingType: "FIXED",
-                weightUnit: null,
-                marketPriceMin: null,
-                marketPriceMax: null,
-              }
-            : {}),
+          pricingType: nextPricingType,
+          weightUnit: nextWeightUnit,
+          marketPriceMin: null,
+          marketPriceMax: null,
         },
         (curr) => ({
           ...curr,
           price: nextPrimaryPrice,
-          ...(curr.pricingType === "MARKET_PRICE"
-            ? {
-                pricingType: "FIXED" as const,
-                weightUnit: null,
-                marketPriceMin: null,
-                marketPriceMax: null,
-              }
-            : {}),
+          pricingType: nextPricingType,
+          weightUnit: nextWeightUnit,
+          marketPriceMin: null,
+          marketPriceMax: null,
         })
       );
     }, 450);
@@ -244,12 +249,13 @@ export function QuickMarketPanel({
   };
 
   const handleDualPriceChange = (
-    item: SerializedMenuItem,
+    item: SerializedMenuItem & { isFreshPerKg: boolean },
     editedCurrency: "KHR" | "USD",
     rawValue: string
   ) => {
     const parsed = Number(rawValue);
-    const isValid = rawValue.trim() !== "" && !Number.isNaN(parsed) && parsed >= 0;
+    const isValid =
+      rawValue.trim() !== "" && !Number.isNaN(parsed) && parsed >= 0;
 
     if (editedCurrency === "KHR") {
       const nextUsd = isValid
@@ -286,51 +292,6 @@ export function QuickMarketPanel({
     }
   };
 
-  const handleSetPricingMode = (
-    item: SerializedMenuItem,
-    nextType: "FIXED" | "WEIGHT_BASED"
-  ) => {
-    const isCurrentlyKg = item.pricingType === "WEIGHT_BASED";
-    if (
-      (nextType === "WEIGHT_BASED" && isCurrentlyKg) ||
-      (nextType === "FIXED" && item.pricingType === "FIXED")
-    ) {
-      return;
-    }
-
-    const nextUnit: WeightUnit | null =
-      nextType === "WEIGHT_BASED" ? "PER_KG" : null;
-
-    void patchItem(
-      item,
-      {
-        pricingType: nextType,
-        weightUnit: nextUnit,
-        marketPriceMin: null,
-        marketPriceMax: null,
-      },
-      (curr) => ({
-        ...curr,
-        pricingType: nextType,
-        weightUnit: nextUnit,
-        marketPriceMin: null,
-        marketPriceMax: null,
-      })
-    );
-
-    const itemName = resolveLocalized(
-      locale,
-      item.nameKm,
-      item.nameEn,
-      item.name
-    );
-    onNotify(
-      nextType === "WEIGHT_BASED"
-        ? t.toastQuickMarket(itemName)
-        : t.toastQuickListed(itemName)
-    );
-  };
-
   const kgShort = locale === "km" ? "/ គីឡូ" : "/ kg";
 
   return (
@@ -357,7 +318,7 @@ export function QuickMarketPanel({
             {t.quickTotalCount(counts.all)}
           </span>
           <span className="rounded-md border border-brand-subtle bg-brand-subtle px-2 py-1 text-zinc-900">
-            {t.quickMarketCount(counts.perKg)}
+            {t.quickMarketCount(counts.freshKg)}
           </span>
           <span className="rounded-md border border-zinc-200 bg-[#FAFAFA] px-2 py-1 text-zinc-500">
             {t.quickSoldOutCount(counts.soldOut)}
@@ -384,14 +345,17 @@ export function QuickMarketPanel({
 
         <div
           role="tablist"
-          aria-label={t.pricingLabel}
+          aria-label={t.colCategory}
           className="no-scrollbar flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-zinc-200 bg-white p-1 text-[12px] sm:w-auto"
         >
           {(
             [
               { id: "ALL", label: c.all, count: counts.all },
-              { id: "FIXED", label: t.quickFilterPerPlate, count: counts.fixed },
-              { id: "PER_KG", label: t.quickFilterLiveWeight, count: counts.perKg },
+              {
+                id: "FRESH_KG",
+                label: t.quickFilterLiveWeight,
+                count: counts.freshKg,
+              },
               { id: "SOLD_OUT", label: c.soldOut, count: counts.soldOut },
             ] as const
           ).map((tab) => {
@@ -431,7 +395,6 @@ export function QuickMarketPanel({
       ) : (
         <ul className="divide-y divide-zinc-200">
           {filteredItems.map((item) => {
-            const isPerKg = item.pricingType === "WEIGHT_BASED";
             const dishTitle = resolveLocalized(
               locale,
               item.nameKm,
@@ -510,24 +473,21 @@ export function QuickMarketPanel({
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-zinc-500">
                       <span className="truncate">{item.categoryName}</span>
-                      <span className="text-zinc-300">·</span>
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
-                          isPerKg
-                            ? "bg-brand-subtle text-zinc-900"
-                            : "bg-zinc-100 text-zinc-600"
-                        }`}
-                      >
-                        {isPerKg ? t.quickMarketBtn : t.quickSetPrice}
-                      </span>
+                      {item.isFreshPerKg && (
+                        <>
+                          <span className="text-zinc-300">·</span>
+                          <span className="rounded bg-brand-subtle px-1.5 py-0.5 text-[10.5px] font-medium text-zinc-900">
+                            {kgShort}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Responsive Controls: Linked KHR + USD Inputs + Plate/Kg Toggle + Stock Switch */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2.5">
-                  {/* Linked KHR (៛) & USD ($) Price Inputs */}
-                  <div className="grid grid-cols-2 gap-1.5 sm:flex sm:items-center">
+                {/* Responsive Controls: Linked KHR + USD Inputs + Stock Switch */}
+                <div className="flex items-center justify-between gap-2 sm:justify-end sm:gap-3">
+                  <div className="grid flex-1 grid-cols-2 gap-1.5 sm:flex sm:flex-initial sm:items-center">
                     <div className="flex h-9 items-center rounded-lg border border-zinc-200 bg-white focus-within:border-brand">
                       <span className="pl-2.5 pr-1 text-[12px] font-semibold text-zinc-500">
                         ៛
@@ -542,7 +502,7 @@ export function QuickMarketPanel({
                           handleDualPriceChange(item, "KHR", e.target.value)
                         }
                         aria-label={`${dishTitle} (KHR)`}
-                        className="h-full w-full min-w-0 bg-transparent pr-2 text-right text-[13.5px] font-semibold tabular-nums text-zinc-950 focus:outline-none sm:w-20"
+                        className="h-full w-full min-w-0 bg-transparent pr-2.5 text-right text-[13.5px] font-semibold tabular-nums text-zinc-950 focus:outline-none sm:w-24"
                       />
                     </div>
 
@@ -560,77 +520,37 @@ export function QuickMarketPanel({
                           handleDualPriceChange(item, "USD", e.target.value)
                         }
                         aria-label={`${dishTitle} (USD)`}
-                        className="h-full w-full min-w-0 bg-transparent pr-2 text-right text-[13.5px] font-semibold tabular-nums text-zinc-950 focus:outline-none sm:w-16"
+                        className="h-full w-full min-w-0 bg-transparent pr-2.5 text-right text-[13.5px] font-semibold tabular-nums text-zinc-950 focus:outline-none sm:w-20"
                       />
-                      {isPerKg && (
-                        <span className="flex h-full shrink-0 items-center border-l border-zinc-100 bg-[#FAFAFA] px-1.5 text-[10.5px] font-medium text-zinc-500">
-                          {kgShort}
-                        </span>
-                      )}
                     </div>
                   </div>
 
-                  {/* 1-Tap Plate / Per Kg Segmented Toggle + Stock Switch */}
-                  <div className="flex items-center justify-between gap-2 sm:justify-end">
-                    <div
-                      role="group"
-                      aria-label={t.pricingModeLabel}
-                      className="inline-flex h-9 shrink-0 items-center rounded-lg border border-zinc-200 bg-[#FAFAFA] p-0.5 text-[11.5px] font-medium"
+                  {/* 1-Tap Stock Switch */}
+                  <div className="flex shrink-0 items-center gap-2 border-l border-zinc-200 pl-2.5">
+                    <span
+                      className={`hidden text-[12px] font-medium md:inline ${
+                        item.isAvailable ? "text-zinc-800" : "text-zinc-400"
+                      }`}
                     >
-                      <button
-                        type="button"
-                        onClick={() => handleSetPricingMode(item, "FIXED")}
-                        aria-pressed={!isPerKg}
-                        className={`h-full rounded-md px-2.5 transition-colors ${
-                          !isPerKg
-                            ? "bg-white text-zinc-950 shadow-xs"
-                            : "text-zinc-500 hover:text-zinc-900"
-                        }`}
-                      >
-                        {t.quickSetPrice}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleSetPricingMode(item, "WEIGHT_BASED")
-                        }
-                        aria-pressed={isPerKg}
-                        className={`h-full rounded-md px-2.5 transition-colors ${
-                          isPerKg
-                            ? "bg-brand shadow-xs"
-                            : "text-zinc-500 hover:text-zinc-900"
-                        }`}
-                      >
-                        {t.quickMarketBtn}
-                      </button>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-2 border-l border-zinc-200 pl-2.5">
-                      <span
-                        className={`text-[12px] font-medium sm:hidden md:inline ${
-                          item.isAvailable ? "text-zinc-800" : "text-zinc-400"
-                        }`}
-                      >
-                        {item.isAvailable ? c.inStock : c.soldOut}
-                      </span>
-                      <NativeSwitch
-                        checked={item.isAvailable}
-                        onChange={(checked) => {
-                          void patchItem(
-                            item,
-                            { isAvailable: checked },
-                            (curr) => ({ ...curr, isAvailable: checked })
-                          );
-                          onNotify(
-                            checked
-                              ? t.toastItemInStock(dishTitle)
-                              : t.toastItemSoldOut(dishTitle)
-                          );
-                        }}
-                        label={dishTitle}
-                        srOnlyLabel
-                      />
-                    </div>
+                      {item.isAvailable ? c.inStock : c.soldOut}
+                    </span>
+                    <NativeSwitch
+                      checked={item.isAvailable}
+                      onChange={(checked) => {
+                        void patchItem(
+                          item,
+                          { isAvailable: checked },
+                          (curr) => ({ ...curr, isAvailable: checked })
+                        );
+                        onNotify(
+                          checked
+                            ? t.toastItemInStock(dishTitle)
+                            : t.toastItemSoldOut(dishTitle)
+                        );
+                      }}
+                      label={dishTitle}
+                      srOnlyLabel
+                    />
                   </div>
                 </div>
               </li>

@@ -26,7 +26,6 @@ import {
 import { PORTAL_COPY } from "@/lib/portal-i18n";
 import type {
   Locale,
-  PricingType,
   SerializedCategory,
   SerializedMenuItem,
   SerializedTenant,
@@ -67,9 +66,6 @@ export function MenuManager({
   const c = PORTAL_COPY[locale].common;
 
   const [statusTab, setStatusTab] = useState<StatusTab>("ALL");
-  const [pricingFilter, setPricingFilter] = useState<"ALL" | PricingType>(
-    "ALL"
-  );
   const [tagFilter, setTagFilter] = useState<string>("ALL");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
@@ -140,9 +136,6 @@ export function MenuManager({
     return categoryScopedItems.filter((item) => {
       if (statusTab === "ACTIVE" && !item.isAvailable) return false;
       if (statusTab === "SOLD_OUT" && item.isAvailable) return false;
-      if (pricingFilter !== "ALL" && item.pricingType !== pricingFilter) {
-        return false;
-      }
       if (tagFilter !== "ALL" && !item.tags.includes(tagFilter)) {
         return false;
       }
@@ -160,11 +153,10 @@ export function MenuManager({
         item.categoryName.toLowerCase().includes(q)
       );
     });
-  }, [categoryScopedItems, statusTab, pricingFilter, tagFilter, searchQuery]);
+  }, [categoryScopedItems, statusTab, tagFilter, searchQuery]);
 
   const hasActiveFilters =
     searchQuery.trim().length > 0 ||
-    pricingFilter !== "ALL" ||
     tagFilter !== "ALL" ||
     statusTab !== "ALL";
 
@@ -305,17 +297,6 @@ export function MenuManager({
         </div>
 
         <NativeSelect
-          ariaLabel={t.pricingFilterAll}
-          value={pricingFilter}
-          onChange={(v) => setPricingFilter(v as "ALL" | PricingType)}
-          options={[
-            { value: "ALL", label: t.pricingFilterAll },
-            { value: "FIXED", label: t.pricingFixed },
-            { value: "WEIGHT_BASED", label: t.pricingWeight },
-          ]}
-        />
-
-        <NativeSelect
           ariaLabel={t.tagFilterAll}
           value={tagFilter}
           onChange={setTagFilter}
@@ -334,7 +315,6 @@ export function MenuManager({
             onClick={() => {
               onSearchChange("");
               setStatusTab("ALL");
-              setPricingFilter("ALL");
               setTagFilter("ALL");
             }}
             className="text-[12px] font-medium text-zinc-500 underline underline-offset-4 hover:text-zinc-950"
