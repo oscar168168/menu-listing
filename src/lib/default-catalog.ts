@@ -8,7 +8,7 @@ import {
 import { DEFAULT_MENU_CATEGORIES } from "@/lib/i18n";
 import type { PricingType } from "@/types/menu";
 
-export const DEMO_CATALOG_VERSION = "v6-pak-khlang-168-fb-photos";
+export const DEMO_CATALOG_VERSION = "v7-pak-khlang-168-complete-coastal-menu";
 
 export function isPakKhlangVenue(tenant: {
   slug: string;
@@ -206,25 +206,96 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
   },
   {
     categoryKey: "seafood",
-    name: "Charcoal BBQ Skewers",
-    nameEn: "Charcoal BBQ Skewers",
-    nameKm: "សាច់អាំងចង្កាក់",
+    name: "Horseshoe Crab Roe Mango Salad",
+    nameEn: "Horseshoe Crab Roe Mango Salad",
+    nameKm: "ញាំពងបែលសមុទ្រ",
     description:
-      "Marinated meat and bell pepper skewers grilled over charcoal until smoky.",
+      "Iconic Koh Kong delicacy of golden horseshoe crab roe tossed with shredded green mango, shallots, herbs, and chili.",
     descriptionEn:
-      "Marinated meat and bell pepper skewers grilled over charcoal until smoky.",
+      "Iconic Koh Kong delicacy of golden horseshoe crab roe tossed with shredded green mango, shallots, herbs, and chili.",
     descriptionKm:
-      "សាច់អាំងចង្កាក់ដោតជាមួយម្ទេសប្លោក អាំងធ្យូងឈ្ងុយឆ្ងាញ់។",
+      "មុខម្ហូបប្រចាំឆ្នេរប៉ាក់ខ្លង ញាំពងបែលសមុទ្រជាមួយស្វាយខ្ចី ខ្ទឹមក្រហម ជីគ្រប់មុខ និង ម្ទេសហឹរជូរអែម។",
     pricingType: "FIXED",
-    priceDecimal: 25000,
-    imageUrl:
-      "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/DFC_6118_Grilled_marinated_beef_skewers_sizzling_with_caramelized_edges_-_a_popular_street_food_snack_from_Sattahip_Chon_Buri.jpg/330px-DFC_6118_Grilled_marinated_beef_skewers_sizzling_with_caramelized_edges_-_a_popular_street_food_snack_from_Sattahip_Chon_Buri.jpg",
-    tags: [],
+    priceDecimal: 40000,
+    imageUrl: "/images/pak-khlang/horseshoe-crab-salad.jpg",
+    tags: ["Signature", "Fresh Catch"],
     isAvailable: true,
     sortOrder: 7,
   },
+  {
+    categoryKey: "seafood",
+    name: "Charcoal-Grilled Lemongrass Sea Fish",
+    nameEn: "Charcoal-Grilled Lemongrass Sea Fish",
+    nameKm: "ត្រីសមុទ្រអាំងគល់ស្លឹកគ្រៃ",
+    description:
+      "Whole local sea fish stuffed with crushed lemongrass and kaffir lime leaves, grilled smoky over charcoal.",
+    descriptionEn:
+      "Whole local sea fish stuffed with crushed lemongrass and kaffir lime leaves, grilled smoky over charcoal.",
+    descriptionKm:
+      "ត្រីសមុទ្រស្រស់ញាត់គល់ស្លឹកគ្រៃ និង ស្លឹកក្រូចសើច អាំងភ្លើងធ្យូងផ្ទាប់បន្លែស្រស់ និង ទឹកត្រីកោះកុង។",
+    pricingType: "FIXED",
+    priceDecimal: 40000,
+    imageUrl: "/images/pak-khlang/grilled-whole-fish.jpg",
+    tags: ["Signature", "Fresh Catch"],
+    isAvailable: true,
+    sortOrder: 8,
+  },
+  {
+    categoryKey: "seafood",
+    name: "Crispy Fried Sea Fish with Herbs",
+    nameEn: "Crispy Fried Sea Fish with Herbs",
+    nameKm: "ត្រីបំពងស្វាយខ្ចី និង គ្រឿងក្រអូប",
+    description:
+      "Golden crispy whole sea fish topped with fried lemongrass, kaffir lime leaves, and spicy Koh Kong mango dip.",
+    descriptionEn:
+      "Golden crispy whole sea fish topped with fried lemongrass, kaffir lime leaves, and spicy Koh Kong mango dip.",
+    descriptionKm:
+      "ត្រីសមុទ្របំពងស្រួយរោយគល់ស្លឹកគ្រៃបំពង និង ស្លឹកក្រូចសើច ញ៉ាំជាមួយទឹកត្រីស្វាយខ្ចីកោះកុង។",
+    pricingType: "FIXED",
+    priceDecimal: 40000,
+    imageUrl: "/images/pak-khlang/fried-fish-herbs.jpg",
+    tags: ["Fresh Catch"],
+    isAvailable: true,
+    sortOrder: 9,
+  },
+  {
+    categoryKey: "seafood",
+    name: "Cambodian Kroeung Sour Sea Fish Soup",
+    nameEn: "Cambodian Kroeung Sour Sea Fish Soup",
+    nameKm: "សម្លម្ជូរគ្រឿងត្រីសមុទ្រ",
+    description:
+      "Traditional aromatic lemongrass kroeung sour soup simmered with fresh coastal fish and morning glory.",
+    descriptionEn:
+      "Traditional aromatic lemongrass kroeung sour soup simmered with fresh coastal fish and morning glory.",
+    descriptionKm:
+      "សម្លម្ជូរគ្រឿងត្រីសមុទ្រស្រស់ ដាក់ត្រកួន និង គ្រឿងបុកក្រអូបឈ្ងុយបែបខ្មែរ។",
+    pricingType: "FIXED",
+    priceDecimal: 35000,
+    imageUrl: "/images/pak-khlang/samlor-machu-kroeung.jpg",
+    tags: [],
+    isAvailable: true,
+    sortOrder: 10,
+  },
+  {
+    categoryKey: "seafood",
+    name: "Steamed Green Mussels with Koh Kong Sauce",
+    nameEn: "Steamed Green Mussels with Koh Kong Sauce",
+    nameKm: "គ្រំសមុទ្រស្រុះទឹកត្រីកោះកុង",
+    description:
+      "Plump coastal green mussels steamed with lemongrass, sweet basil, fried garlic, and fiery chili-lime dip.",
+    descriptionEn:
+      "Plump coastal green mussels steamed with lemongrass, sweet basil, fried garlic, and fiery chili-lime dip.",
+    descriptionKm:
+      "គ្រំសមុទ្រស្រស់ស្រុះគល់ស្លឹកគ្រៃ និង ជីរហោរ៉ាប៉ា ញ៉ាំជាមួយទឹកត្រីកោះកុងហឹរឆ្ងាញ់។",
+    pricingType: "FIXED",
+    priceDecimal: 25000,
+    imageUrl: "/images/pak-khlang/green-mussels.jpg",
+    tags: ["Fresh Catch"],
+    isAvailable: true,
+    sortOrder: 11,
+  },
 
-  // 2. Crab (ក្តាម) — 4 items
+  // 2. Crab (ក្តាម) — 6 items
   {
     categoryKey: "crab",
     name: "Kampot Pepper Crab",
@@ -301,8 +372,44 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     isAvailable: true,
     sortOrder: 3,
   },
+  {
+    categoryKey: "crab",
+    name: "Stir-Fried Crab in Yellow Curry & Egg",
+    nameEn: "Stir-Fried Crab in Yellow Curry & Egg",
+    nameKm: "ក្តាមឆាការីពងទា",
+    description:
+      "Koh Kong border specialty of fresh sea crab wok-braised in rich golden curry sauce, creamy egg, and Chinese celery.",
+    descriptionEn:
+      "Koh Kong border specialty of fresh sea crab wok-braised in rich golden curry sauce, creamy egg, and Chinese celery.",
+    descriptionKm:
+      "ក្តាមសមុទ្រស្រស់ឆាការីពងទាបែបកោះកុង ទឹកការីខាប់ឈ្ងុយឆ្ងាញ់ជាមួយគិនឆាយ និង ស្លឹកខ្ទឹម។",
+    pricingType: "FIXED",
+    priceDecimal: 40000,
+    imageUrl: "/images/pak-khlang/curry-egg-crab.jpg",
+    tags: ["Signature"],
+    isAvailable: true,
+    sortOrder: 4,
+  },
+  {
+    categoryKey: "crab",
+    name: "Spicy Marinated Roe Mud Crab",
+    nameEn: "Spicy Marinated Roe Mud Crab",
+    nameKm: "ក្តាមថ្មប្រៃពងទឹកត្រីកោះកុង",
+    description:
+      "Chilled female mud crab brimming with rich orange roe, dressed in fiery Koh Kong garlic, chili, and lime marinade.",
+    descriptionEn:
+      "Chilled female mud crab brimming with rich orange roe, dressed in fiery Koh Kong garlic, chili, and lime marinade.",
+    descriptionKm:
+      "ក្តាមថ្មពងពេញសំបក ត្រាំទឹកត្រីកោះកុង ខ្ទឹមស ម្ទេសហឹរ និង ទឹកក្រូចឆ្មាស្រស់។",
+    pricingType: "FIXED",
+    priceDecimal: 45000,
+    imageUrl: "/images/pak-khlang/marinated-roe-mud-crab.jpg",
+    tags: ["Live Tank", "Spicy"],
+    isAvailable: true,
+    sortOrder: 5,
+  },
 
-  // 3. Shrimp (បង្គា និង បង្កង) — 5 items
+  // 3. Shrimp (បង្គា និង បង្កង) — 6 items
   {
     categoryKey: "shrimp",
     name: "Grilled Giant River Prawns",
@@ -397,8 +504,26 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     isAvailable: true,
     sortOrder: 4,
   },
+  {
+    categoryKey: "shrimp",
+    name: "Spicy Blanched Shrimp & Herb Salad",
+    nameEn: "Spicy Blanched Shrimp & Herb Salad",
+    nameKm: "ញាំបង្គាឆ្អិនគ្រឿងសមុទ្រ",
+    description:
+      "Sweet poached sea shrimp tossed with sliced shallots, lemongrass, culantro, bird's eye chili, and fresh lime.",
+    descriptionEn:
+      "Sweet poached sea shrimp tossed with sliced shallots, lemongrass, culantro, bird's eye chili, and fresh lime.",
+    descriptionKm:
+      "បង្គាសមុទ្រស្រុះឆ្អិនល្មម ញាំជាមួយខ្ទឹមក្រហម គល់ស្លឹកគ្រៃ ជីររណារ និង ម្ទេសក្រូចឆ្មា។",
+    pricingType: "FIXED",
+    priceDecimal: 30000,
+    imageUrl: "/images/pak-khlang/spicy-shrimp-salad.jpg",
+    tags: ["Spicy"],
+    isAvailable: true,
+    sortOrder: 5,
+  },
 
-  // 4. Squid (មឹក) — 4 items
+  // 4. Squid (មឹក) — 7 items
   {
     categoryKey: "squid",
     name: "Charcoal-Grilled Squid",
@@ -475,8 +600,173 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     isAvailable: true,
     sortOrder: 3,
   },
+  {
+    categoryKey: "squid",
+    name: "Charcoal-Grilled Baby Octopus",
+    nameEn: "Charcoal-Grilled Baby Octopus",
+    nameKm: "មឹកពីងពាងអាំងធ្យូង",
+    description:
+      "Whole coastal baby octopuses grilled tender over glowing charcoal embers with spicy green Koh Kong dipping sauce.",
+    descriptionEn:
+      "Whole coastal baby octopuses grilled tender over glowing charcoal embers with spicy green Koh Kong dipping sauce.",
+    descriptionKm:
+      "មឹកពីងពាងសមុទ្រស្រស់អាំងលើភ្លើងធ្យូងក្តៅៗ ញ៉ាំជាមួយទឹកត្រីកោះកុងហឹរឆ្ងាញ់។",
+    pricingType: "FIXED",
+    priceDecimal: 30000,
+    imageUrl: "/images/pak-khlang/grilled-baby-octopus.jpg",
+    tags: ["Fresh Catch"],
+    isAvailable: true,
+    sortOrder: 4,
+  },
+  {
+    categoryKey: "squid",
+    name: "Stir-Fried Squid with Holy Basil & Chili",
+    nameEn: "Stir-Fried Squid with Holy Basil & Chili",
+    nameKm: "មឹកឆាម្រះព្រៅ",
+    description:
+      "Coastal squid rings wok-seared over high flame with crushed garlic, red bird's eye chili, and fragrant holy basil.",
+    descriptionEn:
+      "Coastal squid rings wok-seared over high flame with crushed garlic, red bird's eye chili, and fragrant holy basil.",
+    descriptionKm:
+      "មឹកសមុទ្រស្រស់ឆាភ្លើងខ្លាំងជាមួយខ្ទឹមស ម្ទេសហឹរ និង ស្លឹកម្រះព្រៅឈ្ងុយឆ្ងាញ់។",
+    pricingType: "FIXED",
+    priceDecimal: 30000,
+    imageUrl: "/images/pak-khlang/basil-squid.jpg",
+    tags: ["Spicy"],
+    isAvailable: true,
+    sortOrder: 5,
+  },
+  {
+    categoryKey: "squid",
+    name: "Crispy Deep-Fried Calamari Squid",
+    nameEn: "Crispy Deep-Fried Calamari Squid",
+    nameKm: "មឹកបំពងម្សៅស្រួយ",
+    description:
+      "Lightly battered coastal squid deep-fried golden and crisp, served with plum chili and Kampot lime-pepper dip.",
+    descriptionEn:
+      "Lightly battered coastal squid deep-fried golden and crisp, served with plum chili and Kampot lime-pepper dip.",
+    descriptionKm:
+      "មឹកស្រស់បំពងម្សៅស្រួយពណ៌មាស ញ៉ាំជាមួយទឹកម្រេចក្រូចឆ្មា និង ទឹកจิ้มម្ទេសផ្អែម។",
+    pricingType: "FIXED",
+    priceDecimal: 25000,
+    imageUrl: "/images/pak-khlang/crispy-fried-squid.jpg",
+    tags: [],
+    isAvailable: true,
+    sortOrder: 6,
+  },
 
-  // 5. Rice (បាយ និង មី) — 2 items
+  // 5. Meat & Salads (ម្ហូបសាច់ និង ញាំ) — 6 items
+  {
+    categoryKey: "meat",
+    name: "Cambodian Beef Lok Lak with Egg & Fries",
+    nameEn: "Cambodian Beef Lok Lak with Egg & Fries",
+    nameKm: "សាច់គោឡុកឡាក់ពងទាចៀន",
+    description:
+      "Wok-seared marinated beef cubes served with fried egg, crispy fries, fresh greens, and Kampot pepper-lime dip.",
+    descriptionEn:
+      "Wok-seared marinated beef cubes served with fried egg, crispy fries, fresh greens, and Kampot pepper-lime dip.",
+    descriptionKm:
+      "សាច់គោឡុកឡាក់ផុយឆ្ងាញ់ បន្ថែមពងទាចៀន ដំឡូងបារាំងបំពង បន្លែស្រស់ និង ទឹកម្រេចក្រូចឆ្មា។",
+    pricingType: "FIXED",
+    priceDecimal: 25000,
+    imageUrl: "/images/pak-khlang/beef-lok-lak.jpg",
+    tags: ["Signature"],
+    isAvailable: true,
+    sortOrder: 0,
+  },
+  {
+    categoryKey: "meat",
+    name: "Whole Charcoal-Roasted Chicken",
+    nameEn: "Whole Charcoal-Roasted Chicken",
+    nameKm: "មាន់ដុតធ្យូងឆ្នេរប៉ាក់ខ្លង",
+    description:
+      "Whole free-range chicken marinated in lemongrass, garlic, and honey, slow-roasted golden with cucumber and herbs.",
+    descriptionEn:
+      "Whole free-range chicken marinated in lemongrass, garlic, and honey, slow-roasted golden with cucumber and herbs.",
+    descriptionKm:
+      "មាន់ស្រែប្រឡាក់គល់ស្លឹកគ្រៃ ខ្ទឹមស និង ទឹកឃ្មុំ ដុតធ្យូងឡើងក្រហមឈ្ងុយ ញ៉ាំជុំគ្រួសារនៅមាត់ឆ្នេរ។",
+    pricingType: "FIXED",
+    priceDecimal: 40000,
+    imageUrl: "/images/pak-khlang/roasted-chicken.jpg",
+    tags: ["Signature"],
+    isAvailable: true,
+    sortOrder: 1,
+  },
+  {
+    categoryKey: "meat",
+    name: "Spicy Lime Beef Salad with Long Beans",
+    nameEn: "Spicy Lime Beef Salad with Long Beans",
+    nameKm: "ភ្លាសាច់គោសណ្ដែកគួរ",
+    description:
+      "Tender sliced beef tossed with crisp long beans, lemongrass, shallots, roasted peanuts, basil, and fresh lime.",
+    descriptionEn:
+      "Tender sliced beef tossed with crisp long beans, lemongrass, shallots, roasted peanuts, basil, and fresh lime.",
+    descriptionKm:
+      "ភ្លាសាច់គោស្រស់លាយសណ្ដែកគួរស្រួយ គល់ស្លឹកគ្រៃ ខ្ទឹមក្រហម សណ្តែកដីលីង និង ទឹកក្រូចឆ្មាហឹរឆ្ងាញ់។",
+    pricingType: "FIXED",
+    priceDecimal: 25000,
+    imageUrl: "/images/pak-khlang/spicy-beef-salad.jpg",
+    tags: ["Spicy"],
+    isAvailable: true,
+    sortOrder: 2,
+  },
+  {
+    categoryKey: "meat",
+    name: "Blue Crab Green Papaya Salad",
+    nameEn: "Blue Crab Green Papaya Salad",
+    nameKm: "បុកល្ហុងក្តាមសេះ",
+    description:
+      "Koh Kong border-style shredded green papaya pounded with chili, garlic, cherry tomatoes, lime, and fresh blue crab.",
+    descriptionEn:
+      "Koh Kong border-style shredded green papaya pounded with chili, garlic, cherry tomatoes, lime, and fresh blue crab.",
+    descriptionKm:
+      "បុកល្ហុងក្តាមសេះស្រស់ រសជាតិជូរហឹរឆ្ងាញ់បែបអ្នកកោះកុង ញ៉ាំកាត់ទ្រលាន់នៅមាត់សមុទ្រ។",
+    pricingType: "FIXED",
+    priceDecimal: 25000,
+    imageUrl: "/images/pak-khlang/blue-crab-papaya-salad.jpg",
+    tags: ["Signature", "Spicy"],
+    isAvailable: true,
+    sortOrder: 3,
+  },
+  {
+    categoryKey: "meat",
+    name: "Charcoal BBQ Skewers",
+    nameEn: "Charcoal BBQ Skewers",
+    nameKm: "សាច់អាំងចង្កាក់",
+    description:
+      "Marinated meat and bell pepper skewers grilled over charcoal until smoky.",
+    descriptionEn:
+      "Marinated meat and bell pepper skewers grilled over charcoal until smoky.",
+    descriptionKm:
+      "សាច់អាំងចង្កាក់ដោតជាមួយម្ទេសប្លោក អាំងធ្យូងឈ្ងុយឆ្ងាញ់។",
+    pricingType: "FIXED",
+    priceDecimal: 25000,
+    imageUrl:
+      "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/DFC_6118_Grilled_marinated_beef_skewers_sizzling_with_caramelized_edges_-_a_popular_street_food_snack_from_Sattahip_Chon_Buri.jpg/330px-DFC_6118_Grilled_marinated_beef_skewers_sizzling_with_caramelized_edges_-_a_popular_street_food_snack_from_Sattahip_Chon_Buri.jpg",
+    tags: [],
+    isAvailable: true,
+    sortOrder: 4,
+  },
+  {
+    categoryKey: "meat",
+    name: "Crispy French Fries",
+    nameEn: "Crispy French Fries",
+    nameKm: "ដំឡូងបារាំងបំពង",
+    description:
+      "Golden crispy french fries lightly salted and served hot with tomato ketchup and sweet chili sauce.",
+    descriptionEn:
+      "Golden crispy french fries lightly salted and served hot with tomato ketchup and sweet chili sauce.",
+    descriptionKm:
+      "ដំឡូងបារាំងបំពងស្រួយក្តៅៗ ញ៉ាំលេងជាមួយទឹកប៉េងប៉ោះ និង ទឹកម្ទេស។",
+    pricingType: "FIXED",
+    priceDecimal: 10000,
+    imageUrl: "/images/pak-khlang/french-fries.jpg",
+    tags: [],
+    isAvailable: true,
+    sortOrder: 5,
+  },
+
+  // 6. Rice (បាយ និង មី) — 4 items
   {
     categoryKey: "rice",
     name: "Seafood Fried Rice",
@@ -515,8 +805,59 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     isAvailable: true,
     sortOrder: 1,
   },
+  {
+    categoryKey: "rice",
+    name: "Stir-Fried Seafood Noodles",
+    nameEn: "Stir-Fried Seafood Noodles",
+    nameKm: "មីឆាគ្រឿងសមុទ្រ",
+    description:
+      "Wok-fried noodles tossed with fresh coastal shrimp, squid rings, crisp greens, egg, and savory garlic-oyster glaze.",
+    descriptionEn:
+      "Wok-fried noodles tossed with fresh coastal shrimp, squid rings, crisp greens, egg, and savory garlic-oyster glaze.",
+    descriptionKm:
+      "មីឆាគ្រឿងសមុទ្រក្តៅៗ ដាក់បង្គា មឹកស្រស់ បន្លែគ្រប់មុខ និង ពងមាន់ឈ្ងុយឆ្ងាញ់។",
+    pricingType: "FIXED",
+    priceDecimal: 25000,
+    imageUrl: "/images/pak-khlang/seafood-fried-noodles.jpg",
+    tags: ["Signature"],
+    isAvailable: true,
+    sortOrder: 2,
+  },
+  {
+    categoryKey: "rice",
+    name: "Wok-Fried Beef Rice",
+    nameEn: "Wok-Fried Beef Rice",
+    nameKm: "បាយឆាសាច់គោ",
+    description:
+      "Fragrant jasmine rice wok-tossed over high heat with tender marinated beef slices, egg, garlic, and scallions.",
+    descriptionEn:
+      "Fragrant jasmine rice wok-tossed over high heat with tender marinated beef slices, egg, garlic, and scallions.",
+    descriptionKm:
+      "បាយឆាសាច់គោក្រអូបឈ្ងុយ ឆាជាមួយពងមាន់ ខ្ទឹមស និង ស្លឹកខ្ទឹមស្រស់។",
+    pricingType: "FIXED",
+    priceDecimal: 20000,
+    imageUrl: "/images/pak-khlang/beef-fried-rice.jpg",
+    tags: [],
+    isAvailable: true,
+    sortOrder: 3,
+  },
 
-  // 6. Beer (ស្រាបៀរ) — 3 items
+  // 7. Beer (ស្រាបៀរ) — 4 items
+  {
+    categoryKey: "beer",
+    name: "Ganzberg Beer",
+    nameEn: "Ganzberg Beer",
+    nameKm: "ស្រាបៀរ ហ្គានស៍បឺគ",
+    description: "Ice-cold German-style premium Ganzberg lager served chilled on ice at your beach table.",
+    descriptionEn: "Ice-cold German-style premium Ganzberg lager served chilled on ice at your beach table.",
+    descriptionKm: "ស្រាបៀរហ្គានស៍បឺគត្រជាក់ៗ ដាក់ទឹកកកជូននៅមាត់ឆ្នេរប៉ាក់ខ្លង។",
+    pricingType: "FIXED",
+    priceDecimal: 6000,
+    imageUrl: "/images/pak-khlang/ganzberg-beer.jpg",
+    tags: ["Signature"],
+    isAvailable: true,
+    sortOrder: 0,
+  },
   {
     categoryKey: "beer",
     name: "Anchor Beer",
@@ -531,7 +872,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "https://camhappymart.com/storage/app/public/product/1607842621OoykFGxp.jpg",
     tags: [],
     isAvailable: true,
-    sortOrder: 0,
+    sortOrder: 1,
   },
   {
     categoryKey: "beer",
@@ -546,7 +887,7 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     imageUrl: "https://domrey.com/uploads/catalogs/8848858120028.jpg",
     tags: [],
     isAvailable: true,
-    sortOrder: 1,
+    sortOrder: 2,
   },
   {
     categoryKey: "beer",
@@ -562,10 +903,10 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
       "https://aeoncambodia.sgp1.digitaloceanspaces.com/image/catalog/product/8847100740878.jpg",
     tags: [],
     isAvailable: true,
-    sortOrder: 2,
+    sortOrder: 3,
   },
 
-  // 7. Drink (ភេសជ្ជៈ) — 4 items
+  // 8. Drink (ភេសជ្ជៈ) — 5 items
   {
     categoryKey: "drink",
     name: "Bottled Thai Iced Milk Tea",
@@ -632,6 +973,24 @@ export const SORA_DEMO_ITEMS: SeedMenuItemSpec[] = [
     tags: [],
     isAvailable: true,
     sortOrder: 3,
+  },
+  {
+    categoryKey: "drink",
+    name: "Chilled Fresh Iced Lime Tea",
+    nameEn: "Chilled Fresh Iced Lime Tea",
+    nameKm: "តែក្រូចឆ្មាទឹកកក",
+    description:
+      "Refreshing brisk iced tea squeezed to order with fragrant green Cambodian limes over ice.",
+    descriptionEn:
+      "Refreshing brisk iced tea squeezed to order with fragrant green Cambodian limes over ice.",
+    descriptionKm:
+      "តែក្រូចឆ្មាទឹកកកឆុងថ្មីៗ ច្របាច់ក្រូចឆ្មាស្រស់ជូរផ្អែមត្រជាក់ចិត្ត។",
+    pricingType: "FIXED",
+    priceDecimal: 6000,
+    imageUrl: "/images/pak-khlang/iced-lime-tea.jpg",
+    tags: [],
+    isAvailable: true,
+    sortOrder: 4,
   },
 ];
 
@@ -799,45 +1158,11 @@ export const KEP_DEMO_ITEMS: SeedMenuItemSpec[] = [
 ];
 
 const LEGACY_DEMO_ITEM_NAMES = new Set<string>([
-  "Kampot Pepper Crab",
-  "Grilled Giant River Prawns",
-  "Steamed Grouper with Soy & Ginger",
+  ...SORA_DEMO_ITEMS.map((item) => item.nameEn),
+  ...KEP_DEMO_ITEMS.map((item) => item.nameEn),
   "Blanched Blood Cockles",
-  "Koh Kong Raw Shrimp",
-  "Green Mango & Squid Salad",
-  "Seafood Fried Rice",
-  "Claypot Crab Glass Noodles",
-  "Fresh Young Coconut",
   "Iced Honey Lime Tea",
-  "Cambodian Iced Milk Coffee",
-  "Kep Blue Swimmer Crab with Green Pepper",
-  "Charcoal-Grilled Tiger Prawns",
-  "Charcoal-Grilled Baby Squid",
   "Live Coastal Tiger Prawns",
-  "Grilled Sea Snails",
-  "Coastal Fish Sour Herb Soup",
-  "Kep Crab Fried Rice",
-  "Chilled Fresh Palm Juice",
-  "Steamed Blue Crab with Lemongrass",
-  "Garlic Fried Sea Shrimp",
-  "Charcoal-Grilled Squid",
-  "Angkor Beer",
-  "Cambodia Beer",
-  "Steamed Fish with Lime & Chili",
-  "Charcoal Seafood Hotpot",
-  "Tom Yum Seafood Soup",
-  "Fresh Coastal Oysters with Herbs",
-  "Stir-Fried Blood Cockles with Tamarind",
-  "Charcoal BBQ Skewers",
-  "Steamed Fresh Mud Crab",
-  "Marinated Raw Blue Swimming Crab",
-  "Charcoal-Grilled King Prawns",
-  "Stir-Fried Shrimp with Garlic & Scallions",
-  "Steamed Squid with Koh Kong Sauce",
-  "Stir-Fried Squid with Green Peppercorn",
-  "Anchor Beer",
-  "Bottled Thai Iced Milk Tea",
-  "Coca-Cola & Chilled Soft Drinks",
 ]);
 
 const inFlightSyncs = new Map<string, Promise<FirestoreTenantDoc>>();
@@ -1008,6 +1333,8 @@ async function runSyncTenantDefaultCatalog(
     else if (hint.includes("shrimp") || hint.includes("prawn") || hint.includes("បង្គា") || hint.includes("បង្កង"))
       targetKey = "shrimp";
     else if (hint.includes("squid") || hint.includes("មឹក")) targetKey = "squid";
+    else if (hint.includes("meat") || hint.includes("salad") || hint.includes("សាច់") || hint.includes("ញាំ"))
+      targetKey = "meat";
     else if (hint.includes("rice") || hint.includes("noodle") || hint.includes("បាយ") || hint.includes("មី"))
       targetKey = "rice";
     else if (hint.includes("beer") || hint.includes("ស្រាបៀរ")) targetKey = "beer";

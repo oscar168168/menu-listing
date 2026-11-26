@@ -95,6 +95,7 @@ export const DEFAULT_MENU_CATEGORIES = [
   { key: "crab", nameKm: "ក្តាម", nameEn: "Crab" },
   { key: "shrimp", nameKm: "បង្គា និង បង្កង", nameEn: "Shrimp" },
   { key: "squid", nameKm: "មឹក", nameEn: "Squid" },
+  { key: "meat", nameKm: "ម្ហូបសាច់ និង ញាំ", nameEn: "Meat & Salads" },
   { key: "rice", nameKm: "បាយ និង មី", nameEn: "Rice" },
   { key: "beer", nameKm: "ស្រាបៀរ", nameEn: "Beer" },
   { key: "drink", nameKm: "ភេសជ្ជៈ", nameEn: "Drink" },
