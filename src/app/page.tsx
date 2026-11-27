@@ -3,10 +3,13 @@ import {
   ArrowUpRight,
   Layers,
   Palette,
-  QrCode,
   Shield,
   Smartphone,
 } from "lucide-react";
+import {
+  ChhneQrLogo,
+  ChhneQrMark,
+} from "@/components/ui/ChhneQrLogo";
 import {
   getCachedHomeVenues,
   type HomeVenueSummary,
@@ -32,21 +35,14 @@ export default async function HomePage() {
     }
   }
 
-  const primaryDemoSlug = activeTenants[0]?.slug ?? "sora-seafood-grill";
+  const firstSampleSlug = activeTenants[0]?.slug ?? null;
 
   return (
     <div className="min-h-dvh bg-[#FAFAFA] text-zinc-950">
       {/* Minimal Top Bar */}
       <header className="border-b border-zinc-200 bg-white">
         <div className="mx-auto flex h-14 max-w-[1120px] items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 bg-zinc-950 text-white">
-              <QrCode className="h-3.5 w-3.5" strokeWidth={1.5} />
-            </span>
-            <span className="text-[14px] font-semibold tracking-[-0.02em]">
-              MenuOS
-            </span>
-          </div>
+          <ChhneQrLogo size={30} showWordmark />
 
           <nav className="flex items-center gap-2 text-[13px]">
             <Link
@@ -74,46 +70,65 @@ export default async function HomePage() {
       </header>
 
       <main className="mx-auto max-w-[1120px] px-4 py-12 sm:px-6 sm:py-16">
-        {/* Editorial Hero */}
-        <section className="max-w-2xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
-            Cambodian F&amp;B &amp; Seafood · Multi-Tenant QR Menu Platform
-          </p>
-          <h1 className="mt-3 text-[34px] font-semibold leading-[1.12] tracking-[-0.03em] text-zinc-950 sm:text-[42px]">
-            Bilingual Khmer &amp; English menus engineered for live seafood halls.
-          </h1>
-          <p className="mt-4 text-[15px] leading-relaxed text-zinc-600">
-            Instant <span lang="km">ខ្មែរ | EN</span> switching with Kantumruy Pro
-            typography, dual USD/KHR pricing with configurable rounding,
-            weight-based &amp; Market Price seafood models, daily quick-stock
-            updates, and Show-to-Staff table shortlists.
-          </p>
+        {/* Editorial Hero + Brand Showcase */}
+        <section className="flex flex-col justify-between gap-8 lg:flex-row lg:items-center">
+          <div className="max-w-2xl">
+            <p className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] font-semibold tracking-[0.04em] text-zinc-700">
+              <span lang="km">ឆ្នេរ QR</span>
+              <span className="text-zinc-300">·</span>
+              <span>DIGITAL QR MENU PLATFORM</span>
+            </p>
+            <h1 className="mt-4 text-[34px] font-semibold leading-[1.12] tracking-[-0.03em] text-zinc-950 sm:text-[42px]">
+              Instant bilingual QR menus built for modern restaurants &amp; coastal dining.
+            </h1>
+            <p className="mt-4 text-[15px] leading-relaxed text-zinc-600">
+              Effortless <span lang="km">ខ្មែរ | EN</span> switching with Kantumruy Pro
+              typography, linked KHR &amp; USD pricing, per-plate and per-kg fresh
+              catch categories, fast daily stock updates, and Telegram-style table QR cards.
+            </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-2.5">
-            <Link
-              href={`/m/${primaryDemoSlug}?table=05`}
-              className="inline-flex items-center gap-1.5 rounded-md bg-zinc-950 px-4 py-2 text-[13px] font-medium text-white hover:bg-zinc-800"
-            >
-              Browse live seafood menu
-              <ArrowUpRight className="h-4 w-4" strokeWidth={1.5} />
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-4 py-2 text-[13px] font-medium text-zinc-900 hover:bg-zinc-100"
-            >
-              Open Menu Admin / Super Admin
-            </Link>
+            <div className="mt-6 flex flex-wrap items-center gap-2.5">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 rounded-md bg-zinc-950 px-4 py-2 text-[13px] font-medium text-white hover:bg-zinc-800"
+              >
+                Open ChhneQR Portal
+                <ArrowUpRight className="h-4 w-4" strokeWidth={1.5} />
+              </Link>
+              {firstSampleSlug && (
+                <Link
+                  href={`/m/${firstSampleSlug}?table=05`}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-4 py-2 text-[13px] font-medium text-zinc-900 hover:bg-zinc-100"
+                >
+                  Preview sample menu
+                  <ArrowUpRight className="h-4 w-4 text-zinc-500" strokeWidth={1.5} />
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Brand Identity Card */}
+          <div className="flex shrink-0 flex-col items-center rounded-2xl border border-zinc-200 bg-white p-6 shadow-xs sm:w-[280px]">
+            <ChhneQrMark size={88} />
+            <div className="mt-4 text-center">
+              <p className="text-[23px] font-extrabold tracking-[-0.03em] text-[#0B2239]">
+                Chhne<span className="text-[#0D9488]">QR</span>
+              </p>
+              <p lang="km" className="mt-1 text-[13px] font-medium text-zinc-500">
+                ឆ្នេរ QR · ប្រព័ន្ធម៉ឺនុយឌីជីថល
+              </p>
+            </div>
           </div>
         </section>
 
-        {/* Live Seeded Venues Grid */}
+        {/* Live Sample Venues Grid */}
         <section className="mt-12">
           <div className="flex items-baseline justify-between border-b border-zinc-200 pb-3">
             <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-zinc-600">
-              Live Venue Menus
+              Sample Demo Venues
             </h2>
             <span className="text-[12px] tabular-nums text-zinc-500">
-              {activeTenants.length} active
+              {activeTenants.length} sample {activeTenants.length === 1 ? "venue" : "venues"}
             </span>
           </div>
 
@@ -229,9 +244,9 @@ export default async function HomePage() {
         <div className="mt-12 flex items-center justify-between border-t border-zinc-200 pt-5 text-[12px] text-zinc-400">
           <span className="inline-flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Next.js App Router · Cloud Firestore · Kantumruy Pro &amp; Inter
+            ChhneQR (ឆ្នេរ QR) · Next.js App Router · Cloud Firestore
           </span>
-          <span>80% Grayscale / 20% Dynamic Brand</span>
+          <span>Digital QR Menu Platform</span>
         </div>
       </main>
     </div>

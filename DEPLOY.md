@@ -1,4 +1,4 @@
-# Deploying MenuOS (100% Free Plan: Firebase Spark + Vercel Hobby)
+# Deploying ChhneQR / ឆ្នេរ QR (100% Free Plan: Firebase Spark + Vercel Hobby)
 
 This setup uses **no paid plans** and **no credit card**:
 - **Database & Built-in Image Storage:** Firebase **Spark (free)** Cloud Firestore (Singapore `asia-southeast1`)

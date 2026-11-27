@@ -72,8 +72,8 @@ describe("Validation schemas", () => {
       "https://www.google.com/maps/place/Pak+Khlang+Beach+168/@11.5826078,102.9435186,17z/data=!4m6!3m5!1s0x3106650066e69f4f:0xf93485f77dc5f9fd!8m2!3d11.5826078!4d102.9435186";
 
     const parsed = updateThemeSchema.parse({
-      nameEn: "Somros Chhne Pak Khlang 168",
-      nameKm: "សម្រស់ឆ្នេរប៉ាក់ខ្លង 168",
+      nameEn: "Golden Coast Bistro",
+      nameKm: "ភោជនីយដ្ឋាន ឆ្នេរមាស",
       primaryColor: "#18181B",
       vendorMode: "LISTING_ONLY",
       currency: "KHR",

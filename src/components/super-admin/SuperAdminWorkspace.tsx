@@ -14,8 +14,8 @@ import {
   Plus,
   Search,
   Settings2,
-  Shield,
 } from "lucide-react";
+import { ChhneQrMark } from "@/components/ui/ChhneQrLogo";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import {
   PortalLanguageSwitcher,
@@ -379,9 +379,9 @@ export function SuperAdminWorkspace({
       <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white">
         <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-950 text-white">
-              <Shield className="h-3.5 w-3.5" strokeWidth={1.5} />
-            </span>
+            <Link href="/" title="ChhneQR">
+              <ChhneQrMark size={30} />
+            </Link>
             <div className="min-w-0">
               <p className="truncate text-[14px] font-semibold tracking-[-0.02em] text-zinc-950">
                 {t.brandTitle}
@@ -866,28 +866,24 @@ export function SuperAdminWorkspace({
                 maxLength={48}
                 value={editSlug}
                 onChange={(e) => setEditSlug(e.target.value)}
-                placeholder="pak-khlang-168"
+                placeholder="seaside-bistro"
                 autoFocus
                 className="w-full bg-transparent py-2 pr-3 font-mono text-[13.5px] text-zinc-950 focus:outline-none"
               />
             </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
-              <span>{t.slugSuggestions}</span>
-              {["pak-khlang-168", "somros-pak-khlang-168", slugify(editNameEn)]
-                .filter(
-                  (s, idx, arr) => s.length >= 2 && arr.indexOf(s) === idx
-                )
-                .map((s) => (
+            {slugify(editNameEn).length >= 2 &&
+              slugify(editNameEn) !== editSlug && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+                  <span>{t.slugSuggestions}</span>
                   <button
-                    key={s}
                     type="button"
-                    onClick={() => setEditSlug(s)}
+                    onClick={() => setEditSlug(slugify(editNameEn))}
                     className="rounded border border-zinc-200 bg-[#FAFAFA] px-2 py-0.5 font-mono text-[11px] text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100"
                   >
-                    /m/{s}
+                    /m/{slugify(editNameEn)}
                   </button>
-                ))}
-            </div>
+                </div>
+              )}
           </div>
 
           <div>

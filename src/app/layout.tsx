@@ -16,11 +16,11 @@ const kantumruyPro = Kantumruy_Pro({
 
 export const metadata: Metadata = {
   title: {
-    default: "MenuOS — Minimalist Digital Menu Platform",
-    template: "%s · MenuOS",
+    default: "ChhneQR (ឆ្នេរ QR) — Digital QR Menu Platform",
+    template: "%s · ChhneQR",
   },
   description:
-    "Bilingual Khmer & English multi-tenant QR digital menu platform built for Cambodian restaurants, seafood venues, and sub-second mobile browsing.",
+    "ChhneQR (ឆ្នេរ QR) — Bilingual Khmer & English digital QR menu platform for restaurants, seafood venues, and cafés.",
 };
 
 export const viewport: Viewport = {

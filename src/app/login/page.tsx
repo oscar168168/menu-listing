@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ChhneQrMark } from "@/components/ui/ChhneQrLogo";
 import {
   PortalLanguageSwitcher,
   usePortalLocale,
@@ -72,10 +73,8 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6">
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-[#FAFAFA] text-zinc-900">
-              <Lock className="h-4 w-4" strokeWidth={1.5} />
-            </span>
+          <div className="flex items-center gap-3">
+            <ChhneQrMark size={38} />
             <div>
               <h1 className="text-[18px] font-semibold tracking-[-0.02em] text-zinc-950">
                 {t.title}

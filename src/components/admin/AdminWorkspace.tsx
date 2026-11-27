@@ -26,6 +26,7 @@ import { getTenantThemeStyle } from "@/lib/theme";
 import { CategorySidebar } from "@/components/admin/CategorySidebar";
 import type { ItemFormPayload } from "@/components/admin/ItemEditorModal";
 import { MenuManager } from "@/components/admin/MenuManager";
+import { ChhneQrMark } from "@/components/ui/ChhneQrLogo";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import {
   PortalLanguageSwitcher,
@@ -692,6 +693,15 @@ export function AdminWorkspace({
             >
               <Smartphone className="h-4 w-4" strokeWidth={1.5} />
             </button>
+
+            <Link
+              href="/"
+              title="ChhneQR (ឆ្នេរ QR)"
+              aria-label="ChhneQR"
+              className="flex h-8 w-8 items-center justify-center rounded-lg transition-opacity hover:opacity-85"
+            >
+              <ChhneQrMark size={26} />
+            </Link>
 
             <button
               type="button"
