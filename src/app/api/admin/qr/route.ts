@@ -66,7 +66,16 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const svg = await generateQrSvg(targetUrl);
+  const handleLabel = tableCode
+    ? `@${tenant.slug} · ${tableCode}`
+    : `@${tenant.slug}`;
+
+  const svg = await generateQrSvg(targetUrl, {
+    darkHex: "#09090B",
+    badgeHex: "#09090B",
+    includeFrame: true,
+    handleLabel,
+  });
   return new NextResponse(svg, {
     status: 200,
     headers: {

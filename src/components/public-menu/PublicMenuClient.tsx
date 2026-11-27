@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type CSSProperties,
 } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -79,6 +78,8 @@ function isBuiltInMediaUrl(src: string): boolean {
   return src.startsWith("/api/media/");
 }
 
+const loadedMenuImageUrls = new Set<string>();
+
 function getShortlistStorageKey(slug: string): string {
   return `menuos:shortlist:${slug}`;
 }
@@ -139,6 +140,7 @@ interface MenuProductCardProps {
   marketPriceLabel: string;
   isAboveFold: boolean;
   isLcpImage: boolean;
+  isWarmed: boolean;
   isPreview: boolean;
   onSelectItem: (item: SerializedMenuItem) => void;
   onAddSimpleItem: (item: SerializedMenuItem) => void;
@@ -157,11 +159,20 @@ const MenuProductCard = memo(function MenuProductCard({
   marketPriceLabel,
   isAboveFold,
   isLcpImage,
+  isWarmed,
   isPreview,
   onSelectItem,
   onAddSimpleItem,
   onUpdateShortlistQty,
 }: MenuProductCardProps) {
+  const imageSrc = item.imageUrl ?? "";
+  const [imgLoaded, setImgLoaded] = useState(
+    () =>
+      isAboveFold ||
+      isLcpImage ||
+      (imageSrc !== "" && loadedMenuImageUrls.has(imageSrc))
+  );
+  const [imgErrored, setImgErrored] = useState(false);
   const title = resolveLocalized(
     locale,
     item.nameKm,
@@ -220,23 +231,43 @@ const MenuProductCard = memo(function MenuProductCard({
         !item.isAvailable ? "opacity-65" : ""
       }`}
     >
-      {/* 1. Full-Bleed Food Image (or Dark Fallback Surface) */}
-      {item.imageUrl ? (
-        <Image
-          src={item.imageUrl}
-          alt={title}
-          fill
-          sizes="(max-width: 480px) 46vw, 220px"
-          unoptimized={isBuiltInMediaUrl(item.imageUrl)}
-          preload={isLcpImage && !isPreview}
-          fetchPriority={isLcpImage && !isPreview ? "high" : undefined}
-          loading={
-            isLcpImage && !isPreview ? undefined : isAboveFold ? "eager" : "lazy"
-          }
-          className={`object-cover transition-transform duration-300 group-hover:scale-[1.03] ${
-            !item.isAvailable ? "grayscale-[45%]" : ""
-          }`}
-        />
+      {/* 1. Full-Bleed Food Image (with Shimmer Placeholder + Smooth Reveal) */}
+      {item.imageUrl && !imgErrored ? (
+        <>
+          {!imgLoaded && (
+            <div
+              aria-hidden="true"
+              className="menu-img-shimmer pointer-events-none absolute inset-0 overflow-hidden bg-zinc-800"
+            />
+          )}
+          <Image
+            src={item.imageUrl}
+            alt={title}
+            fill
+            sizes="(max-width: 480px) 46vw, 220px"
+            unoptimized={isBuiltInMediaUrl(item.imageUrl)}
+            preload={isLcpImage && !isPreview}
+            fetchPriority={isLcpImage && !isPreview ? "high" : undefined}
+            decoding={isLcpImage ? "sync" : "async"}
+            loading={
+              isLcpImage && !isPreview
+                ? undefined
+                : isAboveFold || isWarmed
+                  ? "eager"
+                  : "lazy"
+            }
+            onLoad={() => {
+              loadedMenuImageUrls.add(item.imageUrl!);
+              setImgLoaded(true);
+            }}
+            onError={() => {
+              setImgErrored(true);
+            }}
+            className={`object-cover transition-[opacity,transform] duration-200 ease-out [@media(hover:hover)]:group-hover:scale-[1.03] ${
+              imgLoaded ? "opacity-100" : "opacity-0"
+            } ${!item.isAvailable ? "grayscale-[45%]" : ""}`}
+          />
+        </>
       ) : (
         <div
           aria-hidden="true"
@@ -326,7 +357,7 @@ const MenuProductCard = memo(function MenuProductCard({
           <button
             type="button"
             onClick={() => onSelectItem(item)}
-            className="card-trigger line-clamp-2 w-full text-left text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]"
+            className="card-trigger line-clamp-2 w-full text-left text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]"
           >
             {title}
           </button>
@@ -339,7 +370,7 @@ const MenuProductCard = memo(function MenuProductCard({
                 {marketPriceLabel}
               </span>
               {marketRange && (
-                <span className="text-[11px] tabular-nums text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
+                <span className="text-[11px] tabular-nums text-white/90 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
                   {marketRange.primary}
                 </span>
               )}
@@ -347,7 +378,7 @@ const MenuProductCard = memo(function MenuProductCard({
           ) : (
             dualFormatted && (
               <div className="flex flex-wrap items-baseline gap-1.5 tabular-nums">
-                <span className="text-[14px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
+                <span className="text-[14px] font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
                   {dualFormatted.primary}
                 </span>
                 {dualFormatted.secondary && (
@@ -366,6 +397,7 @@ const MenuProductCard = memo(function MenuProductCard({
 
 interface MenuCategorySectionsProps {
   filteredCategories: SerializedCategory[];
+  warmedCategoryIds: Set<string>;
   locale: Locale;
   isCartMode: boolean;
   currencyConfig: DualCurrencyConfig;
@@ -383,6 +415,7 @@ interface MenuCategorySectionsProps {
 
 const MenuCategorySections = memo(function MenuCategorySections({
   filteredCategories,
+  warmedCategoryIds,
   locale,
   isCartMode,
   currencyConfig,
@@ -428,32 +461,21 @@ const MenuCategorySections = memo(function MenuCategorySections({
   return (
     <>
       {filteredCategories.map((category, catIdx) => {
-        const itemsBeforeSection = runningItemIndex;
         const catTitle = resolveLocalized(
           locale,
           category.nameKm,
           category.nameEn,
           category.name
         );
-        const deferBelowFold =
-          !isPreview && catIdx > 0 && itemsBeforeSection >= 4;
-        const estimatedHeightPx =
-          44 + Math.ceil(category.items.length / 2) * 232;
-        const sectionStyle: CSSProperties | undefined = deferBelowFold
-          ? ({
-              containIntrinsicSize: `auto none auto ${estimatedHeightPx}px`,
-            } as CSSProperties)
-          : undefined;
+        const isCatWarmed =
+          isPreview || catIdx <= 1 || warmedCategoryIds.has(category.id);
 
         return (
           <section
             key={category.id}
             data-category-id={category.id}
             ref={(node) => registerSectionRef(category.id, node)}
-            style={sectionStyle}
-            className={`scroll-mt-[106px] pt-3 ${
-              deferBelowFold ? "menu-category-deferred" : ""
-            }`}
+            className="menu-category-section scroll-mt-[106px] pt-3"
           >
             <div className="flex items-baseline justify-between px-4 pb-2">
               <h2 className="text-[12px] font-semibold uppercase tracking-[0.04em] text-zinc-600">
@@ -470,7 +492,7 @@ const MenuCategorySections = memo(function MenuCategorySections({
                 const itemGlobalIdx = runningItemIndex++;
                 const hasImage = Boolean(item.imageUrl);
                 const imgIdx = hasImage ? runningImageIndex++ : -1;
-                const isAboveFold = itemGlobalIdx < 4;
+                const isAboveFold = itemGlobalIdx < 6;
                 const isLcpImage = !hasCoverUrl && imgIdx === 0;
 
                 return (
@@ -487,6 +509,7 @@ const MenuCategorySections = memo(function MenuCategorySections({
                     marketPriceLabel={t.marketPrice}
                     isAboveFold={isAboveFold}
                     isLcpImage={isLcpImage}
+                    isWarmed={isCatWarmed}
                     isPreview={isPreview}
                     onSelectItem={onSelectItem}
                     onAddSimpleItem={onAddSimpleItem}
@@ -554,6 +577,9 @@ export function PublicMenuClient({
 
   const [activeCategoryId, setActiveCategoryId] = useState<string>(
     visibleCategories[0]?.id ?? ""
+  );
+  const [warmedCategoryIds, setWarmedCategoryIds] = useState<Set<string>>(
+    () => new Set(visibleCategories.slice(0, 2).map((c) => c.id))
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -844,6 +870,42 @@ export function PublicMenuClient({
     return () => observer.disconnect();
   }, [filteredCategories, isPreview]);
 
+  // Lookahead pre-warm observer: promote upcoming categories ~900px before they enter the viewport
+  useEffect(() => {
+    if (filteredCategories.length === 0 || isPreview) return;
+
+    const lookaheadObserver = new IntersectionObserver(
+      (entries) => {
+        const newlyWarmed: string[] = [];
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const catId = entry.target.getAttribute("data-category-id");
+            if (catId) newlyWarmed.push(catId);
+          }
+        }
+        if (newlyWarmed.length > 0) {
+          setWarmedCategoryIds((prev) => {
+            if (newlyWarmed.every((id) => prev.has(id))) return prev;
+            const next = new Set(prev);
+            for (const id of newlyWarmed) next.add(id);
+            return next;
+          });
+        }
+      },
+      {
+        rootMargin: "900px 0px 900px 0px",
+        threshold: 0,
+      }
+    );
+
+    for (const cat of filteredCategories) {
+      const el = sectionRefs.current.get(cat.id);
+      if (el) lookaheadObserver.observe(el);
+    }
+
+    return () => lookaheadObserver.disconnect();
+  }, [filteredCategories, isPreview]);
+
   // Clean up manual scroll timeout on unmount
   useEffect(() => {
     return () => {
@@ -910,6 +972,12 @@ export function PublicMenuClient({
 
   const scrollToCategory = (catId: string) => {
     setActiveCategoryId(catId);
+    setWarmedCategoryIds((prev) => {
+      if (prev.has(catId)) return prev;
+      const next = new Set(prev);
+      next.add(catId);
+      return next;
+    });
     const el = sectionRefs.current.get(catId);
     if (!el) return;
     isManualScrollRef.current = true;
@@ -1220,6 +1288,7 @@ export function PublicMenuClient({
       <main className={shortlistCount > 0 ? "pb-28" : "pb-10"}>
         <MenuCategorySections
           filteredCategories={filteredCategories}
+          warmedCategoryIds={warmedCategoryIds}
           locale={locale}
           isCartMode={isCartMode}
           currencyConfig={currencyConfig}

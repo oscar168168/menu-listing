@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import QRCode from "qrcode";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import {
   Check,
   Copy,
@@ -14,6 +13,10 @@ import {
 } from "lucide-react";
 import { resolveLocalized } from "@/lib/i18n";
 import { PORTAL_COPY } from "@/lib/portal-i18n";
+import {
+  buildStyledQrDataUrl,
+  buildStyledQrSvg,
+} from "@/lib/qr";
 import { computeThemeContrast } from "@/lib/theme";
 import type { Locale, SerializedTenant } from "@/types/menu";
 
@@ -27,9 +30,54 @@ interface BatchQrItem {
   tableCode: string;
   url: string;
   dataUrl: string;
+  svg: string;
 }
 
 const emptySubscribe = () => () => {};
+
+async function downloadSvgAsPng(
+  svgText: string,
+  width: number,
+  height: number,
+  filename: string
+): Promise<void> {
+  const svgBlob = new Blob([svgText], {
+    type: "image/svg+xml;charset=utf-8",
+  });
+  const svgUrl = URL.createObjectURL(svgBlob);
+
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new window.Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Failed to render SVG"));
+      el.src = svgUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas unavailable");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const pngBlob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png")
+    );
+    if (!pngBlob) throw new Error("PNG export failed");
+
+    const pngUrl = URL.createObjectURL(pngBlob);
+    const link = document.createElement("a");
+    link.href = pngUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(pngUrl);
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
 
 export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
   const t = PORTAL_COPY[locale].admin;
@@ -41,8 +89,8 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
     () => "http://localhost:3000"
   );
   const [tableCode, setTableCode] = useState("");
-  const [singleDataUrl, setSingleDataUrl] = useState<string>("");
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [downloadingQrPng, setDownloadingQrPng] = useState(false);
   const [downloadingCardPng, setDownloadingCardPng] = useState(false);
 
   // Batch generator state
@@ -50,7 +98,6 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
   const [batchTo, setBatchTo] = useState(6);
   const [batchPrefix, setBatchPrefix] = useState("");
   const [batchQrs, setBatchQrs] = useState<BatchQrItem[]>([]);
-  const [generatingBatch, setGeneratingBatch] = useState(false);
 
   const contrast = useMemo(
     () => computeThemeContrast(tenant.primaryColor),
@@ -64,20 +111,35 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
     return trimmed ? `${base}?table=${encodeURIComponent(trimmed)}` : base;
   }, [origin, tenant.slug, tableCode]);
 
-  useEffect(() => {
-    let active = true;
-    void QRCode.toDataURL(singleUrl, {
-      errorCorrectionLevel: "H",
-      margin: 2,
-      width: 520,
-      color: { dark: "#09090B", light: "#FFFFFF" },
-    }).then((url) => {
-      if (active) setSingleDataUrl(url);
-    });
-    return () => {
-      active = false;
-    };
-  }, [singleUrl]);
+  const handleLabel = useMemo(() => {
+    const trimmed = tableCode.trim();
+    return trimmed ? `@${tenant.slug} · ${trimmed}` : `@${tenant.slug}`;
+  }, [tenant.slug, tableCode]);
+
+  const singleQrOptions = useMemo(
+    () => ({
+      darkHex: "#09090B",
+      badgeHex: "#09090B",
+      includeFrame: true,
+      handleLabel,
+    }),
+    [handleLabel]
+  );
+
+  const singleDataUrl = useMemo(
+    () => buildStyledQrDataUrl(singleUrl, singleQrOptions),
+    [singleUrl, singleQrOptions]
+  );
+
+  const tableCardQrDataUrl = useMemo(
+    () =>
+      buildStyledQrDataUrl(singleUrl, {
+        darkHex: "#09090B",
+        badgeHex: contrast.primary,
+        includeFrame: false,
+      }),
+    [singleUrl, contrast.primary]
+  );
 
   const buildDownloadHref = (
     format: "svg" | "png" | "card",
@@ -102,53 +164,43 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
     }
   };
 
+  const handleDownloadStyledQrPng = async (
+    svgText: string,
+    table?: string
+  ) => {
+    setDownloadingQrPng(true);
+    try {
+      const cleanTable = table?.trim().replace(/[^a-zA-Z0-9_-]/g, "");
+      const suffix = cleanTable
+        ? `${tenant.slug}-table-${cleanTable}`
+        : tenant.slug;
+      await downloadSvgAsPng(svgText, 1200, 1348, `qr-${suffix}.png`);
+    } catch (err) {
+      onNotify(
+        err instanceof Error ? err.message : c.unknownError,
+        "error"
+      );
+    } finally {
+      setDownloadingQrPng(false);
+    }
+  };
+
   const handleDownloadCardPng = async () => {
     setDownloadingCardPng(true);
     try {
       const res = await fetch(buildDownloadHref("card", tableCode));
       if (!res.ok) throw new Error(c.unknownError);
       const svgText = await res.text();
-      const svgBlob = new Blob([svgText], {
-        type: "image/svg+xml;charset=utf-8",
-      });
-      const svgUrl = URL.createObjectURL(svgBlob);
-
-      try {
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const el = new window.Image();
-          el.onload = () => resolve(el);
-          el.onerror = () => reject(new Error(c.unknownError));
-          el.src = svgUrl;
-        });
-
-        const canvas = document.createElement("canvas");
-        canvas.width = 1200;
-        canvas.height = 1680;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error(c.unknownError);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        const pngBlob = await new Promise<Blob | null>((resolve) =>
-          canvas.toBlob(resolve, "image/png")
-        );
-        if (!pngBlob) throw new Error(c.unknownError);
-
-        const cleanTable = tableCode.trim().replace(/[^a-zA-Z0-9_-]/g, "");
-        const suffix = cleanTable
-          ? `${tenant.slug}-table-${cleanTable}`
-          : tenant.slug;
-
-        const pngUrl = URL.createObjectURL(pngBlob);
-        const link = document.createElement("a");
-        link.href = pngUrl;
-        link.download = `table-card-${suffix}.png`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(pngUrl);
-      } finally {
-        URL.revokeObjectURL(svgUrl);
-      }
+      const cleanTable = tableCode.trim().replace(/[^a-zA-Z0-9_-]/g, "");
+      const suffix = cleanTable
+        ? `${tenant.slug}-table-${cleanTable}`
+        : tenant.slug;
+      await downloadSvgAsPng(
+        svgText,
+        1200,
+        1680,
+        `table-card-${suffix}.png`
+      );
     } catch (err) {
       onNotify(
         err instanceof Error ? err.message : c.unknownError,
@@ -159,11 +211,10 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
     }
   };
 
-  const handleGenerateBatch = async (e: React.FormEvent) => {
+  const handleGenerateBatch = (e: React.FormEvent) => {
     e.preventDefault();
     const start = Math.max(1, Math.min(999, Math.floor(batchFrom)));
     const end = Math.max(start, Math.min(start + 29, Math.floor(batchTo)));
-    setGeneratingBatch(true);
 
     try {
       const cleanOrigin = origin.replace(/\/+$/, "");
@@ -176,20 +227,20 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
         const url = `${cleanOrigin}/m/${tenant.slug}?table=${encodeURIComponent(
           code
         )}`;
-        const dataUrl = await QRCode.toDataURL(url, {
-          errorCorrectionLevel: "H",
-          margin: 1,
-          width: 360,
-          color: { dark: "#09090B", light: "#FFFFFF" },
-        });
-        items.push({ tableCode: code, url, dataUrl });
+        const opts = {
+          darkHex: "#09090B",
+          badgeHex: "#09090B",
+          includeFrame: true,
+          handleLabel: `@${tenant.slug} · ${code}`,
+        };
+        const svg = buildStyledQrSvg(url, opts);
+        const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        items.push({ tableCode: code, url, dataUrl, svg });
       }
       setBatchQrs(items);
       onNotify(t.toastBatchQr(items.length));
     } catch {
       onNotify(t.toastBatchQrError, "error");
-    } finally {
-      setGeneratingBatch(false);
     }
   };
 
@@ -218,7 +269,7 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
         </div>
 
         <div className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-2">
-          {/* Controls & Raw QR Export */}
+          {/* Controls & Telegram-Style QR Preview */}
           <div className="space-y-4">
             <div>
               <label
@@ -276,27 +327,27 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
               </div>
             </div>
 
-            {/* Crisp Standalone QR Preview */}
-            <div className="flex items-center gap-4 rounded-lg border border-zinc-200 bg-white p-4">
-              <div className="h-32 w-32 shrink-0 overflow-hidden rounded-md border border-zinc-200 bg-white p-1.5">
-                {singleDataUrl ? (
+            {/* Telegram-Style Standalone QR Showcase */}
+            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+              <div className="flex items-center justify-center bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 px-6 py-7">
+                <div className="w-[216px] overflow-hidden rounded-[26px] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.45)]">
                   <img
                     src={singleDataUrl}
                     alt={`QR code for ${singleUrl}`}
-                    className="h-full w-full object-contain"
+                    className="block h-auto w-full"
                   />
-                ) : (
-                  <div className="h-full w-full bg-zinc-100" />
-                )}
+                </div>
               </div>
-              <div className="flex-1 space-y-2">
-                <p className="text-[13px] font-semibold text-zinc-950">
-                  {t.qrStandaloneTitle}
-                </p>
-                <p className="text-[12px] text-zinc-500">
-                  {t.qrStandaloneDesc}
-                </p>
-                <div className="flex flex-wrap gap-2 pt-1">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 bg-white px-4 py-3.5">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-zinc-950">
+                    {t.qrStandaloneTitle}
+                  </p>
+                  <p className="text-[11.5px] text-zinc-500">
+                    {t.qrStandaloneDesc}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
                   <a
                     href={buildDownloadHref("svg", tableCode)}
                     download
@@ -305,14 +356,22 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
                     <FileCode2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                     <span>{t.qrExportSvg}</span>
                   </a>
-                  <a
-                    href={buildDownloadHref("png", tableCode)}
-                    download
-                    className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-[12px] font-medium transition-opacity hover:opacity-90"
+                  <button
+                    type="button"
+                    disabled={downloadingQrPng}
+                    onClick={() =>
+                      void handleDownloadStyledQrPng(
+                        buildStyledQrSvg(singleUrl, singleQrOptions),
+                        tableCode
+                      )
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-[12px] font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
                   >
                     <ImageIcon className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    <span>{t.qrExportPng}</span>
-                  </a>
+                    <span>
+                      {downloadingQrPng ? t.qrExportingPng : t.qrExportPng}
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -320,7 +379,7 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
 
           {/* Printable Table-Card Preview */}
           <div className="flex flex-col items-center justify-between rounded-lg border border-zinc-200 bg-[#FAFAFA] p-4">
-            <div className="w-full max-w-[270px] overflow-hidden rounded-xl border border-zinc-200 bg-white text-center">
+            <div className="w-full max-w-[270px] overflow-hidden rounded-2xl border border-zinc-200 bg-white text-center">
               <div
                 className="h-2 w-full"
                 style={{ backgroundColor: contrast.primary }}
@@ -354,16 +413,12 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
                   </span>
                 </div>
 
-                <div className="mx-auto mt-3.5 w-40 rounded-lg border border-zinc-200 bg-white p-2">
-                  {singleDataUrl ? (
-                    <img
-                      src={singleDataUrl}
-                      alt="Table card QR"
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <div className="aspect-square w-full bg-zinc-100" />
-                  )}
+                <div className="mx-auto mt-3.5 w-40 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-1.5">
+                  <img
+                    src={tableCardQrDataUrl}
+                    alt="Table card QR"
+                    className="h-full w-full object-contain"
+                  />
                 </div>
 
                 <p className="mt-3 text-[11px] font-medium text-zinc-700">
@@ -423,7 +478,7 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
         </div>
 
         <form
-          onSubmit={(e) => void handleGenerateBatch(e)}
+          onSubmit={handleGenerateBatch}
           className="flex flex-wrap items-end gap-3 border-b border-zinc-200 bg-[#FAFAFA] px-4 py-3.5"
         >
           <div>
@@ -482,11 +537,10 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
 
           <button
             type="submit"
-            disabled={generatingBatch}
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3.5 py-1.5 text-[13px] font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3.5 py-1.5 text-[13px] font-medium transition-opacity hover:opacity-90"
           >
             <Grid2x2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-            <span>{generatingBatch ? t.qrGenerating : t.qrGenerateBatch}</span>
+            <span>{t.qrGenerateBatch}</span>
           </button>
         </form>
 
@@ -495,41 +549,36 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
             {batchQrs.map((entry) => (
               <div
                 key={entry.tableCode}
-                className="flex flex-col items-center rounded-lg border border-zinc-200 bg-white p-3 text-center"
+                className="flex flex-col items-center rounded-xl border border-zinc-200 bg-zinc-900 p-3 text-center"
               >
-                <span
-                  className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider tabular-nums"
-                  style={{
-                    backgroundColor: contrast.primary,
-                    color: contrast.foreground,
-                  }}
-                >
-                  {t.qrCardTableBadge(entry.tableCode)}
-                </span>
-                <img
-                  src={entry.dataUrl}
-                  alt={`QR for table ${entry.tableCode}`}
-                  className="mt-2.5 h-28 w-28 object-contain"
-                />
+                <div className="w-full max-w-[144px] overflow-hidden rounded-2xl bg-white shadow-sm">
+                  <img
+                    src={entry.dataUrl}
+                    alt={`QR for table ${entry.tableCode}`}
+                    className="block h-auto w-full"
+                  />
+                </div>
                 <div className="mt-2.5 flex items-center gap-1.5">
                   <a
                     href={buildDownloadHref("svg", entry.tableCode)}
                     download
-                    className="rounded border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
+                    className="rounded border border-white/20 bg-white/10 px-2 py-1 text-[11px] font-medium text-white hover:bg-white/20"
                   >
                     SVG
                   </a>
-                  <a
-                    href={buildDownloadHref("png", entry.tableCode)}
-                    download
-                    className="rounded border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleDownloadStyledQrPng(entry.svg, entry.tableCode)
+                    }
+                    className="rounded border border-white/20 bg-white/10 px-2 py-1 text-[11px] font-medium text-white hover:bg-white/20"
                   >
                     PNG
-                  </a>
+                  </button>
                   <a
                     href={buildDownloadHref("card", entry.tableCode)}
                     download
-                    className="rounded border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-100"
+                    className="rounded border border-white/20 bg-white/10 px-2 py-1 text-[11px] font-medium text-white hover:bg-white/20"
                   >
                     {t.qrCardBtn}
                   </a>
