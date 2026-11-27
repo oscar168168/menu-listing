@@ -282,7 +282,7 @@ export async function generatePrintableTableCardSvg(options: {
       : "Point your camera to view the menu";
 
   const fontStack =
-    '"Kantumruy Pro", "Khmer OS System", Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+    "'Kantumruy Pro', 'Khmer OS System', Inter, -apple-system, BlinkMacSystemFont, sans-serif";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="780" viewBox="0 0 600 780">

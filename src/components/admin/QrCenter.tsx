@@ -70,10 +70,11 @@ async function downloadSvgAsPng(
     const link = document.createElement("a");
     link.href = pngUrl;
     link.download = filename;
+    link.style.display = "none";
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(pngUrl);
+    setTimeout(() => URL.revokeObjectURL(pngUrl), 5000);
   } finally {
     URL.revokeObjectURL(svgUrl);
   }

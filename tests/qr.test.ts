@@ -57,5 +57,9 @@ describe("Telegram-style QR SVG generator", () => {
     assert.ok(card.includes('fill-rule="evenodd"'));
     assert.ok(!card.includes("vercel.app"));
     assert.ok(!card.includes("/m/pak-khlang-168"));
+    assert.ok(
+      !card.includes('font-family=""'),
+      "font-family must never contain broken nested double quotes"
+    );
   });
 });
