@@ -11,13 +11,17 @@ import {
   syncTenantDefaultCatalog,
 } from "../src/lib/default-catalog";
 import {
+  buildUserLoginKeys,
   cookingStylesCol,
   findTenantBySlug,
   findUserByIdentifier,
+  formatCambodiaDateKey,
   getDb,
   normalizePhone,
   scanEventsCol,
+  scanStatsCol,
   tenantsCol,
+  tenantSlugsCol,
   usersCol,
   type FirestoreTenantDoc,
 } from "../src/lib/firestore";
@@ -38,12 +42,21 @@ async function upsertUser(input: {
     (await findUserByIdentifier(input.phone)) ||
     (await findUserByIdentifier(input.email));
   const now = new Date();
+  const normalizedEmail = input.email.toLowerCase();
+  const normalizedUsername = input.username.toLowerCase();
   const normalizedPhone = normalizePhone(input.phone);
+  const loginKeys = buildUserLoginKeys({
+    email: normalizedEmail,
+    username: normalizedUsername,
+    phone: normalizedPhone,
+  });
+
   if (existing) {
     await usersCol().doc(existing.id).update({
-      email: input.email.toLowerCase(),
-      username: input.username.toLowerCase(),
+      email: normalizedEmail,
+      username: normalizedUsername,
       phone: normalizedPhone,
+      loginKeys,
       name: input.name,
       role: input.role,
       tenantId: input.tenantId,
@@ -51,17 +64,18 @@ async function upsertUser(input: {
     });
     return {
       id: existing.id,
-      email: input.email,
-      username: input.username,
+      email: normalizedEmail,
+      username: normalizedUsername,
       phone: normalizedPhone,
     };
   }
 
   const ref = usersCol().doc();
   await ref.set({
-    email: input.email.toLowerCase(),
-    username: input.username.toLowerCase(),
+    email: normalizedEmail,
+    username: normalizedUsername,
     phone: normalizedPhone,
+    loginKeys,
     name: input.name,
     passwordHash: hashPassword(input.password),
     role: input.role,
@@ -71,8 +85,8 @@ async function upsertUser(input: {
   });
   return {
     id: ref.id,
-    email: input.email.toLowerCase(),
-    username: input.username.toLowerCase(),
+    email: normalizedEmail,
+    username: normalizedUsername,
     phone: normalizedPhone,
   };
 }
@@ -145,6 +159,11 @@ async function upsertTenant(input: {
     updatedAt: now,
   };
   await ref.set(data);
+  await tenantSlugsCol().doc(input.slug.toLowerCase()).set({
+    tenantId: ref.id,
+    slug: input.slug.toLowerCase(),
+    updatedAt: now,
+  });
   return { id: ref.id, data };
 }
 
@@ -338,34 +357,85 @@ async function main() {
     await batch.commit();
   }
 
-  // 4. Sample Scan Events
+  // 4. Sample Scan Events + Daily Aggregate Stats
   const soraScans = (await scanEventsCol(sora.id).count().get()).data().count;
   const kepScans = (await scanEventsCol(kep.id).count().get()).data().count;
   if (soraScans === 0 && kepScans === 0) {
     const batch = db.batch();
     const nowMs = Date.now();
     const hour = 60 * 60 * 1000;
+    const ttlMs = 90 * 24 * 60 * 60 * 1000;
     const soraTables = ["01", "02", "05", "05", "05", "08", "VIP-1", null];
     const kepTables = ["01", "03", "04", "04", "DECK-2", null];
 
+    const accumulateStat = (
+      map: Map<string, { totalScans: number; tableCounts: Record<string, number> }>,
+      scannedAt: Date,
+      tableCode: string | null
+    ) => {
+      const dateKey = formatCambodiaDateKey(scannedAt);
+      const entry = map.get(dateKey) ?? { totalScans: 0, tableCounts: {} };
+      entry.totalScans += 1;
+      if (tableCode) {
+        entry.tableCounts[tableCode] = (entry.tableCounts[tableCode] ?? 0) + 1;
+      }
+      map.set(dateKey, entry);
+    };
+
+    const soraDaily = new Map<
+      string,
+      { totalScans: number; tableCounts: Record<string, number> }
+    >();
+    const kepDaily = new Map<
+      string,
+      { totalScans: number; tableCounts: Record<string, number> }
+    >();
+
     for (let i = 0; i < 42; i++) {
+      const scannedAt = new Date(nowMs - i * 3.8 * hour);
+      const tableCode = soraTables[i % soraTables.length] ?? null;
       batch.set(scanEventsCol(sora.id).doc(), {
         tenantId: sora.id,
-        tableCode: soraTables[i % soraTables.length] ?? null,
+        tableCode,
         userAgent: null,
-        scannedAt: new Date(nowMs - i * 3.8 * hour),
+        scannedAt,
+        expiresAt: new Date(scannedAt.getTime() + ttlMs),
       });
+      accumulateStat(soraDaily, scannedAt, tableCode);
     }
     for (let i = 0; i < 28; i++) {
+      const scannedAt = new Date(nowMs - i * 5.2 * hour);
+      const tableCode = kepTables[i % kepTables.length] ?? null;
       batch.set(scanEventsCol(kep.id).doc(), {
         tenantId: kep.id,
-        tableCode: kepTables[i % kepTables.length] ?? null,
+        tableCode,
         userAgent: null,
-        scannedAt: new Date(nowMs - i * 5.2 * hour),
+        scannedAt,
+        expiresAt: new Date(scannedAt.getTime() + ttlMs),
+      });
+      accumulateStat(kepDaily, scannedAt, tableCode);
+    }
+
+    for (const [dateKey, stat] of soraDaily.entries()) {
+      batch.set(scanStatsCol(sora.id).doc(dateKey), {
+        tenantId: sora.id,
+        date: dateKey,
+        totalScans: stat.totalScans,
+        tableCounts: stat.tableCounts,
+        updatedAt: now,
+      });
+    }
+    for (const [dateKey, stat] of kepDaily.entries()) {
+      batch.set(scanStatsCol(kep.id).doc(dateKey), {
+        tenantId: kep.id,
+        date: dateKey,
+        totalScans: stat.totalScans,
+        tableCounts: stat.tableCounts,
+        updatedAt: now,
       });
     }
     await batch.commit();
-    console.log("✓ Seeded 70 Cambodian dining QR scan events");
+    console.log("✓ Seeded 70 Cambodian dining QR scan events + daily stats");
   }
 
   console.log(

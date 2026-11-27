@@ -23,6 +23,8 @@ export const hexColorSchema = z
 
 export const vendorModeSchema = z.enum(["CART", "LISTING_ONLY"]);
 
+export const categoryPricingModeSchema = z.enum(["FIXED", "WEIGHT_BASED"]);
+
 export const pricingTypeSchema = z.enum([
   "FIXED",
   "WEIGHT_BASED",
@@ -79,6 +81,7 @@ export const createCategorySchema = z
     nameKm: z.string().trim().max(80).optional().default(""),
     nameEn: z.string().trim().max(80).optional().default(""),
     isVisible: z.boolean().optional().default(true),
+    pricingMode: categoryPricingModeSchema.optional(),
   })
   .refine(
     (d) => Boolean(d.nameKm || d.nameEn || d.name),
@@ -90,6 +93,7 @@ export const updateCategorySchema = z.object({
   nameKm: z.string().trim().max(80).optional(),
   nameEn: z.string().trim().max(80).optional(),
   isVisible: z.boolean().optional(),
+  pricingMode: categoryPricingModeSchema.optional(),
   sortOrder: z.number().int().min(0).optional(),
 });
 

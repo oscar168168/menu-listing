@@ -1,4 +1,4 @@
-import type { Locale, WeightUnit } from "@/types/menu";
+import type { CategoryPricingMode, Locale, WeightUnit } from "@/types/menu";
 
 /**
  * Resolves a localized string cleanly with automatic fallback.
@@ -102,22 +102,39 @@ export const DEFAULT_MENU_CATEGORIES = [
   { key: "fresh", nameKm: "គ្រឿងសមុទ្រស្រស់", nameEn: "Fresh Seafood" },
 ] as const;
 
-export function isFreshSeafoodCategory(category?: {
+export interface CategoryPricingDescriptor {
   id?: string | null;
+  pricingMode?: CategoryPricingMode | null;
   name?: string | null;
   nameKm?: string | null;
   nameEn?: string | null;
-} | null): boolean {
-  if (!category) return false;
-  if (category.id === "default-cat-fresh") return true;
+}
+
+export function resolveCategoryPricingMode(
+  category?: CategoryPricingDescriptor | null
+): CategoryPricingMode {
+  if (!category) return "FIXED";
+  if (category.pricingMode === "WEIGHT_BASED" || category.pricingMode === "FIXED") {
+    return category.pricingMode;
+  }
+  if (category.id === "default-cat-fresh") return "WEIGHT_BASED";
   const label = `${category.name ?? ""} ${category.nameKm ?? ""} ${category.nameEn ?? ""}`
     .trim()
     .toLowerCase();
-  return (
+  if (
     label.includes("fresh seafood") ||
     label.includes("គ្រឿងសមុទ្រស្រស់") ||
     label.includes("ថ្លឹងគីឡូ")
-  );
+  ) {
+    return "WEIGHT_BASED";
+  }
+  return "FIXED";
+}
+
+export function isFreshSeafoodCategory(
+  category?: CategoryPricingDescriptor | null
+): boolean {
+  return resolveCategoryPricingMode(category) === "WEIGHT_BASED";
 }
 
 export const DEFAULT_COOKING_STYLE_PRESETS = [

@@ -8,12 +8,16 @@ import assert from "node:assert/strict";
 import {
   categoriesCol,
   cookingStylesCol,
+  FieldValue,
   findTenantBySlug,
   findUserByEmail,
+  formatCambodiaDateKey,
   getDb,
   menuItemsCol,
   scanEventsCol,
+  scanStatsCol,
   tenantDoc,
+  tenantSlugsCol,
   usersCol,
 } from "../src/lib/firestore";
 import { computeThemeContrast } from "../src/lib/theme";
@@ -91,11 +95,14 @@ async function run() {
   console.log("✓ Auth guards enforce 401/403");
 
   // 2. Public Cambodian Seafood ISR Menus (Khmer default, USD+KHR and KHR+USD, Edge/ISR cacheable across ?table=)
-  const soraFound = await findTenantBySlug("sora-seafood-grill");
-  assert.ok(soraFound, "Sora Seafood Grill tenant must be seeded");
+  const soraFound =
+    (await findTenantBySlug("pak-khlang-168")) ??
+    (await findTenantBySlug("sora-seafood-grill"));
+  assert.ok(soraFound, "Pak Khlang / Sora Seafood Grill tenant must be seeded");
+  const soraSlug = soraFound.data.slug;
   const soraTheme = computeThemeContrast(soraFound.data.primaryColor);
 
-  const soraRes = await req("/m/sora-seafood-grill?table=05");
+  const soraRes = await req(`/m/${soraSlug}?table=05`);
   assert.equal(soraRes.status, 200);
   const soraCacheControl = soraRes.headers.get("cache-control") ?? "";
   assert.ok(
@@ -119,7 +126,7 @@ async function run() {
   }
 
   // Verify subsequent QR scan with different ?table= param reuses ISR cache cleanly
-  const soraSecondRes = await req("/m/sora-seafood-grill?table=09");
+  const soraSecondRes = await req(`/m/${soraSlug}?table=09`);
   assert.equal(soraSecondRes.status, 200);
   const secondNextCache = soraSecondRes.headers.get("x-nextjs-cache");
   if (secondNextCache) {
@@ -141,27 +148,48 @@ async function run() {
   }
   console.log("✓ Public Khmer-default Cambodian seafood menus (CART & LISTING_ONLY modes) render zero-FOUC + ISR");
 
-  // 3. Scan analytics ping (non-blocking after() persistence)
+  // 3. Scan analytics ping (non-blocking after() persistence + scanStats)
   const scansBefore = (await scanEventsCol(soraFound.id).count().get()).data().count;
+  const todayKey = formatCambodiaDateKey();
+  const statBeforeSnap = await scanStatsCol(soraFound.id).doc(todayKey).get();
+  const e2eTableBefore = statBeforeSnap.data()?.tableCounts?.["E2E-05"] ?? 0;
   const scanRes = await req("/api/scans", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ slug: "sora-seafood-grill", tableCode: "E2E-05" }),
+    body: JSON.stringify({ slug: soraSlug, tableCode: "E2E-05" }),
   });
   assert.equal(scanRes.status, 201);
   let scansAfter = scansBefore;
-  const scanDeadline = Date.now() + 3000;
+  let e2eTableAfter = e2eTableBefore;
+  const scanDeadline = Date.now() + 4000;
   while (Date.now() < scanDeadline) {
-    scansAfter = (await scanEventsCol(soraFound.id).count().get()).data().count;
-    if (scansAfter >= scansBefore + 1) break;
+    const [countSnap, statSnap] = await Promise.all([
+      scanEventsCol(soraFound.id).count().get(),
+      scanStatsCol(soraFound.id).doc(todayKey).get(),
+    ]);
+    scansAfter = countSnap.data().count;
+    e2eTableAfter = statSnap.data()?.tableCounts?.["E2E-05"] ?? 0;
+    if (scansAfter >= scansBefore + 1 && e2eTableAfter >= e2eTableBefore + 1) {
+      break;
+    }
     await new Promise((r) => setTimeout(r, 50));
   }
   assert.equal(scansAfter, scansBefore + 1);
+  assert.equal(e2eTableAfter, e2eTableBefore + 1);
   const e2eScans = await scanEventsCol(soraFound.id)
     .where("tableCode", "==", "E2E-05")
     .get();
-  await Promise.all(e2eScans.docs.map((d) => d.ref.delete()));
-  console.log("✓ Non-blocking QR scan analytics ping persisted");
+  await Promise.all([
+    ...e2eScans.docs.map((d) => d.ref.delete()),
+    scanStatsCol(soraFound.id)
+      .doc(todayKey)
+      .update({
+        totalScans: FieldValue.increment(-1),
+        "tableCounts.E2E-05": FieldValue.delete(),
+      })
+      .catch(() => undefined),
+  ]);
+  console.log("✓ Non-blocking QR scan analytics ping + daily scanStats persisted");
 
   // 4. Sign in as Sora Menu Admin using username or phone (no OTP) & verify multi-tenant isolation against Kep Bay Kitchen
   const soraJar = new CookieJar();
@@ -176,32 +204,74 @@ async function run() {
   });
   assert.equal(loginSora.status, 200);
 
-  const [kepCats, kepItems] = await Promise.all([
-    categoriesCol(kepFound.id).limit(1).get(),
-    menuItemsCol(kepFound.id).limit(1).get(),
+  const kepOnlyCatRef = categoriesCol(kepFound.id).doc("e2e-kep-only-cat");
+  const kepOnlyItemRef = menuItemsCol(kepFound.id).doc("e2e-kep-only-item");
+  const nowTs = new Date();
+  await Promise.all([
+    kepOnlyCatRef.set({
+      tenantId: kepFound.id,
+      name: "Kep Isolated Cat",
+      nameKm: "Kep Isolated Cat",
+      nameEn: "Kep Isolated Cat",
+      sortOrder: 99,
+      isVisible: false,
+      pricingMode: "FIXED",
+      createdAt: nowTs,
+      updatedAt: nowTs,
+    }),
+    kepOnlyItemRef.set({
+      tenantId: kepFound.id,
+      categoryId: kepOnlyCatRef.id,
+      name: "Kep Isolated Item",
+      nameKm: "Kep Isolated Item",
+      nameEn: "Kep Isolated Item",
+      description: "",
+      descriptionKm: null,
+      descriptionEn: null,
+      pricingType: "FIXED",
+      weightUnit: null,
+      priceDecimal: 10000,
+      marketPriceMin: null,
+      marketPriceMax: null,
+      variantsJson: null,
+      cookingStylesJson: null,
+      imageUrl: null,
+      tags: [],
+      isAvailable: true,
+      sortOrder: 0,
+      createdAt: nowTs,
+      updatedAt: nowTs,
+    }),
   ]);
 
-  const crossCatPatch = await req(
-    `/api/admin/categories/${kepCats.docs[0]!.id}`,
-    {
-      method: "PATCH",
-      jar: soraJar,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nameEn: "HACKED" }),
-    }
-  );
-  assert.equal(crossCatPatch.status, 404);
+  try {
+    const crossCatPatch = await req(
+      `/api/admin/categories/${kepOnlyCatRef.id}`,
+      {
+        method: "PATCH",
+        jar: soraJar,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nameEn: "HACKED" }),
+      }
+    );
+    assert.equal(crossCatPatch.status, 404);
 
-  const crossItemPatch = await req(
-    `/api/admin/items/${kepItems.docs[0]!.id}`,
-    {
-      method: "PATCH",
-      jar: soraJar,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ price: 1 }),
-    }
-  );
-  assert.equal(crossItemPatch.status, 404);
+    const crossItemPatch = await req(
+      `/api/admin/items/${kepOnlyItemRef.id}`,
+      {
+        method: "PATCH",
+        jar: soraJar,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ price: 1 }),
+      }
+    );
+    assert.equal(crossItemPatch.status, 404);
+  } finally {
+    await Promise.all([
+      kepOnlyItemRef.delete().catch(() => undefined),
+      kepOnlyCatRef.delete().catch(() => undefined),
+    ]);
+  }
   console.log("✓ Strict multi-tenant isolation verified between Cambodian venues");
 
   // 5. Bilingual Seafood Item CRUD (WEIGHT_BASED + Cooking Styles + Quick Market Price switch)
@@ -256,7 +326,7 @@ async function run() {
   assert.equal(switchMarket.status, 200);
 
   // Verify public SSR menu updated immediately (renders in Khmer by default)
-  const refreshedHtml = await (await req("/m/sora-seafood-grill")).text();
+  const refreshedHtml = await (await req(`/m/${soraSlug}`)).text();
   assert.ok(refreshedHtml.includes("អយស្ទ័រកោះកុង"));
 
   // QR SVG, PNG, and Printable Table Card
@@ -293,9 +363,15 @@ async function run() {
   const servedBytes = new Uint8Array(await mediaRes.arrayBuffer());
   assert.equal(servedBytes[0], 0x89);
   assert.equal(servedBytes[1], 0x50);
-  // Clean up test media document
-  const uploadedMediaId = uploadJson.url.split("/").pop()!;
-  await getDb().doc(`tenants/${soraFound.id}/media/${uploadedMediaId}`).delete();
+
+  // Attach uploaded media to tempItem so category cascade DELETE verifies orphaned media cleanup
+  const attachMediaRes = await req(`/api/admin/items/${tempItem.id}`, {
+    method: "PATCH",
+    jar: soraJar,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageUrl: uploadJson.url }),
+  });
+  assert.equal(attachMediaRes.status, 200);
 
   // Verify category reorder endpoint (single getAll RPC)
   const soraMenuRes = await req("/api/admin/menu", { jar: soraJar });
@@ -312,11 +388,18 @@ async function run() {
   });
   assert.equal(reorderRes.status, 200);
 
-  // Clean up temp category (cascade deletes tempItem too)
-  await req(`/api/admin/categories/${tempCat.id}`, {
+  // Clean up temp category (cascade deletes tempItem and orphaned Firestore media)
+  const delCatRes = await req(`/api/admin/categories/${tempCat.id}`, {
     method: "DELETE",
     jar: soraJar,
   });
+  assert.equal(delCatRes.status, 200);
+  const mediaAfterDelete = await req(uploadJson.url);
+  assert.equal(
+    mediaAfterDelete.status,
+    404,
+    "Deleting category must cascade-clean orphaned Firestore media"
+  );
   console.log("✓ Bilingual seafood CRUD, weight/market pricing, cooking styles, and QR exports passed");
 
   // 6. Super Admin Provisioning, Suspension & Impersonation
@@ -362,7 +445,7 @@ async function run() {
   };
   assert.equal(provSummary.id, provTenantId);
   assert.equal(provSummary.slug, testSlug);
-  assert.equal(provSummary.categoryCount, 7);
+  assert.equal(provSummary.categoryCount, 9);
   assert.equal(provAnalytics.tenantId, provTenantId);
 
   const superDashRes = await req("/api/super-admin/tenants", { jar: superJar });
@@ -424,6 +507,7 @@ async function run() {
     await usersCol().doc(testUser.id).delete();
   }
   await getDb().recursiveDelete(tenantDoc(provTenantId));
+  await tenantSlugsCol().doc(renamedSlug).delete().catch(() => undefined);
   console.log("✓ Super Admin bilingual provisioning, suspension, and impersonation passed");
 
   console.log("\nALL CAMBODIAN SEAFOOD + CLOUD FIRESTORE E2E CHECKS PASSED!");

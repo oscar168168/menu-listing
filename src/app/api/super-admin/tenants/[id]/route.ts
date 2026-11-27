@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findTenantBySlug, tenantDoc } from "@/lib/firestore";
+import {
+  findTenantBySlug,
+  getDb,
+  tenantDoc,
+  tenantSlugsCol,
+} from "@/lib/firestore";
 import { requireSuperAdmin } from "@/lib/auth";
 import { updateTenantStatusSchema } from "@/lib/validation";
 import { revalidatePublicMenu } from "@/lib/menu-data";
@@ -59,7 +64,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         : existing.nameEn ?? existing.name;
   const nextName = nextNameKm || nextNameEn || existing.name;
 
-  await ref.update({
+  const updatePayload = {
     slug: nextSlug,
     name: nextName,
     nameKm: nextNameKm || nextName,
@@ -68,7 +73,43 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     vendorMode: nextVendorMode,
     currency: nextCurrency,
     updatedAt: new Date(),
-  });
+  };
+
+  if (nextSlug !== oldSlug) {
+    class SlugConflictError extends Error {}
+    const now = updatePayload.updatedAt;
+    try {
+      await getDb().runTransaction(async (tx) => {
+        const nextSlugRef = tenantSlugsCol().doc(nextSlug);
+        const oldSlugRef = tenantSlugsCol().doc(oldSlug);
+        const nextSlugSnap = await tx.get(nextSlugRef);
+        const lockedId = nextSlugSnap.data()?.tenantId;
+        if (nextSlugSnap.exists && lockedId && lockedId !== id) {
+          const lockedTenantSnap = await tx.get(tenantDoc(lockedId));
+          if (lockedTenantSnap.exists) {
+            throw new SlugConflictError();
+          }
+        }
+        tx.delete(oldSlugRef);
+        tx.set(nextSlugRef, {
+          tenantId: id,
+          slug: nextSlug,
+          updatedAt: now,
+        });
+        tx.update(ref, updatePayload);
+      });
+    } catch (err) {
+      if (err instanceof SlugConflictError) {
+        return NextResponse.json(
+          { error: `URL slug "/m/${nextSlug}" is already used by another venue.` },
+          { status: 409 }
+        );
+      }
+      throw err;
+    }
+  } else {
+    await ref.update(updatePayload);
+  }
 
   revalidatePublicMenu(oldSlug);
   if (nextSlug !== oldSlug) {

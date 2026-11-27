@@ -4,6 +4,7 @@ export type VendorMode = "CART" | "LISTING_ONLY";
 export type Locale = "km" | "en";
 export type PrimaryCurrency = "USD" | "KHR";
 export type KhrRounding = 100 | 500;
+export type CategoryPricingMode = "FIXED" | "WEIGHT_BASED";
 export type PricingType = "FIXED" | "WEIGHT_BASED" | "MARKET_PRICE";
 export type WeightUnit =
   | "PER_100G"
@@ -83,6 +84,7 @@ export interface SerializedCategory {
   nameEn: string;
   sortOrder: number;
   isVisible: boolean;
+  pricingMode?: CategoryPricingMode;
   items: SerializedMenuItem[];
 }
 

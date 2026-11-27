@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { categoriesCol, tenantDoc } from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
+import { resolveCategoryPricingMode } from "@/lib/i18n";
 import { createCategorySchema } from "@/lib/validation";
 import { revalidatePublicMenu } from "@/lib/menu-data";
 
@@ -36,6 +37,12 @@ export async function POST(request: NextRequest) {
   const nameKm = parsed.data.nameKm || "";
   const nameEn = parsed.data.nameEn || parsed.data.name || parsed.data.nameKm;
   const canonicalName = nameKm || nameEn;
+  const pricingMode = resolveCategoryPricingMode({
+    pricingMode: parsed.data.pricingMode,
+    name: canonicalName,
+    nameKm,
+    nameEn,
+  });
   const now = new Date();
   const sortOrder = maxSortOrder + 1;
 
@@ -46,6 +53,7 @@ export async function POST(request: NextRequest) {
     nameKm: nameKm || canonicalName,
     nameEn: nameEn || canonicalName,
     isVisible: parsed.data.isVisible,
+    pricingMode,
     sortOrder,
     createdAt: now,
     updatedAt: now,
@@ -64,6 +72,7 @@ export async function POST(request: NextRequest) {
         nameEn: docData.nameEn ?? docData.name,
         sortOrder: docData.sortOrder,
         isVisible: docData.isVisible,
+        pricingMode: docData.pricingMode,
         items: [],
       },
     },

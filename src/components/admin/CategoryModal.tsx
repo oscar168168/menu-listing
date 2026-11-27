@@ -3,8 +3,13 @@
 import { useState } from "react";
 import { NativeDialog } from "@/components/ui/NativeDialog";
 import { NativeSwitch } from "@/components/ui/NativeSwitch";
+import { resolveCategoryPricingMode } from "@/lib/i18n";
 import { PORTAL_COPY } from "@/lib/portal-i18n";
-import type { Locale, SerializedCategory } from "@/types/menu";
+import type {
+  CategoryPricingMode,
+  Locale,
+  SerializedCategory,
+} from "@/types/menu";
 
 interface CategoryModalProps {
   open: boolean;
@@ -15,6 +20,7 @@ interface CategoryModalProps {
     nameEn: string;
     nameKm: string;
     isVisible: boolean;
+    pricingMode: CategoryPricingMode;
   }) => Promise<void>;
 }
 
@@ -34,6 +40,9 @@ function CategoryForm({
   const [isVisible, setIsVisible] = useState(
     editingCategory?.isVisible ?? true
   );
+  const [pricingMode, setPricingMode] = useState<CategoryPricingMode>(
+    editingCategory ? resolveCategoryPricingMode(editingCategory) : "FIXED"
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +58,7 @@ function CategoryForm({
     setSubmitting(true);
     setError(null);
     try {
-      await onSave({ nameEn: cleanEn, nameKm: cleanKm, isVisible });
+      await onSave({ nameEn: cleanEn, nameKm: cleanKm, isVisible, pricingMode });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : c.unknownError);
@@ -101,6 +110,38 @@ function CategoryForm({
           className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[14px] text-zinc-950 placeholder:text-zinc-400 focus:border-brand focus:outline-none"
         />
         <p className="mt-1 text-[11px] text-zinc-500">{t.catFallbackHint}</p>
+      </div>
+
+      <div>
+        <span className="block text-[12px] font-medium text-zinc-700">
+          {t.catPricingModeLabel}
+        </span>
+        <div
+          role="radiogroup"
+          aria-label={t.catPricingModeLabel}
+          className="mt-1.5 grid grid-cols-2 gap-2"
+        >
+          {(["FIXED", "WEIGHT_BASED"] as const).map((mode) => {
+            const active = pricingMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setPricingMode(mode)}
+                className={`rounded-lg border px-3 py-2 text-left text-[12px] font-medium transition-colors ${
+                  active
+                    ? "border-brand bg-brand-subtle text-zinc-950"
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                }`}
+              >
+                {mode === "WEIGHT_BASED" ? t.catPricingWeight : t.catPricingFixed}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-1 text-[11px] text-zinc-500">{t.catPricingModeHint}</p>
       </div>
 
       <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-[#FAFAFA] px-3.5 py-2.5">

@@ -224,6 +224,10 @@ export const PORTAL_COPY = {
       catFallbackHint: "អ្នកអាចបំពេញតែភាសាខ្មែរ ឬ បំពេញទាំងពីរភាសា។",
       catVisibleLabel: "បង្ហាញលើម៉ឺនុយសាធារណៈ",
       catVisibleHint: "ប្រភេទដែលលាក់អាចកែប្រែទុកជាមុនបាន។",
+      catPricingModeLabel: "របៀបគិតតម្លៃក្នុងប្រភេទនេះ",
+      catPricingFixed: "តាមចាន (តម្លៃថេរ)",
+      catPricingWeight: "គ្រឿងសមុទ្រស្រស់ (/ គីឡូ)",
+      catPricingModeHint: "មុខម្ហូបទាំងអស់ក្នុងប្រភេទនេះនឹងប្រើឯកតាតម្លៃនេះដោយស្វ័យប្រវត្តិ។",
       catCreateBtn: "បង្កើតប្រភេទ",
       catValidationError: "សូមបញ្ចូលឈ្មោះប្រភេទជាភាសាខ្មែរ ឬ អង់គ្លេស។",
 
@@ -665,6 +669,10 @@ export const PORTAL_COPY = {
         "Leave either language blank to automatically fall back to the other.",
       catVisibleLabel: "Visible on public menu",
       catVisibleHint: "Hidden categories stay editable in draft.",
+      catPricingModeLabel: "Pricing rule for this category",
+      catPricingFixed: "Fixed price per dish",
+      catPricingWeight: "Fresh seafood (/ kg)",
+      catPricingModeHint: "All dishes in this category automatically use this pricing unit.",
       catCreateBtn: "Create category",
       catValidationError: "Enter at least a Khmer or English category name.",
 

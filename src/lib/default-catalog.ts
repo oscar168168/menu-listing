@@ -3,6 +3,7 @@ import {
   commitBatchedWrites,
   menuItemsCol,
   tenantDoc,
+  tenantSlugsCol,
   type FirestoreTenantDoc,
 } from "@/lib/firestore";
 import { DEFAULT_MENU_CATEGORIES } from "@/lib/i18n";
@@ -1421,6 +1422,7 @@ async function runSyncTenantDefaultCatalog(
         nameKm: cat.nameKm,
         sortOrder: idx,
         isVisible: true,
+        pricingMode: cat.key === "fresh" ? "WEIGHT_BASED" : "FIXED",
         createdAt: now,
         updatedAt: now,
       })
@@ -1533,6 +1535,16 @@ async function runSyncTenantDefaultCatalog(
   };
 
   ops.push((b) => b.update(tenantDoc(tenantId), tenantUpdates));
+  if (currentTenant.slug) {
+    const normalizedSlug = currentTenant.slug.trim().toLowerCase();
+    ops.push((b) =>
+      b.set(tenantSlugsCol().doc(normalizedSlug), {
+        tenantId,
+        slug: normalizedSlug,
+        updatedAt: now,
+      })
+    );
+  }
   await commitBatchedWrites(ops);
 
   return {

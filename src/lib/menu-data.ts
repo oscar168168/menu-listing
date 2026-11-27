@@ -4,8 +4,10 @@ import {
   categoriesCol,
   cookingStylesCol,
   findTenantBySlug,
+  formatCambodiaDateKey,
   menuItemsCol,
   scanEventsCol,
+  scanStatsCol,
   tenantDoc,
   tenantsCol,
   toDate,
@@ -20,11 +22,8 @@ import {
   normalizeKhrRounding,
   normalizePrimaryCurrency,
 } from "@/lib/currency";
-import {
-  DEMO_CATALOG_VERSION,
-  isPakKhlangVenue,
-  syncTenantDefaultCatalog,
-} from "@/lib/default-catalog";
+import { DEMO_CATALOG_VERSION } from "@/lib/default-catalog";
+import { resolveCategoryPricingMode } from "@/lib/i18n";
 import type {
   CookingStyleOption,
   ItemVariant,
@@ -224,18 +223,7 @@ function loadCachedPublicMenuByNormalizedSlug(
       const tenantFound = await findTenantBySlug(slugKey);
       if (!tenantFound) return null;
 
-      const { id: tenantId } = tenantFound;
-      let tenant = tenantFound.data;
-      const metaObj =
-        tenant.metaJson && typeof tenant.metaJson === "object"
-          ? (tenant.metaJson as Record<string, unknown>)
-          : {};
-      if (
-        (isPakKhlangVenue(tenant) || tenant.slug === "kep-bay-kitchen") &&
-        metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
-      ) {
-        tenant = await syncTenantDefaultCatalog(tenantId, tenant);
-      }
+      const { id: tenantId, data: tenant } = tenantFound;
 
       if (tenant.status === "SUSPENDED") {
         return {
@@ -278,6 +266,13 @@ function loadCachedPublicMenuByNormalizedSlug(
             nameEn: cat.data.nameEn?.trim() || cat.data.name,
             sortOrder: cat.data.sortOrder ?? 0,
             isVisible: cat.data.isVisible ?? true,
+            pricingMode: resolveCategoryPricingMode({
+              id: cat.id,
+              pricingMode: cat.data.pricingMode,
+              name: cat.data.name,
+              nameKm: cat.data.nameKm,
+              nameEn: cat.data.nameEn,
+            }),
             items: catItems.map((it) => serializeMenuItem(it.id, it.data)),
           };
         })
@@ -370,19 +365,7 @@ export const getCachedHomeVenues = unstable_cache(
     }
 
     return Promise.all(
-      activeDocs.map(async ({ id, data: initialData }) => {
-        let data = initialData;
-        const metaObj =
-          data.metaJson && typeof data.metaJson === "object"
-            ? (data.metaJson as Record<string, unknown>)
-            : {};
-        if (
-          (isPakKhlangVenue(data) || data.slug === "kep-bay-kitchen") &&
-          metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
-        ) {
-          data = await syncTenantDefaultCatalog(id, data);
-        }
-
+      activeDocs.map(async ({ id, data }) => {
         const [catCount, itemCount] = await Promise.all([
           categoriesCol(id).count().get(),
           menuItemsCol(id).count().get(),
@@ -420,20 +403,8 @@ export async function getAdminTenantMenu(
 ): Promise<TenantMenuPayload | null> {
   const tenantSnap = await tenantDoc(tenantId).get();
   if (!tenantSnap.exists) return null;
-  let tenant = tenantSnap.data();
+  const tenant = tenantSnap.data();
   if (!tenant) return null;
-
-  const metaObj =
-    tenant.metaJson && typeof tenant.metaJson === "object"
-      ? (tenant.metaJson as Record<string, unknown>)
-      : {};
-  if (
-    (isPakKhlangVenue(tenant) || tenant.slug === "kep-bay-kitchen") &&
-    metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
-  ) {
-    tenant = await syncTenantDefaultCatalog(tenantId, tenant);
-    revalidatePublicMenu(tenant.slug);
-  }
 
   const [catSnap, itemSnap, presetSnap] = await Promise.all([
     categoriesCol(tenantId).get(),
@@ -466,6 +437,13 @@ export async function getAdminTenantMenu(
       nameEn: cat.data.nameEn?.trim() || cat.data.name,
       sortOrder: cat.data.sortOrder ?? 0,
       isVisible: cat.data.isVisible ?? true,
+      pricingMode: resolveCategoryPricingMode({
+        id: cat.id,
+        pricingMode: cat.data.pricingMode,
+        name: cat.data.name,
+        nameKm: cat.data.nameKm,
+        nameEn: cat.data.nameEn,
+      }),
       items: (itemsByCategory.get(cat.id) ?? []).map((it) =>
         serializeMenuItem(it.id, it.data)
       ),
@@ -496,6 +474,7 @@ export async function getSuperAdminDashboardData(): Promise<{
   };
 }> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgoKey = formatCambodiaDateKey(sevenDaysAgo);
 
   const [tenantsSnap, adminsSnap] = await Promise.all([
     tenantsCol()
@@ -555,46 +534,55 @@ export async function getSuperAdminDashboardData(): Promise<{
     );
 
   const perTenantStats = await Promise.all(
-    tenantDocs.map(async ({ id, data: initialData }) => {
-      let data = initialData;
-      const metaObj =
-        data.metaJson && typeof data.metaJson === "object"
-          ? (data.metaJson as Record<string, unknown>)
-          : {};
-      if (
-        (isPakKhlangVenue(data) || data.slug === "kep-bay-kitchen") &&
-        metaObj.demoCatalogVersion !== DEMO_CATALOG_VERSION
-      ) {
-        data = await syncTenantDefaultCatalog(id, data);
-        revalidatePublicMenu(data.slug);
-      }
-
-      const [
-        itemCountSnap,
-        catCountSnap,
-        scanTotalSnap,
-        scan7dSnap,
-        recentTableScansSnap,
-      ] = await Promise.all([
+    tenantDocs.map(async ({ id, data }) => {
+      const [itemCountSnap, catCountSnap, scanStatsSnap] = await Promise.all([
         menuItemsCol(id).count().get(),
         categoriesCol(id).count().get(),
-        scanEventsCol(id).count().get(),
-        scanEventsCol(id)
-          .where("scannedAt", ">=", sevenDaysAgo)
-          .count()
-          .get(),
-        scanEventsCol(id)
-          .orderBy("scannedAt", "desc")
-          .limit(300)
-          .select("tableCode")
-          .get(),
+        scanStatsCol(id).get(),
       ]);
 
+      let scanCount = 0;
+      let scansLast7Days = 0;
       const tableCounts = new Map<string, number>();
-      for (const scanDoc of recentTableScansSnap.docs) {
-        const code = scanDoc.data().tableCode;
-        if (typeof code === "string" && code.trim()) {
-          tableCounts.set(code, (tableCounts.get(code) ?? 0) + 1);
+
+      if (!scanStatsSnap.empty) {
+        for (const statDoc of scanStatsSnap.docs) {
+          const stat = statDoc.data();
+          const dayScans = typeof stat.totalScans === "number" ? stat.totalScans : 0;
+          scanCount += dayScans;
+          if ((stat.date || statDoc.id) >= sevenDaysAgoKey) {
+            scansLast7Days += dayScans;
+          }
+          if (stat.tableCounts && typeof stat.tableCounts === "object") {
+            for (const [code, rawCount] of Object.entries(stat.tableCounts)) {
+              if (typeof rawCount === "number" && rawCount > 0 && code.trim()) {
+                tableCounts.set(code, (tableCounts.get(code) ?? 0) + rawCount);
+              }
+            }
+          }
+        }
+      } else {
+        // Legacy fallback when scanStats aggregates haven't been backfilled yet
+        const [scanTotalSnap, scan7dSnap, recentTableScansSnap] =
+          await Promise.all([
+            scanEventsCol(id).count().get(),
+            scanEventsCol(id)
+              .where("scannedAt", ">=", sevenDaysAgo)
+              .count()
+              .get(),
+            scanEventsCol(id)
+              .orderBy("scannedAt", "desc")
+              .limit(300)
+              .select("tableCode")
+              .get(),
+          ]);
+        scanCount = scanTotalSnap.data().count;
+        scansLast7Days = scan7dSnap.data().count;
+        for (const scanDoc of recentTableScansSnap.docs) {
+          const code = scanDoc.data().tableCode;
+          if (typeof code === "string" && code.trim()) {
+            tableCounts.set(code, (tableCounts.get(code) ?? 0) + 1);
+          }
         }
       }
 
@@ -627,8 +615,8 @@ export async function getSuperAdminDashboardData(): Promise<{
         ownerName: owner?.name ?? null,
         itemCount: itemCountSnap.data().count,
         categoryCount: catCountSnap.data().count,
-        scanCount: scanTotalSnap.data().count,
-        scansLast7Days: scan7dSnap.data().count,
+        scanCount,
+        scansLast7Days,
         createdAt: toDate(data.createdAt).toISOString(),
       };
 

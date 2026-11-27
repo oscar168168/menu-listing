@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  buildUserLoginKeys,
   categoriesCol,
   cookingStylesCol,
   findTenantBySlug,
   findUserByIdentifier,
   getDb,
   normalizePhone,
+  tenantDoc,
   tenantsCol,
+  tenantSlugsCol,
   usersCol,
 } from "@/lib/firestore";
 import { hashPasswordAsync, requireSuperAdmin } from "@/lib/auth";
@@ -93,7 +96,6 @@ export async function POST(request: NextRequest) {
   }
 
   const db = getDb();
-  const batch = db.batch();
   const now = new Date();
 
   const cleanNameKm = parsed.data.nameKm.trim();
@@ -104,81 +106,123 @@ export async function POST(request: NextRequest) {
   const canonicalTagline = cleanTaglineKm || cleanTaglineEn;
 
   const newTenantRef = tenantsCol().doc();
-  batch.set(newTenantRef, {
-    name: canonicalName,
-    nameKm: cleanNameKm || canonicalName,
-    nameEn: cleanNameEn || canonicalName,
-    slug: parsed.data.slug,
-    status: "ACTIVE",
-    vendorMode: parsed.data.vendorMode,
-    logoUrl: null,
-    coverUrl: null,
-    currency: parsed.data.currency,
-    showDualCurrency: parsed.data.showDualCurrency,
-    exchangeRate: parsed.data.exchangeRate,
-    khrRounding: 100,
-    primaryColor: parsed.data.primaryColor,
-    metaJson:
-      canonicalTagline || ownerPhone
-        ? {
-            ...(canonicalTagline
-              ? {
-                  tagline: canonicalTagline,
-                  taglineKm: cleanTaglineKm || canonicalTagline,
-                  taglineEn: cleanTaglineEn || canonicalTagline,
-                }
-              : {}),
-            ...(ownerPhone ? { phone: ownerPhone } : {}),
-          }
-        : {},
-    createdAt: now,
-    updatedAt: now,
-  });
-
   const newOwnerRef = usersCol().doc();
-  batch.set(newOwnerRef, {
-    name: parsed.data.ownerName,
-    email: parsed.data.ownerEmail.trim().toLowerCase() || ownerAccountKey,
-    ...(ownerUsername ? { username: ownerUsername } : {}),
-    ...(ownerPhone ? { phone: normalizePhone(ownerPhone) || ownerPhone } : {}),
-    passwordHash,
-    role: "MENU_ADMIN",
-    tenantId: newTenantRef.id,
-    createdAt: now,
-    updatedAt: now,
+  const normalizedEmail =
+    parsed.data.ownerEmail.trim().toLowerCase() || ownerAccountKey;
+  const normalizedOwnerPhone = ownerPhone
+    ? normalizePhone(ownerPhone) || ownerPhone
+    : undefined;
+  const loginKeys = buildUserLoginKeys({
+    email: normalizedEmail,
+    username: ownerUsername || null,
+    phone: normalizedOwnerPhone ?? null,
   });
 
-  DEFAULT_MENU_CATEGORIES.forEach((cat, idx) => {
-    const catRef = categoriesCol(newTenantRef.id).doc();
-    batch.set(catRef, {
-      tenantId: newTenantRef.id,
-      name: cat.nameKm,
-      nameEn: cat.nameEn,
-      nameKm: cat.nameKm,
-      sortOrder: idx,
-      isVisible: true,
-      createdAt: now,
-      updatedAt: now,
+  const slugLockRef = tenantSlugsCol().doc(parsed.data.slug);
+
+  class SlugTakenError extends Error {}
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const slugLockSnap = await tx.get(slugLockRef);
+      const lockedTenantId = slugLockSnap.data()?.tenantId;
+      if (slugLockSnap.exists && lockedTenantId) {
+        const lockedTenantSnap = await tx.get(tenantDoc(lockedTenantId));
+        if (lockedTenantSnap.exists) {
+          throw new SlugTakenError();
+        }
+      }
+
+      tx.set(slugLockRef, {
+        tenantId: newTenantRef.id,
+        slug: parsed.data.slug,
+        updatedAt: now,
+      });
+
+      tx.set(newTenantRef, {
+        name: canonicalName,
+        nameKm: cleanNameKm || canonicalName,
+        nameEn: cleanNameEn || canonicalName,
+        slug: parsed.data.slug,
+        status: "ACTIVE",
+        vendorMode: parsed.data.vendorMode,
+        logoUrl: null,
+        coverUrl: null,
+        currency: parsed.data.currency,
+        showDualCurrency: parsed.data.showDualCurrency,
+        exchangeRate: parsed.data.exchangeRate,
+        khrRounding: 100,
+        primaryColor: parsed.data.primaryColor,
+        metaJson:
+          canonicalTagline || ownerPhone
+            ? {
+                ...(canonicalTagline
+                  ? {
+                      tagline: canonicalTagline,
+                      taglineKm: cleanTaglineKm || canonicalTagline,
+                      taglineEn: cleanTaglineEn || canonicalTagline,
+                    }
+                  : {}),
+                ...(ownerPhone ? { phone: ownerPhone } : {}),
+              }
+            : {},
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      tx.set(newOwnerRef, {
+        name: parsed.data.ownerName,
+        email: normalizedEmail,
+        ...(ownerUsername ? { username: ownerUsername } : {}),
+        ...(normalizedOwnerPhone ? { phone: normalizedOwnerPhone } : {}),
+        loginKeys,
+        passwordHash,
+        role: "MENU_ADMIN",
+        tenantId: newTenantRef.id,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      DEFAULT_MENU_CATEGORIES.forEach((cat, idx) => {
+        const catRef = categoriesCol(newTenantRef.id).doc();
+        tx.set(catRef, {
+          tenantId: newTenantRef.id,
+          name: cat.nameKm,
+          nameEn: cat.nameEn,
+          nameKm: cat.nameKm,
+          sortOrder: idx,
+          isVisible: true,
+          pricingMode: cat.key === "fresh" ? "WEIGHT_BASED" : "FIXED",
+          createdAt: now,
+          updatedAt: now,
+        });
+      });
+
+      DEFAULT_COOKING_STYLE_PRESETS.forEach((preset, idx) => {
+        const styleRef = cookingStylesCol(newTenantRef.id).doc();
+        tx.set(styleRef, {
+          tenantId: newTenantRef.id,
+          nameKm: preset.nameKm,
+          nameEn: preset.nameEn,
+          defaultSurcharge:
+            parsed.data.currency === "KHR"
+              ? preset.defaultSurcharge * 4000
+              : preset.defaultSurcharge,
+          sortOrder: idx,
+          createdAt: now,
+          updatedAt: now,
+        });
+      });
     });
-  });
-
-  DEFAULT_COOKING_STYLE_PRESETS.forEach((preset, idx) => {
-    const styleRef = cookingStylesCol(newTenantRef.id).doc();
-    batch.set(styleRef, {
-      tenantId: newTenantRef.id,
-      nameKm: preset.nameKm,
-      nameEn: preset.nameEn,
-      defaultSurcharge:
-        parsed.data.currency === "KHR"
-          ? preset.defaultSurcharge * 4000
-          : preset.defaultSurcharge,
-      sortOrder: idx,
-      createdAt: now,
-      updatedAt: now,
-    });
-  });
-
-  await batch.commit();
+  } catch (err) {
+    if (err instanceof SlugTakenError) {
+      return NextResponse.json(
+        { error: `Slug "/m/${parsed.data.slug}" is already taken.` },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
   revalidatePublicMenu(parsed.data.slug);
 
   const summary: SuperAdminTenantSummary = {

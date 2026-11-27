@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { categoriesCol, menuItemsCol, tenantDoc } from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
+import { resolveCategoryPricingMode } from "@/lib/i18n";
 import { createMenuItemSchema } from "@/lib/validation";
 import { revalidatePublicMenu, serializeMenuItem } from "@/lib/menu-data";
+import type { WeightUnit } from "@/types/menu";
 
 export async function POST(request: NextRequest) {
   const ctx = await resolveAdminContext();
@@ -49,6 +51,17 @@ export async function POST(request: NextRequest) {
   const descriptionEn = parsed.data.descriptionEn || parsed.data.description || "";
   const now = new Date();
 
+  const pricingMode = resolveCategoryPricingMode({
+    id: catSnap.id,
+    pricingMode: category.pricingMode,
+    name: category.name,
+    nameKm: category.nameKm,
+    nameEn: category.nameEn,
+  });
+  const pricingType = pricingMode;
+  const weightUnit: WeightUnit | null =
+    pricingType === "WEIGHT_BASED" ? "PER_KG" : null;
+
   const itemRef = menuItemsCol(ctx.tenantId).doc();
   const itemData = {
     tenantId: ctx.tenantId,
@@ -59,18 +72,11 @@ export async function POST(request: NextRequest) {
     description: descriptionKm || descriptionEn,
     descriptionKm: descriptionKm || null,
     descriptionEn: descriptionEn || null,
-    pricingType: parsed.data.pricingType,
-    weightUnit:
-      parsed.data.pricingType === "FIXED" ? null : parsed.data.weightUnit,
+    pricingType,
+    weightUnit,
     priceDecimal: parsed.data.price,
-    marketPriceMin:
-      parsed.data.pricingType === "MARKET_PRICE"
-        ? parsed.data.marketPriceMin
-        : null,
-    marketPriceMax:
-      parsed.data.pricingType === "MARKET_PRICE"
-        ? parsed.data.marketPriceMax
-        : null,
+    marketPriceMin: null,
+    marketPriceMax: null,
     variantsJson:
       parsed.data.variants.length > 0 ? parsed.data.variants : null,
     cookingStylesJson:

@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { categoriesCol, menuItemsCol, tenantDoc } from "@/lib/firestore";
+import {
+  categoriesCol,
+  deleteOrphanedMediaUrl,
+  menuItemsCol,
+  tenantDoc,
+} from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
+import { resolveCategoryPricingMode } from "@/lib/i18n";
 import { updateMenuItemSchema } from "@/lib/validation";
 import { revalidatePublicMenu, serializeMenuItem } from "@/lib/menu-data";
+import type { WeightUnit } from "@/types/menu";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -49,6 +56,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
   }
 
+  const effectiveCategorySnap =
+    targetCatSnap && targetCatSnap.exists
+      ? targetCatSnap
+      : await categoriesCol(ctx.tenantId).doc(existing.categoryId).get();
+  const effectiveCategory = effectiveCategorySnap.data();
+  const effectivePricingMode = resolveCategoryPricingMode(
+    effectiveCategory
+      ? {
+          id: effectiveCategorySnap.id,
+          pricingMode: effectiveCategory.pricingMode,
+          name: effectiveCategory.name,
+          nameKm: effectiveCategory.nameKm,
+          nameEn: effectiveCategory.nameEn,
+        }
+      : null
+  );
+
   const nextNameKm =
     parsed.data.nameKm !== undefined
       ? parsed.data.nameKm
@@ -72,6 +96,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ? parsed.data.description
         : existing.descriptionEn ?? existing.description;
 
+  const weightUnit: WeightUnit | null =
+    effectivePricingMode === "WEIGHT_BASED" ? "PER_KG" : null;
   const updateData = {
     ...(parsed.data.categoryId !== undefined
       ? { categoryId: parsed.data.categoryId }
@@ -82,21 +108,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     description: nextDescKm || nextDescEn,
     descriptionKm: nextDescKm || null,
     descriptionEn: nextDescEn || null,
-    ...(parsed.data.pricingType !== undefined
-      ? { pricingType: parsed.data.pricingType }
-      : {}),
-    ...(parsed.data.weightUnit !== undefined
-      ? { weightUnit: parsed.data.weightUnit }
-      : {}),
+    pricingType: effectivePricingMode,
+    weightUnit,
     ...(parsed.data.price !== undefined
       ? { priceDecimal: parsed.data.price }
       : {}),
-    ...(parsed.data.marketPriceMin !== undefined
-      ? { marketPriceMin: parsed.data.marketPriceMin }
-      : {}),
-    ...(parsed.data.marketPriceMax !== undefined
-      ? { marketPriceMax: parsed.data.marketPriceMax }
-      : {}),
+    marketPriceMin: null,
+    marketPriceMax: null,
     ...(parsed.data.variants !== undefined
       ? {
           variantsJson:
@@ -125,6 +143,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   };
 
   await itemRef.update(updateData);
+  if (
+    parsed.data.imageUrl !== undefined &&
+    existing.imageUrl &&
+    parsed.data.imageUrl !== existing.imageUrl
+  ) {
+    await deleteOrphanedMediaUrl(ctx.tenantId, existing.imageUrl).catch(
+      () => undefined
+    );
+  }
   const updated = { ...existing, ...updateData };
 
   revalidatePublicMenu(tenant.slug);
@@ -152,6 +179,11 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   }
 
   await itemRef.delete();
+  if (existing.imageUrl) {
+    await deleteOrphanedMediaUrl(ctx.tenantId, existing.imageUrl).catch(
+      () => undefined
+    );
+  }
   revalidatePublicMenu(tenant.slug);
 
   return NextResponse.json({ ok: true });

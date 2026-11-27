@@ -23,12 +23,23 @@ rules_version = '2';
 // Document ID: {userId}
 // Fields:
 //   - email: string (required, PII)
+//   - username: string (optional, normalized login identifier)
+//   - phone: string (optional, PII, normalized phone login identifier)
+//   - loginKeys: string[] (optional, normalized lookup keys for auth queries)
 //   - name: string (required)
 //   - passwordHash: string (required, sensitive credential hash)
 //   - role: string (required, 'SUPER_ADMIN' | 'MENU_ADMIN')
 //   - tenantId: string | null (optional, scoped tenant ID)
 //   - createdAt: timestamp (required, immutable)
 //   - updatedAt: timestamp (required)
+//
+// Collection: tenantSlugs
+// Document ID: {slug} (normalized lowercase URL slug)
+// Fields:
+//   - tenantId: string (required, owning tenant ID)
+//   - slug: string (required, normalized slug)
+//   - updatedAt: timestamp (required)
+//   (Atomic slug uniqueness lock managed via Admin SDK transactions.)
 //
 // Collection: tenants
 // Document ID: {tenantId}
@@ -39,7 +50,9 @@ rules_version = '2';
 //
 // Subcollection: tenants/{tenantId}/categories/{categoryId}
 // Fields:
-//   - tenantId, name, nameKm, nameEn, sortOrder, isVisible, createdAt, updatedAt
+//   - tenantId, name, nameKm, nameEn, sortOrder, isVisible,
+//     pricingMode ('FIXED' | 'WEIGHT_BASED', optional on legacy docs),
+//     createdAt, updatedAt
 //
 // Subcollection: tenants/{tenantId}/menuItems/{itemId}
 // Fields:
@@ -54,22 +67,46 @@ rules_version = '2';
 //
 // Subcollection: tenants/{tenantId}/scanEvents/{scanId}
 // Fields:
-//   - tenantId, tableCode, userAgent, scannedAt
+//   - tenantId, tableCode, userAgent, scannedAt,
+//     expiresAt (optional, 90-day TTL timestamp)
+//
+// Subcollection: tenants/{tenantId}/scanStats/{dateKey}
+// Document ID: {dateKey} (Cambodia YYYY-MM-DD date key)
+// Fields:
+//   - tenantId: string (required)
+//   - date: string (required, YYYY-MM-DD)
+//   - totalScans: number (required, daily QR scan aggregate counter)
+//   - tableCounts: map<string, number> (optional, per-table scan counters)
+//   - updatedAt: timestamp (required)
+//
+// Subcollection: tenants/{tenantId}/media/{mediaId}
+// Fields:
+//   - tenantId: string (required)
+//   - mimeType: string (required, 'image/jpeg' | 'image/png' | 'image/webp' | 'image/svg+xml')
+//   - size: number (required, byte size <= 900KB)
+//   - data: bytes (required, binary image fallback payload)
+//   - createdAt: timestamp (required, immutable)
 //
 // =============================================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users collection contains PII (`email`) and credential hashes (`passwordHash`).
+    // Users collection contains PII (`email`, `phone`), `loginKeys`, and credential hashes (`passwordHash`).
     // All authentication and user management is handled server-side via `firebase-admin`.
     match /users/{userId} {
       allow read, write: if false;
     }
 
+    // Atomic slug uniqueness lock collection managed via Admin SDK transactions
+    // during tenant provisioning and slug updates.
+    match /tenantSlugs/{slug} {
+      allow read, write: if false;
+    }
+
     // Tenant restaurant metadata and nested domain subcollections.
-    // Public menu views, QR scan logging, and admin mutations are served exclusively
-    // by Next.js SSR pages and `/api/**` routes using `firebase-admin`.
+    // Public menu views, QR scan logging, media serving, and admin mutations are
+    // served exclusively by Next.js SSR pages and `/api/**` routes using `firebase-admin`.
     match /tenants/{tenantId} {
       allow read, write: if false;
 
@@ -86,6 +123,16 @@ service cloud.firestore {
       }
 
       match /scanEvents/{scanId} {
+        allow read, write: if false;
+      }
+
+      // Daily QR scan aggregate counters keyed by Cambodia date (`YYYY-MM-DD`).
+      match /scanStats/{dateKey} {
+        allow read, write: if false;
+      }
+
+      // Built-in binary image fallback storage when Cloudinary is not configured.
+      match /media/{mediaId} {
         allow read, write: if false;
       }
     }

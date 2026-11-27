@@ -193,6 +193,7 @@ export function AdminWorkspace({
     nameEn: string;
     nameKm: string;
     isVisible: boolean;
+    pricingMode: "FIXED" | "WEIGHT_BASED";
   }) => {
     const canonical = payload.nameKm || payload.nameEn;
     const displayName = resolveLocalized(
@@ -219,6 +220,13 @@ export function AdminWorkspace({
                 nameKm: payload.nameKm || canonical,
                 nameEn: payload.nameEn || canonical,
                 isVisible: payload.isVisible,
+                pricingMode: payload.pricingMode,
+                items: cat.items.map((item) => ({
+                  ...item,
+                  pricingType: payload.pricingMode,
+                  weightUnit:
+                    payload.pricingMode === "WEIGHT_BASED" ? "PER_KG" : null,
+                })),
               }
             : cat
         )

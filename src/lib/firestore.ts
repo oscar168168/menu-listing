@@ -6,6 +6,7 @@ import {
   type ServiceAccount,
 } from "firebase-admin/app";
 import {
+  FieldValue,
   getFirestore,
   Timestamp,
   type CollectionReference,
@@ -13,6 +14,7 @@ import {
   type Firestore,
 } from "firebase-admin/firestore";
 import type {
+  CategoryPricingMode,
   CookingStyleOption,
   ItemVariant,
   PricingType,
@@ -27,6 +29,7 @@ export interface FirestoreUserDoc {
   email: string;
   username?: string;
   phone?: string;
+  loginKeys?: string[];
   name: string;
   passwordHash: string;
   role: UserRole;
@@ -71,6 +74,7 @@ export interface FirestoreCategoryDoc {
   nameEn: string | null;
   sortOrder: number;
   isVisible: boolean;
+  pricingMode?: CategoryPricingMode;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
 }
@@ -104,6 +108,21 @@ export interface FirestoreScanEventDoc {
   tableCode: string | null;
   userAgent: string | null;
   scannedAt: Timestamp | Date;
+  expiresAt?: Timestamp | Date;
+}
+
+export interface FirestoreScanStatDoc {
+  tenantId: string;
+  date: string;
+  totalScans: number;
+  tableCounts?: Record<string, number>;
+  updatedAt: Timestamp | Date;
+}
+
+export interface FirestoreTenantSlugDoc {
+  tenantId: string;
+  slug: string;
+  updatedAt: Timestamp | Date;
 }
 
 export interface FirestoreMediaDoc {
@@ -243,6 +262,12 @@ export function tenantsCol(): CollectionReference<FirestoreTenantDoc> {
   return getDb().collection("tenants") as CollectionReference<FirestoreTenantDoc>;
 }
 
+export function tenantSlugsCol(): CollectionReference<FirestoreTenantSlugDoc> {
+  return getDb().collection(
+    "tenantSlugs"
+  ) as CollectionReference<FirestoreTenantSlugDoc>;
+}
+
 export function tenantDoc(tenantId: string) {
   return tenantsCol().doc(tenantId);
 }
@@ -279,6 +304,14 @@ export function scanEventsCol(
   ) as CollectionReference<FirestoreScanEventDoc>;
 }
 
+export function scanStatsCol(
+  tenantId: string
+): CollectionReference<FirestoreScanStatDoc> {
+  return tenantDoc(tenantId).collection(
+    "scanStats"
+  ) as CollectionReference<FirestoreScanStatDoc>;
+}
+
 export function mediaCol(
   tenantId: string
 ): CollectionReference<FirestoreMediaDoc> {
@@ -287,12 +320,69 @@ export function mediaCol(
   ) as CollectionReference<FirestoreMediaDoc>;
 }
 
+const SAFE_MEDIA_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
+
+export function extractFirestoreMediaId(
+  url: string | null | undefined,
+  tenantId: string
+): string | null {
+  if (!url) return null;
+  const pathOnly = url.split("?")[0]?.split("#")[0]?.trim() ?? "";
+  const prefix = `/api/media/${tenantId}/`;
+  if (!pathOnly.startsWith(prefix)) return null;
+  const mediaId = pathOnly.slice(prefix.length);
+  return SAFE_MEDIA_ID_RE.test(mediaId) ? mediaId : null;
+}
+
+/**
+ * Deletes an orphaned built-in Firestore media document if it belongs to the tenant
+ * and is no longer referenced by any item or tenant branding field.
+ */
+export async function deleteOrphanedMediaUrl(
+  tenantId: string,
+  url: string | null | undefined
+): Promise<void> {
+  const mediaId = extractFirestoreMediaId(url, tenantId);
+  if (!mediaId || !url) return;
+
+  const [matchingItems, tenantSnap] = await Promise.all([
+    menuItemsCol(tenantId).where("imageUrl", "==", url).limit(1).select().get(),
+    tenantDoc(tenantId).get(),
+  ]);
+  if (!matchingItems.empty) return;
+
+  const tenant = tenantSnap.data();
+  if (tenant && (tenant.logoUrl === url || tenant.coverUrl === url)) {
+    return;
+  }
+
+  await mediaCol(tenantId).doc(mediaId).delete();
+}
+
+export function formatCambodiaDateKey(date: Date = new Date()): string {
+  const cambodiaMs = date.getTime() + 7 * 60 * 60 * 1000;
+  return new Date(cambodiaMs).toISOString().slice(0, 10);
+}
+
 export async function findTenantBySlug(slug: string): Promise<{
   id: string;
   data: FirestoreTenantDoc;
 } | null> {
+  const cleanSlug = slug.trim().toLowerCase();
+  if (!cleanSlug) return null;
+
+  const slugSnap = await tenantSlugsCol().doc(cleanSlug).get();
+  const slugLock = slugSnap.data();
+  if (slugSnap.exists && slugLock?.tenantId) {
+    const tSnap = await tenantDoc(slugLock.tenantId).get();
+    const tData = tSnap.data();
+    if (tSnap.exists && tData && tData.slug.toLowerCase() === cleanSlug) {
+      return { id: tSnap.id, data: tData };
+    }
+  }
+
   const snap = await tenantsCol()
-    .where("slug", "==", slug.toLowerCase())
+    .where("slug", "==", cleanSlug)
     .limit(1)
     .get();
   const doc = snap.docs[0];
@@ -325,6 +415,65 @@ const LEGACY_IDENTIFIER_ALIASES: Record<string, string> = {
   "012784220": "chef@kepbaykitchen.com",
 };
 
+function addPhoneKeys(target: Set<string>, raw: string | null | undefined): void {
+  if (!raw) return;
+  const normalized = normalizePhone(raw);
+  if (normalized.length < 6) return;
+  target.add(normalized);
+  if (normalized.startsWith("0") && normalized.length >= 9) {
+    target.add(`855${normalized.slice(1)}`);
+  }
+}
+
+export function buildUserLoginKeys(input: {
+  email?: string | null;
+  username?: string | null;
+  phone?: string | null;
+}): string[] {
+  const keys = new Set<string>();
+  const email = input.email?.trim().toLowerCase() ?? "";
+  const username = input.username?.trim().toLowerCase() ?? "";
+
+  if (username) keys.add(username);
+  if (email) {
+    keys.add(email);
+    if (email.includes("@")) {
+      const localPart = email.split("@")[0]?.trim() ?? "";
+      if (localPart.length >= 2) keys.add(localPart);
+    }
+  }
+
+  addPhoneKeys(keys, input.phone);
+  addPhoneKeys(keys, input.username);
+  addPhoneKeys(keys, input.email);
+
+  return Array.from(keys).slice(0, 16);
+}
+
+export function expandIdentifierLookupCandidates(identifier: string): string[] {
+  const trimmed = identifier.trim();
+  if (!trimmed) return [];
+  const lower = trimmed.toLowerCase();
+  const phoneNorm = normalizePhone(trimmed);
+  const candidates = new Set<string>([lower]);
+
+  if (phoneNorm.length >= 6) {
+    candidates.add(phoneNorm);
+    if (phoneNorm.startsWith("0") && phoneNorm.length >= 9) {
+      candidates.add(`855${phoneNorm.slice(1)}`);
+    }
+  }
+
+  const aliasEmail =
+    LEGACY_IDENTIFIER_ALIASES[lower] ||
+    (phoneNorm ? LEGACY_IDENTIFIER_ALIASES[phoneNorm] : undefined);
+  if (aliasEmail) {
+    candidates.add(aliasEmail);
+  }
+
+  return Array.from(candidates).slice(0, 10);
+}
+
 export async function findUserByIdentifier(identifier: string): Promise<{
   id: string;
   data: FirestoreUserDoc;
@@ -333,12 +482,26 @@ export async function findUserByIdentifier(identifier: string): Promise<{
   if (!trimmed) return null;
   const lower = trimmed.toLowerCase();
   const phoneNorm = normalizePhone(trimmed);
+  const candidates = expandIdentifierLookupCandidates(trimmed);
   const aliasEmail =
     LEGACY_IDENTIFIER_ALIASES[lower] ||
     (phoneNorm ? LEGACY_IDENTIFIER_ALIASES[phoneNorm] : undefined);
 
-  // 1. Direct query on email, username, or phone
   const col = usersCol();
+
+  // 1. Single indexed array-contains-any query using normalized `loginKeys`
+  if (candidates.length > 0) {
+    const keySnap = await col
+      .where("loginKeys", "array-contains-any", candidates)
+      .limit(1)
+      .get();
+    const matched = keySnap.docs[0];
+    if (matched) {
+      return { id: matched.id, data: matched.data() };
+    }
+  }
+
+  // 2. Targeted equality fallback for legacy user documents missing `loginKeys`
   const queries = [
     col.where("email", "==", lower).limit(1).get(),
     col.where("username", "==", lower).limit(1).get(),
@@ -355,34 +518,24 @@ export async function findUserByIdentifier(identifier: string): Promise<{
   const snaps = await Promise.all(queries);
   for (const snap of snaps) {
     const doc = snap.docs[0];
-    if (doc) return { id: doc.id, data: doc.data() };
-  }
-
-  // 2. Fallback scan across users collection (supports email local-part or formatted phone numbers)
-  const allSnap = await col.limit(200).get();
-  for (const doc of allSnap.docs) {
-    const data = doc.data();
-    const docEmail = (data.email || "").toLowerCase();
-    const docUsername = (data.username || "").toLowerCase();
-    const docPhone = normalizePhone(data.phone || "");
-    const emailPrefix = docEmail.includes("@") ? docEmail.split("@")[0] : "";
-
-    if (
-      docEmail === lower ||
-      docUsername === lower ||
-      (aliasEmail && docEmail === aliasEmail) ||
-      (emailPrefix && emailPrefix === lower) ||
-      (phoneNorm.length >= 6 &&
-        (docPhone === phoneNorm ||
-          normalizePhone(docEmail) === phoneNorm ||
-          normalizePhone(docUsername) === phoneNorm))
-    ) {
+    if (doc) {
+      const data = doc.data();
+      if (!data.loginKeys || data.loginKeys.length === 0) {
+        const backfilled = buildUserLoginKeys(data);
+        if (backfilled.length > 0) {
+          void doc.ref
+            .update({ loginKeys: backfilled })
+            .catch(() => undefined);
+        }
+      }
       return { id: doc.id, data };
     }
   }
 
   return null;
 }
+
+export { FieldValue };
 
 /**
  * Commits an array of batch mutations in chunks of 450 (below Firestore's 500-op limit).

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEMO_CATALOG_VERSION } from "@/lib/default-catalog";
-import { tenantDoc } from "@/lib/firestore";
+import { deleteOrphanedMediaUrl, tenantDoc } from "@/lib/firestore";
 import { resolveAdminContext } from "@/lib/auth";
 import { updateThemeSchema } from "@/lib/validation";
 import { revalidatePublicMenu, serializeTenant } from "@/lib/menu-data";
@@ -71,6 +71,29 @@ export async function PATCH(request: NextRequest) {
   };
 
   await ref.update(updateData);
+
+  const cleanupUrls: string[] = [];
+  if (
+    parsed.data.logoUrl !== undefined &&
+    existing.logoUrl &&
+    parsed.data.logoUrl !== existing.logoUrl
+  ) {
+    cleanupUrls.push(existing.logoUrl);
+  }
+  if (
+    parsed.data.coverUrl !== undefined &&
+    existing.coverUrl &&
+    parsed.data.coverUrl !== existing.coverUrl
+  ) {
+    cleanupUrls.push(existing.coverUrl);
+  }
+  if (cleanupUrls.length > 0) {
+    await Promise.all(
+      cleanupUrls.map((url) =>
+        deleteOrphanedMediaUrl(ctx.tenantId, url).catch(() => undefined)
+      )
+    );
+  }
 
   const merged = { ...existing, ...updateData };
   revalidatePublicMenu(merged.slug);
