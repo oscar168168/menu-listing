@@ -42,16 +42,20 @@ describe("Telegram-style QR SVG generator", () => {
     assert.ok(dataUrl.startsWith("data:image/svg+xml;charset=utf-8,"));
   });
 
-  it("embeds the rounded QR matrix into printable table card SVGs", async () => {
+  it("embeds the rounded QR matrix into printable table card SVGs without URL text", async () => {
     const card = await generatePrintableTableCardSvg({
       venueName: "សម្រស់ឆ្នេរប៉ាក់ខ្លង 168",
       tagline: "គ្រឿងសមុទ្រស្រស់ៗ",
-      url: "https://menu.app/m/pak-khlang-168?table=08",
+      url: "https://menu-listing-three.vercel.app/m/pak-khlang-168?table=08",
       primaryColor: "#18181B",
       tableCode: "08",
+      locale: "en",
     });
     assert.ok(card.includes("TABLE 08"));
-    assert.ok(card.includes('rx="34"'));
+    assert.ok(card.includes('rx="38"'));
+    assert.ok(card.includes('clip-path="url(#table-card-clip)"'));
     assert.ok(card.includes('fill-rule="evenodd"'));
+    assert.ok(!card.includes("vercel.app"));
+    assert.ok(!card.includes("/m/pak-khlang-168"));
   });
 });

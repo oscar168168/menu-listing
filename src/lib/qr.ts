@@ -245,7 +245,7 @@ export async function generateQrPngBuffer(
 
 /**
  * Generates a print-ready minimalist table-tent card as an SVG featuring
- * the Telegram-style rounded QR code with center dining emblem.
+ * the Telegram-style rounded QR code with center dining emblem (without URL clutter).
  */
 export async function generatePrintableTableCardSvg(options: {
   venueName: string;
@@ -253,6 +253,7 @@ export async function generatePrintableTableCardSvg(options: {
   url: string;
   primaryColor: string;
   tableCode?: string;
+  locale?: "km" | "en";
 }): Promise<string> {
   const contrast = computeThemeContrast(options.primaryColor);
   const { viewBox, innerSvg } = buildStyledQrMatrixSvg(options.url, {
@@ -260,39 +261,67 @@ export async function generatePrintableTableCardSvg(options: {
     badgeHex: contrast.primary,
   });
 
+  const locale = options.locale ?? "en";
   const venueNameEsc = escapeXml(options.venueName.slice(0, 36));
-  const taglineEsc = escapeXml((options.tagline ?? "Digital Menu").slice(0, 48));
-  const tableLabel = options.tableCode?.trim()
-    ? `TABLE ${escapeXml(options.tableCode.trim().toUpperCase())}`
-    : "SCAN FOR MENU";
-
-  const displayUrl = escapeXml(
-    options.url.replace(/^https?:\/\//, "").slice(0, 44)
+  const defaultTagline = locale === "km" ? "ម៉ឺនុយឌីជីថល" : "Digital Menu";
+  const rawTagline = (options.tagline || defaultTagline).trim();
+  const taglineEsc = escapeXml(
+    rawTagline.length > 44 ? `${rawTagline.slice(0, 43)}…` : rawTagline
   );
+  const cleanTable = options.tableCode?.trim();
+  const tableLabel = cleanTable
+    ? locale === "km"
+      ? `តុ ${escapeXml(cleanTable.toUpperCase())}`
+      : `TABLE ${escapeXml(cleanTable.toUpperCase())}`
+    : locale === "km"
+      ? "ស្កេនមើលម៉ឺនុយ"
+      : "SCAN FOR MENU";
+  const instructionText =
+    locale === "km"
+      ? "បើកកាមេរ៉ាស្កេនដើម្បីមើលម៉ឺនុយ"
+      : "Point your camera to view the menu";
+
+  const fontStack =
+    '"Kantumruy Pro", "Khmer OS System", Inter, -apple-system, BlinkMacSystemFont, sans-serif';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="840" viewBox="0 0 600 840">
-  <rect width="600" height="840" fill="#FFFFFF" />
-  <rect x="24" y="24" width="552" height="792" rx="28" fill="#FAFAFA" stroke="#E4E4E7" stroke-width="2" />
-  <rect x="24" y="24" width="552" height="10" rx="2" fill="${contrast.primary}" />
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="780" viewBox="0 0 600 780">
+  <defs>
+    <clipPath id="table-card-clip">
+      <rect x="24" y="24" width="552" height="732" rx="32" />
+    </clipPath>
+    <filter id="qr-card-shadow" x="-12%" y="-12%" width="124%" height="128%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#09090B" flood-opacity="0.08" />
+    </filter>
+  </defs>
+
+  <rect width="600" height="780" fill="#FFFFFF" />
+
+  <!-- Outer Card Shell -->
+  <rect x="24" y="24" width="552" height="732" rx="32" fill="#FAFAFA" stroke="#E4E4E7" stroke-width="2" />
+
+  <!-- Top Brand Accent Bar clipped cleanly inside card corners -->
+  <g clip-path="url(#table-card-clip)">
+    <rect x="24" y="24" width="552" height="12" fill="${contrast.primary}" />
+  </g>
 
   <!-- Venue Identity -->
-  <text x="300" y="108" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="30" font-weight="600" letter-spacing="-0.6" fill="#09090B">${venueNameEsc}</text>
-  <text x="300" y="142" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="15" font-weight="400" fill="#71717A">${taglineEsc}</text>
+  <text x="300" y="102" text-anchor="middle" font-family="${fontStack}" font-size="30" font-weight="700" letter-spacing="-0.4" fill="#09090B">${venueNameEsc}</text>
+  <text x="300" y="138" text-anchor="middle" font-family="${fontStack}" font-size="15" font-weight="400" fill="#71717A">${taglineEsc}</text>
 
-  <!-- Table / Action Badge -->
-  <rect x="200" y="176" width="200" height="36" rx="18" fill="${contrast.primary}" />
-  <text x="300" y="199" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600" letter-spacing="1.4" fill="${contrast.foreground}">${tableLabel}</text>
+  <!-- Table / Action Pill -->
+  <rect x="195" y="168" width="210" height="38" rx="19" fill="${contrast.primary}" />
+  <text x="300" y="192" text-anchor="middle" font-family="${fontStack}" font-size="13" font-weight="700" letter-spacing="1.1" fill="${contrast.foreground}">${tableLabel}</text>
 
-  <!-- Telegram-Style Rounded QR Sticker Frame -->
-  <rect x="116" y="248" width="368" height="368" rx="34" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="2" />
-  <svg x="142" y="274" width="316" height="316" viewBox="${viewBox}">
+  <!-- Elevated Telegram-Style Rounded QR Card -->
+  <g filter="url(#qr-card-shadow)">
+    <rect x="108" y="236" width="384" height="384" rx="38" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1.5" />
+  </g>
+  <svg x="136" y="264" width="328" height="328" viewBox="${viewBox}">
     ${innerSvg}
   </svg>
 
-  <!-- Instructions -->
-  <text x="300" y="672" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-size="17" font-weight="500" fill="#18181B">Point your camera to browse the menu</text>
-  <line x1="180" y1="712" x2="420" y2="712" stroke="#E4E4E7" stroke-width="1.5" />
-  <text x="300" y="752" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#71717A">${displayUrl}</text>
+  <!-- Bottom Scan Prompt (No URL clutter) -->
+  <text x="300" y="684" text-anchor="middle" font-family="${fontStack}" font-size="17" font-weight="600" fill="#18181B">${escapeXml(instructionText)}</text>
 </svg>`;
 }

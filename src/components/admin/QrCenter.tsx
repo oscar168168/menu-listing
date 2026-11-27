@@ -148,6 +148,7 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
     const params = new URLSearchParams({
       format,
       origin,
+      locale,
     });
     if (table?.trim()) params.set("table", table.trim());
     return `/api/admin/qr?${params.toString()}`;
@@ -198,7 +199,7 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
       await downloadSvgAsPng(
         svgText,
         1200,
-        1680,
+        1560,
         `table-card-${suffix}.png`
       );
     } catch (err) {
@@ -379,12 +380,12 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
 
           {/* Printable Table-Card Preview */}
           <div className="flex flex-col items-center justify-between rounded-lg border border-zinc-200 bg-[#FAFAFA] p-4">
-            <div className="w-full max-w-[270px] overflow-hidden rounded-2xl border border-zinc-200 bg-white text-center">
+            <div className="w-full max-w-[280px] overflow-hidden rounded-3xl border border-zinc-200 bg-white text-center shadow-sm">
               <div
-                className="h-2 w-full"
+                className="h-2.5 w-full"
                 style={{ backgroundColor: contrast.primary }}
               />
-              <div className="px-5 py-5">
+              <div className="px-5 py-6">
                 {tenant.logoUrl && (
                   <img
                     src={tenant.logoUrl}
@@ -392,7 +393,7 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
                     className="mx-auto mb-2.5 h-8 w-8 rounded border border-zinc-200 object-contain p-0.5"
                   />
                 )}
-                <p className="truncate text-[16px] font-semibold tracking-[-0.02em] text-zinc-950">
+                <p className="truncate text-[16px] font-bold tracking-[-0.02em] text-zinc-950">
                   {venueName}
                 </p>
                 <p className="mt-0.5 truncate text-[11px] text-zinc-500">
@@ -401,7 +402,7 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
 
                 <div className="mt-3">
                   <span
-                    className="inline-block rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                    className="inline-block rounded-full px-3.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em]"
                     style={{
                       backgroundColor: contrast.primary,
                       color: contrast.foreground,
@@ -413,7 +414,7 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
                   </span>
                 </div>
 
-                <div className="mx-auto mt-3.5 w-40 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-1.5">
+                <div className="mx-auto mt-4 w-44 overflow-hidden rounded-[22px] border border-zinc-200/80 bg-white p-2 shadow-[0_6px_18px_rgba(0,0,0,0.06)]">
                   <img
                     src={tableCardQrDataUrl}
                     alt="Table card QR"
@@ -421,12 +422,8 @@ export function QrCenter({ locale, tenant, onNotify }: QrCenterProps) {
                   />
                 </div>
 
-                <p className="mt-3 text-[11px] font-medium text-zinc-700">
+                <p className="mt-4 text-[12px] font-semibold text-zinc-800">
                   {t.qrCardInstruction}
-                </p>
-                <p className="mt-1 truncate font-mono text-[10px] text-zinc-400">
-                  /m/{tenant.slug}
-                  {tableCode.trim() ? `?table=${tableCode.trim()}` : ""}
                 </p>
               </div>
             </div>

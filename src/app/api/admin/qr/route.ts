@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const format = searchParams.get("format") ?? "svg";
   const tableCode = searchParams.get("table")?.trim() || undefined;
+  const localeParam = searchParams.get("locale") === "en" ? "en" : "km";
   const origin =
     searchParams.get("origin")?.trim() ||
     request.nextUrl.origin ||
@@ -49,12 +50,21 @@ export async function GET(request: NextRequest) {
 
   if (format === "card") {
     const meta = parseTenantMeta(tenant.metaJson);
+    const venueName =
+      localeParam === "en"
+        ? tenant.nameEn || tenant.name
+        : tenant.nameKm || tenant.name;
+    const tagline =
+      localeParam === "en"
+        ? meta.taglineEn || meta.tagline || meta.taglineKm
+        : meta.taglineKm || meta.taglineEn || meta.tagline;
     const cardSvg = await generatePrintableTableCardSvg({
-      venueName: tenant.nameKm || tenant.name,
-      tagline: meta.taglineKm || meta.tagline,
+      venueName,
+      tagline,
       url: targetUrl,
       primaryColor: tenant.primaryColor,
       tableCode,
+      locale: localeParam,
     });
     return new NextResponse(cardSvg, {
       status: 200,
